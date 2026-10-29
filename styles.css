@@ -813,7 +813,10 @@ h1, h2 { letter-spacing: -0.02em; }
   font-size: 12px; font-weight: 600; color: var(--muted);
 }
 .lock-when { margin-left: auto; color: var(--text); }
-.flip-clock { display: inline-flex; align-items: center; gap: 2px; perspective: 80px; }
+.flip-clock { display: inline-flex; align-items: flex-start; gap: 7px; perspective: 80px; }
+.fc-unit { display: grid; justify-items: center; gap: 2px; }
+.fc-digits { display: inline-flex; gap: 2px; }
+.fc-unit small { font-size: 7.5px; font-weight: 800; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
 .flip-clock i {
   position: relative; display: grid; place-items: center; width: 11px; height: 17px; border-radius: 3px;
   font-style: normal; font-size: 11.5px; font-weight: 800; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums;
@@ -821,9 +824,6 @@ h1, h2 { letter-spacing: -0.02em; }
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.35);
 }
 .flip-clock i::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 0, 0, 0.45); }
-.flip-clock b { font-size: 11px; font-weight: 800; color: var(--faint); margin: 0 -1px; }
-.flip-clock b.unit { margin: 0 0 0 1px; color: var(--muted); }
-.flip-clock .gap { width: 4px; }
 .flip-clock.soon i { color: var(--accent); }
 .flip-clock i.flip { animation: tile-flip 0.4s cubic-bezier(0.3, 0.7, 0.4, 1); }
 @keyframes tile-flip { from { transform: rotateX(80deg); filter: brightness(1.5); } to { transform: none; filter: none; } }

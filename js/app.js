@@ -636,21 +636,26 @@ function renderLockBar() {
   return `
     <div class="lock-bar">
       <span class="lock-label">Picks lock in</span>
-      <span class="flip-clock ${ms < 3_600_000 ? 'soon' : ''}" data-until="${Number(cutoff)}">${clockTiles(clockText(ms))}</span>
+      <span class="flip-clock ${ms < 3_600_000 ? 'soon' : ''}" data-until="${Number(cutoff)}">${clockTiles(ms)}</span>
       <span class="lock-when">${esc(`${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}`)}</span>
     </div>`;
 }
 
-function clockText(ms) {
+// Countdown units, biggest first, dropping leading zero units: [value, label].
+function clockParts(ms) {
   const total = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(total / 86400);
-  const h = Math.floor((total % 86400) / 3600);
-  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
-  const ss = String(total % 60).padStart(2, '0');
-  if (days) return `${days}d ${String(h).padStart(2, '0')}:${mm}:${ss}`;
-  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  const parts = [
+    [Math.floor(total / 86400), 'days'],
+    [Math.floor((total % 86400) / 3600), 'hrs'],
+    [Math.floor((total % 3600) / 60), 'min'],
+    [total % 60, 'sec'],
+  ];
+  const first = parts.findIndex(([v], i) => v > 0 || i >= 2);
+  return parts.slice(first).map(([v, label]) => [String(v).padStart(2, '0'), label]);
 }
-const clockTiles = (text) => [...text].map((c) => (c === ':' ? '<b>:</b>' : c === 'd' ? '<b class="unit">d</b>' : c === ' ' ? '<span class="gap"></span>' : `<i>${c}</i>`)).join('');
+// Each unit is a pair of flip tiles with its label underneath.
+const clockTiles = (ms) => clockParts(ms).map(([digits, label]) => `
+  <span class="fc-unit"><span class="fc-digits">${[...digits].map((d) => `<i>${d}</i>`).join('')}</span><small>${label}</small></span>`).join('');
 
 function tickClocks() {
   for (const el of $app.querySelectorAll('.flip-clock')) {
@@ -660,12 +665,11 @@ function tickClocks() {
       openIfTracking();
       return;
     }
-    const text = clockText(ms);
     el.classList.toggle('soon', ms < 3_600_000);
     const tiles = el.querySelectorAll('i');
-    const digits = text.replace(/\D/g, '');
+    const digits = clockParts(ms).map(([d]) => d).join('');
     if (tiles.length !== digits.length) {
-      el.innerHTML = clockTiles(text);
+      el.innerHTML = clockTiles(ms);
       continue;
     }
     // Only the digits that changed flip.
