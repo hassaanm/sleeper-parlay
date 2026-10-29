@@ -92,8 +92,11 @@ export async function updateSlip(id, mutate) {
 
 export const deleteSlip = (id) => backend.remove(id);
 
-// Polls for changes. Local mode also listens for edits from other tabs.
-export function watchSlip(id, onChange, intervalMs = 4000) {
+// Watches for changes. With Firebase, the database pushes each change over one open
+// connection (Server-Sent Events), so there is no steady polling. A slow check, plus one
+// whenever the tab comes back into view, covers a dropped connection. Local mode
+// listens for edits from other tabs.
+export function watchSlip(id, onChange, fallbackMs = 60_000) {
   let lastRev = null;
   const check = async () => {
     try {
@@ -103,16 +106,24 @@ export function watchSlip(id, onChange, intervalMs = 4000) {
         onChange(slip);
       }
     } catch {
-      // Network blip; the next poll will catch up.
+      // Network blip; the next push or check will catch up.
     }
   };
-  const timer = setInterval(check, intervalMs);
+  const visible = () => document.visibilityState === 'visible';
+  const timer = setInterval(() => visible() && check(), fallbackMs);
+  const onVisible = () => visible() && check();
+  document.addEventListener('visibilitychange', onVisible);
   const onStorage = (e) => e.key === localBackend.key(id) && check();
   window.addEventListener('storage', onStorage);
+  // EventSource reconnects on its own after a network drop.
+  const stream = backend === firebaseBackend ? new EventSource(firebaseBackend.url(id)) : null;
+  stream?.addEventListener('put', check);
+  stream?.addEventListener('patch', check);
   check();
   return () => {
     clearInterval(timer);
+    stream?.close();
+    document.removeEventListener('visibilitychange', onVisible);
     window.removeEventListener('storage', onStorage);
   };
 }
-

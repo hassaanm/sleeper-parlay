@@ -29,4 +29,4 @@ GitHub Pages serves the repository root from the `main` branch. There is no buil
 
 ## Storage
 
-Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. Saves use ETag compare-and-swap, and open pages poll every 4 seconds. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.
+Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. Saves use ETag compare-and-swap. Open pages get changes pushed over Server-Sent Events, with a 60-second fallback check. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.
