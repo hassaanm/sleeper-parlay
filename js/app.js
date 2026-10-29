@@ -628,7 +628,8 @@ function renderWhoAreYou(current) {
         return `
         <button class="who-row ${m.id === current?.id ? 'current' : ''}" data-action="be" data-id="${esc(m.id)}">
           ${avatar(m, 32)}
-          <span class="who-name"><strong>${esc(m.name)}</strong>${pick ? `<small class="who-pick">${esc(pretty(pick.label))}</small>` : m.teamName ? `<small>${esc(m.teamName)}</small>` : ''}</span>
+          <span class="who-name"><strong>${esc(m.name)}</strong>${m.teamName ? `<small>${esc(m.teamName)}</small>` : ''}</span>
+          ${pick ? `<span class="pill pill-good">${esc(pretty(pick.label))}</span>` : '<span class="chev">›</span>'}
         </button>`;
       }).join('')}
     </div>
