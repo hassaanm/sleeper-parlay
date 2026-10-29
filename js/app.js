@@ -137,7 +137,6 @@ async function loadLines() {
 // "?demo" gives about half your league mates a random leg, following the same
 // conflict rules. Handy while slips live in localStorage.
 async function seedDemoPicks() {
-  history.replaceState(null, '', location.pathname); // so a reload doesn't seed again
   const shuffle = (list) => list.map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(([, x]) => x);
   // Moneylines and main spread/total lines only, so the demo looks like real picks.
   const open = state.games

@@ -1,3 +1,3 @@
 // Firebase Realtime Database URL, e.g. "https://parlay-pool-default-rtdb.firebaseio.com".
 // Leave it empty to keep slips in this browser only (handy for local prototyping).
-export const FIREBASE_DB_URL = '';
+export const FIREBASE_DB_URL = 'https://parlay-picker-b8aa0-default-rtdb.firebaseio.com';

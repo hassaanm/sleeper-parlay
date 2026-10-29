@@ -12,7 +12,7 @@ python3 serve.py
 
 Open http://localhost:5173/<leagueId>, for example http://localhost:5173/1365380346513723392. `serve.py` serves `index.html` for league paths. On GitHub Pages, `404.html` (a copy of `index.html`) does the same job, so keep the two files in sync.
 
-Slips are saved in this browser's localStorage for now. Open two tabs to act as two friends.
+Slips are shared through Firebase, so everyone in the league sees the same picks.
 
 ## How it works
 
@@ -29,4 +29,4 @@ GitHub Pages serves the repository root from the `main` branch. There is no buil
 
 ## Storage
 
-Not decided yet. `js/store.js` has a localStorage backend and a Firebase REST backend behind one interface, so a new backend only needs `get`, `put`, and `remove`.
+Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. Saves use ETag compare-and-swap, and open pages poll every 4 seconds. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.

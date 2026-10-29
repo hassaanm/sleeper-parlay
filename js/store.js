@@ -49,7 +49,10 @@ const firebaseBackend = {
   },
 };
 
-const backend = FIREBASE_DB_URL ? firebaseBackend : localBackend;
+// ?demo fills in fake picks, so it always runs on this browser's own copy and never
+// touches the league's shared slip.
+const demo = new URLSearchParams(location.search).has('demo');
+const backend = FIREBASE_DB_URL && !demo ? firebaseBackend : localBackend;
 export const storageMode = backend.mode;
 
 // Firebase drops empty objects, so normalize on every read.
