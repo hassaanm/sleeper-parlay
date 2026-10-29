@@ -621,16 +621,14 @@ function renderWhoAreYou(current) {
   <main class="who">
     <div class="who-head">
       <h1>Who’s picking?</h1>
-      <p class="muted">Tap your name. We’ll remember you on this phone.</p>
     </div>
     <div class="who-list">
       ${state.slip.members.map((m) => {
         const pick = picks()[m.id];
         return `
         <button class="who-row ${m.id === current?.id ? 'current' : ''}" data-action="be" data-id="${esc(m.id)}">
-          ${avatar(m, 44)}
-          <span class="who-name"><strong>${esc(m.name)}</strong>${m.teamName ? `<small>${esc(m.teamName)}</small>` : ''}</span>
-          ${pick ? `<span class="pill pill-good">${esc(pretty(pick.label))}</span>` : '<span class="chev">›</span>'}
+          ${avatar(m, 32)}
+          <span class="who-name"><strong>${esc(m.name)}</strong>${pick ? `<small class="who-pick">${esc(pretty(pick.label))}</small>` : m.teamName ? `<small>${esc(m.teamName)}</small>` : ''}</span>
         </button>`;
       }).join('')}
     </div>
