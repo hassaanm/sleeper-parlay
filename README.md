@@ -21,6 +21,7 @@ Slips are shared through Firebase, so everyone in the league sees the same picks
 - **Lines:** `GET https://api.sleeper.app/predictions/events/lobby` gives each NFL game (moneyline) plus its main spread and total. `GET /predictions/events?ids=...` gives every alternate line. Prices are cents; the UI shows American odds.
 - **Conflicts:** one leg per game and bet type (moneyline, spread, total).
 - **Saving:** every save reads the latest slip, re-checks conflicts, then writes.
+- **Admin:** open `/<leagueId>?admin` and enter the password (its SHA-256 is `ADMIN_PASSWORD_SHA256` in `js/config.js`). Set a pick deadline at any kickoff time, lock or unlock picks, remove picks, or pick for someone. Games that kick off before the deadline can't be picked, and moving the deadline later removes picks on those games. Picks lock on their own when the deadline passes. This keeps casual visitors out; it is not real security.
 - **Demo:** add `?demo` to a league URL to fill in picks for half the league, so you can try different states.
 
 ## Hosting

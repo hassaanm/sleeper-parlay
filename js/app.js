@@ -4,6 +4,7 @@ import * as sports from './sports.js';
 import { matchupColors, TEAM_COLORS } from './teams.js';
 import { buildLeague, commonOpponents, headToHead, recordOf, resume, winChains } from './research.js';
 import { americanOdds, buildGames, indexOptions, multiplierToAmerican, weekWindowAt } from './lines.js';
+import { ADMIN_PASSWORD_SHA256 } from './config.js';
 
 const $app = document.getElementById('app');
 
@@ -35,6 +36,10 @@ const state = {
   showStarted: false,
   busyKey: null,
   facesHold: null, // faces order kept while your avatar flies into the slip
+  // Admin page ("?admin"): unlocked for this tab once the password matches. While the
+  // admin picks on someone's behalf, `acting` holds who, and who to switch back to.
+  admin: { route: new URLSearchParams(location.search).has('admin'), authed: sessionGet('parlay:admin') === '1', error: null },
+  acting: null, // { id, prevMe }
   oddsFormat: safeGet('parlay:odds') === 'pct' ? 'pct' : 'american',
   sheetOpen: false,
   // Nudge the closed slip once per visit so people notice it pulls up.
@@ -45,10 +50,21 @@ const state = {
 
 class UserError extends Error {}
 
+// Picks lock when the admin locks them by hand or when the deadline (settings.cutoff)
+// passes. Games that kick off before the deadline can't be picked: the parlay only
+// covers games that start after everyone is in.
+const slipLocked = (slip) => !!slip?.settings?.locked || (!!slip?.settings?.cutoff && Date.now() >= slip.settings.cutoff);
+const isLocked = () => slipLocked(state.slip);
+const startsBeforeCutoff = (slip, start) => !!slip?.settings?.cutoff && start < slip.settings.cutoff;
+const beforeCutoff = (game) => !!game && startsBeforeCutoff(state.slip, game.start);
+
 // ---------- helpers ----------
 
 function safeGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
+}
+function sessionGet(key) {
+  try { return sessionStorage.getItem(key); } catch { return null; }
 }
 function safeSet(key, value) {
   try { value == null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* private mode */ }
@@ -189,11 +205,13 @@ async function startSlip() {
       loadSports();
     }
     render();
+    openIfTracking();
   });
   setInterval(refreshLive, 60_000);
   // Prices move; refresh the full events every 45s and the lobby every 5 min.
   setInterval(() => document.visibilityState === 'visible' && loadLines(), 45_000);
   setInterval(() => (state.lobby = null), 5 * 60_000);
+  setInterval(tickClocks, 1000);
 }
 
 // This week's games (TV, weather, live scores) and every team's record, streak, and
@@ -205,14 +223,18 @@ async function loadSports() {
     const [games, results] = await Promise.all([sports.loadWeek(season, week), sports.loadSeasonResults(season, week)]);
     state.sports = { games, teams: sports.summarizeTeams(results) };
     render();
-    // Once the parlay is underway, open straight into the slip to follow along.
-    if (!state.trackOpened && isTracking(legsWithLive())) {
-      state.trackOpened = true;
-      setSlip(true);
-    }
+    openIfTracking();
   } catch {
     // Records and weather are extras; the slip works without them.
   }
+}
+
+// Once picks lock or the parlay is underway, open straight into the slip to follow
+// along (once per visit; it can still be slid down to see the board).
+function openIfTracking() {
+  if (state.trackOpened || !state.sports || state.admin.route || !isTracking(legsWithLive())) return;
+  state.trackOpened = true;
+  setSlip(true);
 }
 
 // Your Sleeper user ID is the same in every league, so one remembered choice
@@ -254,7 +276,7 @@ async function ensureCurrentSlip() {
   }
   await store.updateSlip(state.slipId, (slip) => {
     if (slip.weekEnd > Date.now()) return; // someone else already rolled it
-    Object.assign(slip, fresh, { settings: { ...slip.settings, locked: false } });
+    Object.assign(slip, fresh, { settings: { ...slip.settings, locked: false, cutoff: null } });
   });
 }
 
@@ -268,7 +290,8 @@ async function choose(key) {
   const game = state.games.find((g) => g.id === opt.gameId);
   const known = clashFor(state.slip, state.me, opt);
   if (known) return toast(`${memberById(known.userId)?.name ?? 'Someone'} already has ${known.pick.label}.`, 'bad');
-  if (state.slip.settings.locked) return toast('Picks are locked for this week.', 'bad');
+  if (isLocked() && !state.acting) return toast('Picks are locked for this week.', 'bad');
+  if (beforeCutoff(game)) return toast('That game starts before picks lock.', 'bad');
   if (game?.locked || !opt.available) return toast('That line is closed.', 'bad');
 
   const from = $app.querySelector(`.cell[data-key="${key}"]`)?.getBoundingClientRect();
@@ -278,7 +301,8 @@ async function choose(key) {
   render();
   try {
     state.slip = await store.updateSlip(state.slipId, (slip) => {
-      if (slip.settings.locked) throw new UserError('Picks are locked for this week.');
+      if (slipLocked(slip) && !state.acting) throw new UserError('Picks are locked for this week.');
+      if (startsBeforeCutoff(slip, game.start)) throw new UserError('That game starts before picks lock.');
       const clash = clashFor(slip, state.me, opt);
       if (clash) {
         const who = slip.members.find((m) => m.id === clash.userId)?.name ?? 'Someone';
@@ -566,12 +590,15 @@ function renderSlipPage() {
   if (state.slip === null) {
     return `<main class="center"><div class="card narrow"><h2>Couldn’t open this league</h2><p class="muted">${esc(state.loadError ?? 'Something went wrong.')}</p><a class="btn btn-primary" href="${basePath}">Try another league</a></div></main>`;
   }
+  if (state.admin.route && !state.acting) return renderTopbar(null) + renderAdmin();
   const me = memberById(state.me);
   if (!me || state.switchingUser) return renderTopbar(null) + renderWhoAreYou(me);
 
   return `
+    ${renderActingBar()}
     ${renderTopbar(me)}
     ${renderSubbar()}
+    ${renderLockBar()}
     <div class="layout">
       <main class="games">${renderGames()}</main>
       <aside class="parlay-side">${renderParlayCard()}</aside>
@@ -589,7 +616,7 @@ function renderTopbar(me) {
       ${avatar(slip.league, 34, 'league-avatar')}
       <div class="topbar-text">
         <strong>${esc(slip.league.name)}</strong>
-        <small>Week ${esc(slip.week)} · ${legCount} ${legCount === 1 ? 'leg' : 'legs'}${slip.settings.locked ? ' · 🔒 Locked' : ''}</small>
+        <small>Week ${esc(slip.week)} · ${legCount} ${legCount === 1 ? 'leg' : 'legs'}${isLocked() ? ' · 🔒 Locked' : ''}</small>
       </div>
     </div>
     ${me ? `
@@ -598,6 +625,58 @@ function renderTopbar(me) {
         ${avatar(me, 34)}
       </button>` : ''}
   </header>`;
+}
+
+// Countdown to the pick deadline, as flip-clock tiles. tickClocks updates it every
+// second without a re-render; at zero the page re-renders locked.
+function renderLockBar() {
+  const cutoff = state.slip.settings.cutoff;
+  if (!cutoff || isLocked()) return '';
+  const ms = cutoff - Date.now();
+  return `
+    <div class="lock-bar">
+      <span class="lock-label">Picks lock in</span>
+      <span class="flip-clock ${ms < 3_600_000 ? 'soon' : ''}" data-until="${Number(cutoff)}">${clockTiles(clockText(ms))}</span>
+      <span class="lock-when">${esc(`${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}`)}</span>
+    </div>`;
+}
+
+function clockText(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const h = Math.floor((total % 86400) / 3600);
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  if (days) return `${days}d ${String(h).padStart(2, '0')}:${mm}:${ss}`;
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+const clockTiles = (text) => [...text].map((c) => (c === ':' ? '<b>:</b>' : c === 'd' ? '<b class="unit">d</b>' : c === ' ' ? '<span class="gap"></span>' : `<i>${c}</i>`)).join('');
+
+function tickClocks() {
+  for (const el of $app.querySelectorAll('.flip-clock')) {
+    const ms = Number(el.dataset.until) - Date.now();
+    if (ms <= 0) {
+      render();
+      openIfTracking();
+      return;
+    }
+    const text = clockText(ms);
+    el.classList.toggle('soon', ms < 3_600_000);
+    const tiles = el.querySelectorAll('i');
+    const digits = text.replace(/\D/g, '');
+    if (tiles.length !== digits.length) {
+      el.innerHTML = clockTiles(text);
+      continue;
+    }
+    // Only the digits that changed flip.
+    tiles.forEach((tile, i) => {
+      if (tile.textContent === digits[i]) return;
+      tile.textContent = digits[i];
+      tile.classList.remove('flip');
+      void tile.offsetWidth; // restart the animation
+      tile.classList.add('flip');
+    });
+  }
 }
 
 function renderSubbar() {
@@ -613,6 +692,113 @@ function renderSubbar() {
       <button class="${state.oddsFormat === 'pct' ? 'on' : ''}" data-action="odds" data-id="pct">%</button>
     </div>
   </nav>`;
+}
+
+// ---------- admin ----------
+
+// "<league URL>?admin": set the pick deadline, lock or unlock picks, and fix anyone's
+// pick. The password only keeps casual visitors out.
+function renderAdmin() {
+  if (!state.admin.authed) {
+    return `
+    <main class="who">
+      <form data-form="admin-login" class="card admin-login">
+        <h1>Admin</h1>
+        <input id="admin-password" class="input" type="password" placeholder="Password" autocomplete="current-password">
+        ${state.admin.error ? `<p class="error">${esc(state.admin.error)}</p>` : ''}
+        <button class="btn btn-primary btn-block">Unlock</button>
+      </form>
+    </main>`;
+  }
+  const { cutoff, locked } = state.slip.settings;
+  const when = (t) => `${shortDayFmt.format(t)} ${timeFmt.format(t)}`;
+  const status = locked ? '🔒 Locked by you. Nobody can change picks.'
+    : isLocked() ? `🔒 Locked since ${when(cutoff)}.`
+      : cutoff ? `Picks lock ${when(cutoff)}. Games before then can’t be picked.`
+        : 'No deadline. Each game closes at its own kickoff.';
+  // Deadline choices: every kickoff time still ahead this week.
+  const kickoffs = new Map();
+  for (const g of state.games.filter((game) => game.start > Date.now()).sort((a, b) => a.start - b.start)) {
+    if (!kickoffs.has(g.start)) kickoffs.set(g.start, []);
+    kickoffs.get(g.start).push(g);
+  }
+  const option = (id, label, sub, on) => `
+    <button class="adm-opt ${on ? 'on' : ''}" data-action="admin-cutoff" data-id="${id}">${esc(label)}<small>${esc(sub)}</small></button>`;
+  const options = [...kickoffs].map(([start, games]) => option(start, `Before ${when(start)}`, games.length === 1 ? games[0].matchup : `${games.length} games`, cutoff === start)).join('')
+    + option('none', 'No deadline', 'Each game at kickoff', !cutoff);
+
+  const rows = state.slip.members.map((m) => {
+    const pick = picks()[m.id];
+    return `
+      <div class="adm-row">
+        ${avatar(m, 28)}
+        <span class="adm-who"><strong>${esc(m.name)}</strong><small>${pick ? `${esc(pretty(pick.label))} · ${esc(pick.matchup)}` : 'No pick'}</small></span>
+        <button class="adm-btn" data-action="admin-act" data-id="${esc(m.id)}">${pick ? 'Change' : 'Pick for'}</button>
+        ${pick ? `<button class="adm-btn danger" data-action="admin-remove" data-id="${esc(m.id)}">Remove</button>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <main class="who admin">
+      <div class="cmp">
+        <div class="card-head"><span>Pick deadline</span></div>
+        <p class="adm-status">${esc(status)}</p>
+        <div class="adm-opts">${options}</div>
+        <button class="btn btn-block ${isLocked() ? 'btn-primary' : ''} adm-lock" data-action="${isLocked() ? 'admin-unlock' : 'admin-lock'}">${isLocked() ? 'Unlock picks' : 'Lock picks now'}</button>
+      </div>
+      <div class="cmp">
+        <div class="card-head"><span>Picks</span><small>${Object.keys(picks()).length} of ${state.slip.members.length}</small></div>
+        ${rows}
+      </div>
+      <a class="btn btn-ghost btn-block adm-board" href="${basePath}${esc(state.slipId)}">Open the board</a>
+    </main>`;
+}
+
+// Shown while the admin picks for someone else.
+function renderActingBar() {
+  if (!state.acting) return '';
+  return `
+    <div class="acting-bar">
+      <span>Picking for <b>${esc(memberById(state.acting.id)?.name ?? '')}</b></span>
+      <button class="adm-btn" data-action="acting-done">Done</button>
+    </div>`;
+}
+
+async function adminLogin() {
+  const input = document.getElementById('admin-password')?.value ?? '';
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  const hex = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  state.admin.authed = hex === ADMIN_PASSWORD_SHA256;
+  state.admin.error = state.admin.authed ? null : 'Wrong password.';
+  if (state.admin.authed) {
+    try { sessionStorage.setItem('parlay:admin', '1'); } catch { /* private mode */ }
+  }
+  render();
+}
+
+async function adminUpdate(mutate, message) {
+  try {
+    state.slip = await store.updateSlip(state.slipId, mutate);
+    toast(message, 'good');
+  } catch (e) {
+    toast(e.message, 'bad');
+  }
+  render();
+}
+
+// A new deadline reopens picks and drops picks on games that kick off before it
+// (for example, Thursday picks when the deadline moves to Sunday).
+async function setCutoff(cutoff) {
+  const doomed = Object.entries(picks()).filter(([, p]) => cutoff && p.start < cutoff);
+  if (doomed.length) {
+    const list = doomed.map(([id, p]) => `${memberById(id)?.name ?? 'Someone'}: ${p.label}`).join('\n');
+    if (!confirm(`This removes ${doomed.length} ${doomed.length === 1 ? 'pick' : 'picks'} on games before then:\n${list}`)) return;
+  }
+  await adminUpdate((slip) => {
+    slip.settings.cutoff = cutoff;
+    slip.settings.locked = false;
+    for (const [id, p] of Object.entries(slip.picks)) if (cutoff && p.start < cutoff) delete slip.picks[id];
+  }, cutoff ? `Picks lock ${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}` : 'Deadline removed');
 }
 
 function renderWhoAreYou(current) {
@@ -803,9 +989,10 @@ function renderGame(game) {
   }
 
   return `
-  <article class="game ${takers.some((t) => t.mine) ? 'has-mine' : ''}">
+  <article class="game ${takers.some((t) => t.mine) ? 'has-mine' : ''} ${beforeCutoff(game) ? 'before-cutoff' : ''}">
     <div class="g-meta">${gameMeta(game)}</div>
     <div class="g-grid">${html}</div>
+    ${beforeCutoff(game) ? '<p class="g-note">🔒 Kicks off before picks lock</p>' : ''}
   </article>`;
 }
 
@@ -849,7 +1036,8 @@ function cell(opt, type, area, cellId) {
   const mine = holderId && holderId === state.me;
   const holder = holderId && !mine ? memberById(holderId) : null;
   const blocked = !mine && !holder && clashFor(state.slip, state.me, opt);
-  const disabled = !mine && (!!holder || !!blocked || !opt.available || state.slip.settings.locked);
+  const early = beforeCutoff(state.games.find((g) => g.id === opt.gameId));
+  const disabled = !mine && (!!holder || !!blocked || !opt.available || early || (isLocked() && !state.acting));
   const main = signed(type === 'ml' ? fmtOdds(opt.price) : type === 'spread' ? fmtLine(opt.line) : `${opt.key.endsWith(':yes') ? 'O' : 'U'} ${opt.line}`);
   const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked', state.busyKey === opt.key && 'busy'].filter(Boolean).join(' ');
   return `
@@ -1323,7 +1511,7 @@ const chevron = (dir) =>
 
 // Once the first leg's game kicks off (or the slip is locked), the slip switches to
 // tracking: live scores, live chances, and hit/miss as games finish.
-const isTracking = (legs) => !!state.slip?.settings.locked || legs.some((l) => l.status && l.status.state !== 'pre');
+const isTracking = (legs) => isLocked() || legs.some((l) => l.status && l.status.state !== 'pre');
 
 // The slip's top row (also the peek when it's closed): who's in, or once tracking, a
 // tally of hits, misses, and live legs; then your leg and the open/close chevron.
@@ -1421,7 +1609,7 @@ function parlayLegs() {
         </div>
         <div class="leg-right">
           <span class="leg-odds">${fmtOdds(l.price)}</span>
-          ${isMine && !state.slip.settings.locked
+          ${isMine && (!isLocked() || state.acting)
             ? '<button class="leg-who leg-remove" data-action="remove-mine">Remove</button>'
             : `<span class="leg-who">${isMine ? 'You' : esc(l.member.name)}</span>`}
         </div>
@@ -1636,6 +1824,30 @@ $app.addEventListener('click', (e) => {
       return document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     case 'close-sheet': return setSlip(false);
     case 'remove-mine': return removeMine();
+    case 'admin-cutoff': return setCutoff(id === 'none' ? null : Number(id));
+    case 'admin-lock': return adminUpdate((slip) => (slip.settings.locked = true), 'Picks locked');
+    case 'admin-unlock':
+      // Unlocking after the deadline passed clears it; pick a new one to lock again.
+      return adminUpdate((slip) => {
+        slip.settings.locked = false;
+        if (slipLocked(slip)) slip.settings.cutoff = null;
+      }, 'Picks unlocked');
+    case 'admin-remove': {
+      const pick = picks()[id];
+      if (!pick || !confirm(`Remove ${memberById(id)?.name}’s pick (${pick.label})?`)) return;
+      return adminUpdate((slip) => delete slip.picks[id], 'Pick removed');
+    }
+    case 'admin-act':
+      state.acting = { id, prevMe: state.me };
+      state.me = id;
+      window.scrollTo(0, 0);
+      return render();
+    case 'acting-done':
+      state.me = state.acting.prevMe;
+      state.acting = null;
+      setSlip(false);
+      window.scrollTo(0, 0);
+      return render();
     case 'reload-lines':
       state.lobby = null;
       return loadLines();
@@ -1650,6 +1862,9 @@ $app.addEventListener('submit', (e) => {
   if (e.target.dataset.form === 'league') {
     e.preventDefault();
     landingGo();
+  } else if (e.target.dataset.form === 'admin-login') {
+    e.preventDefault();
+    adminLogin();
   }
 });
 
