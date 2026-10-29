@@ -195,6 +195,7 @@ async function startSlip() {
   // Prices move; refresh the full events every 45s and the lobby every 5 min.
   setInterval(() => document.visibilityState === 'visible' && loadLines(), 45_000);
   setInterval(() => (state.lobby = null), 5 * 60_000);
+  setInterval(tickClocks, 1000);
 }
 
 // This week's games (TV, weather, live scores) and every team's record, streak, and
@@ -716,7 +717,10 @@ const NETWORKS = [
 ];
 
 function tvBadges(tv) {
-  return tv.split(/[/,]/).map((name) => name.trim()).filter(Boolean).map((name) => {
+  const names = tv.split(/[/,]/).map((name) => name.trim()).filter(Boolean);
+  // NBC games also stream on Peacock; the NBC badge alone says enough.
+  const hasNbc = names.some((name) => /^nbc$/i.test(name));
+  return names.filter((name) => !(hasNbc && /peacock/i.test(name))).map((name) => {
     const match = NETWORKS.find(([re]) => re.test(name.toLowerCase()));
     if (!match) return `<span class="tv">${esc(name)}</span>`;
     const [, title, how] = match;
@@ -727,13 +731,10 @@ function tvBadges(tv) {
   }).join('');
 }
 
-// Kickoff time (the day is already in the section header), a countdown when it's
-// close, then TV and weather.
+// Kickoff time (the day is already in the section header), then TV and weather.
 function gameMeta(game, { research = true } = {}) {
   const info = state.sports?.games.get(`${game.away}@${game.home}`);
-  const mins = Math.round((game.start - Date.now()) / 60000);
   const items = [`<span class="meta-time">${esc(timeFmt.format(game.start))}</span>`];
-  if (mins > 0 && mins < 180) items.push(`<span class="meta-soon">in ${mins >= 60 ? `${Math.floor(mins / 60)}h ` : ''}${mins % 60}m</span>`);
   if (info?.tv) items.push(`<span class="tv-list">${tvBadges(info.tv)}</span>`);
   if (info?.dome) items.push('<span>🏟️ Dome</span>');
   else if (info?.weather) items.push(`<span title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)} ${esc(info.weather.temp)}°</span>`);
@@ -807,8 +808,52 @@ function renderGame(game) {
   return `
   <article class="game ${takers.some((t) => t.mine) ? 'has-mine' : ''}">
     <div class="g-meta">${gameMeta(game)}</div>
-    <div class="g-grid">${html}</div>
+    <div class="g-grid">${kickClock(game)}${html}</div>
   </article>`;
+}
+
+// Countdown to kickoff for games within a day, drawn as flip-clock tiles in the empty
+// corner above the team names. tickClocks updates it every second without a re-render.
+const CLOCK_WINDOW = 24 * 60 * 60_000;
+function clockText(ms) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const mm = String(Math.floor((total % 3600) / 60)).padStart(2, '0');
+  const ss = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+const clockTiles = (text) => [...text].map((c) => (c === ':' ? '<b>:</b>' : `<i>${c}</i>`)).join('');
+
+function kickClock(game) {
+  const ms = game.start - Date.now();
+  if (ms <= 0 || ms > CLOCK_WINDOW) return '';
+  return `<span class="kick-clock ${ms < 3_600_000 ? 'soon' : ''}" style="grid-area:1/2/2/3" data-start="${Number(game.start)}" title="Time to kickoff">${clockTiles(clockText(ms))}</span>`;
+}
+
+function tickClocks() {
+  for (const el of $app.querySelectorAll('.kick-clock')) {
+    const ms = Number(el.dataset.start) - Date.now();
+    if (ms <= 0) {
+      el.remove();
+      continue;
+    }
+    const text = clockText(ms);
+    el.classList.toggle('soon', ms < 3_600_000);
+    const tiles = el.querySelectorAll('i');
+    const digits = text.replace(/:/g, '');
+    if (tiles.length !== digits.length) {
+      el.innerHTML = clockTiles(text);
+      continue;
+    }
+    // Only the digits that changed flip.
+    tiles.forEach((tile, i) => {
+      if (tile.textContent === digits[i]) return;
+      tile.textContent = digits[i];
+      tile.classList.remove('flip');
+      void tile.offsetWidth; // restart the animation
+      tile.classList.add('flip');
+    });
+  }
 }
 
 // No-vig win chance for the away team, from the two moneylines.
