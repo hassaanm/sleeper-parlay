@@ -2,49 +2,57 @@
 // the same way for your picks and for friends' picks arriving live:
 //
 //   new pick            rolls in from behind the slip's left edge to its spot
-//   changed, same spot  a tiny hop in place
-//   changed, new spot   a big hop: up clear of the row, over, and down into its spot
+//   changed, same spot  squashes in place, a small "thud" as its sticker lands
+//   changed, new spot   jumps to its new spot on a real arc, higher for longer jumps
 //   removed             rolls off to the right and falls off the screen
 //
-// The other faces shuffle to their new spots alongside. New picks and hops start as
-// the pick's sticker hits its cell on the board (board.js), so the two feel connected.
+// The other faces shuffle to their new spots alongside. New picks and changes start
+// as the pick's sticker hits its cell on the board (board.js), so the two feel connected.
 //
-// Each face sits over the face to its left and under the face to its right. A hopping
-// face changes that place in the stack once, at the top of its hop, where it's clear
+// Each face sits over the face to its left and under the face to its right. A jumping
+// face changes that place in the stack once, at the top of its jump, where it's clear
 // of the row and nothing overlaps it, so the change never shows.
+//
+// Old positions are kept relative to the row: removing your leg shrinks the open slip
+// and moves the row, and the animations start from where the row is now.
 import { STICKER_SLAP_MS } from './ui.js';
 
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const IMPACT_MS = Math.round(STICKER_SLAP_MS * 0.58); // when a slapped sticker hits its cell
-const GRAVITY = 2600; // px/s²
+const GRAVITY = 2600; // px/s², for falls
+const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
 const ROLL_OFF_PX = 10; // rolled before tipping off the edge
 const ROLL_OFF_S = 0.2;
-// Jumps, big and tiny: total time, height, and how much it squashes before takeoff,
-// stretches in the air, and squashes on landing (fractions of its size).
-const BIG_JUMP = { ms: 900, height: 46, crouch: 0.24, stretch: 0.2, thud: 0.24 };
-const TINY_JUMP = { ms: 440, height: 9, crouch: 0.1, stretch: 0.06, thud: 0.1 };
-// How a jump's time splits: crouching, in the air, landing.
-const CROUCH = 0.18;
-const AIR = 0.6;
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
+const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
 // are both in the page, and the hidden one measures as 0x0 at the top left.
 const visibleRow = (root) => [...root.querySelectorAll('.slip-peek .faces')].find((f) => f.offsetWidth);
 const facesIn = (row) => [...row.querySelectorAll('[data-key]:not([data-transient])')];
 
-/** Before a render: every face in the showing row, member id -> { el, rect, pick }. */
+/**
+ * Before a render: every face in the showing row, member id -> { el, at, pick }, where
+ * `at` is its position relative to the row.
+ */
 export function captureFaces(root) {
   const row = visibleRow(root);
-  return row ? new Map(facesIn(row).map((el) => [el.dataset.key, { el, rect: el.getBoundingClientRect(), pick: el.dataset.pick }])) : null;
+  if (!row) return null;
+  const box = row.getBoundingClientRect();
+  return new Map(facesIn(row).map((el) => {
+    const r = el.getBoundingClientRect();
+    return [el.dataset.key, { el, at: { left: r.left - box.left, top: r.top - box.top, width: r.width, height: r.height }, pick: el.dataset.pick }];
+  }));
 }
 
 /** After a render: animate what changed since `before` (from captureFaces). */
 export function animateFaces(root, before) {
   const row = visibleRow(root);
   if (!before || !row || reducedMotion()) return;
+  const box = row.getBoundingClientRect();
   const after = new Map(facesIn(row).map((el) => [el.dataset.key, el]));
+  const spot = (el) => el.getBoundingClientRect().left - box.left; // where it sits now, in the row
   const oldOrder = [...before.keys()];
   const newOrder = [...after.keys()];
   // The face that sat to the right of `id` before this render and is still in the row.
@@ -57,22 +65,29 @@ export function animateFaces(root, before) {
   const added = newOrder.filter((id) => !before.has(id));
   const removed = oldOrder.filter((id) => !after.has(id));
   const changed = [...kept].filter((id) => before.get(id).pick !== after.get(id).dataset.pick);
-  const hops = changed.filter((id) => rank(oldOrder, id) !== rank(newOrder, id));
-  const tinyHops = changed.filter((id) => !hops.includes(id));
+  const jumpers = changed.filter((id) => rank(oldOrder, id) !== rank(newOrder, id));
+  const stayers = changed.filter((id) => !jumpers.includes(id));
 
-  // The others shuffle while an arriving face rolls in or a hopping face is in the
-  // air; for a removal alone, once the leaving face is off the edge.
-  const shuffleDelay = added.length || hops.length ? IMPACT_MS + (hops.length ? BIG_JUMP.ms * CROUCH : 0) : removed.length ? ROLL_OFF_S * 1000 : 0;
+  // How the others shuffle: during the jump's flight; or parting just ahead of a face
+  // rolling in; or, for a removal alone, once the leaving face is off the edge.
+  const jumps = new Map(jumpers.map((id) => [id, jumpFor(Math.abs(spot(after.get(id)) - before.get(id).at.left))]));
+  const rolls = new Map(added.map((id) => [id, rollFor(after.get(id))]));
+  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_S * 1000 : 0 };
+  for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
+  for (const roll of rolls.values()) {
+    const duration = Math.min(520, Math.max(320, roll.openAtMs));
+    shuffle = { duration, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + Math.max(0, roll.openAtMs - duration) };
+  }
 
-  for (const id of removed) rollOff(row, before.get(id), oldRightOf(id));
-  for (const id of added) rollIn(after.get(id), IMPACT_MS);
-  for (const id of hops) hop(row, after.get(id), before.get(id), oldRightOf(id), IMPACT_MS);
+  for (const id of removed) rollOff(row, box, before.get(id), oldRightOf(id));
+  for (const [id, roll] of rolls) rollIn(after.get(id), roll, IMPACT_MS);
+  for (const [id, jump] of jumps) jumpTo(row, box, after.get(id), before.get(id), oldRightOf(id), jump, IMPACT_MS);
   for (const id of newOrder) {
-    if (added.includes(id) || hops.includes(id)) continue;
+    if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
-    const dx = before.get(id).rect.left - el.getBoundingClientRect().left;
-    if (tinyHops.includes(id)) tinyHop(el, dx, IMPACT_MS);
-    else if (Math.abs(dx) > 0.5) el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...SHUFFLE, delay: shuffleDelay, fill: 'backwards' });
+    const dx = before.get(id).at.left - spot(el);
+    if (Math.abs(dx) > 0.5) el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...shuffle, fill: 'backwards' });
+    if (stayers.includes(id)) thud(el, IMPACT_MS);
   }
 }
 
@@ -89,103 +104,113 @@ function frames(at, from = 0, to = 1, steps = 48, origin) {
   });
 }
 
-// A jump with squash and stretch, at time t (0..1) of `jump` (BIG_JUMP or TINY_JUMP),
-// moving `dx` across: it crouches (squashing down and spreading wide), springs up
-// stretching tall and thin, rounds out at the top, stretches a little again coming
-// down, then lands with a thud: squashes flat, rebounds a touch tall, and settles.
-// Width moves opposite to height, so it seems to keep its volume. Scaled from its
-// bottom edge (JUMP_ORIGIN), so squashing presses it into the ground.
-const JUMP_ORIGIN = '50% 100%';
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOut = (t) => 1 - (1 - t) ** 2;
-function jumpPose(t, jump, dx = 0) {
-  const { height, crouch, stretch, thud } = jump;
-  let x = 0;
-  let y = 0;
-  let tall; // height scale; width follows
-  if (t < CROUCH) {
-    tall = 1 - crouch * easeOut(t / CROUCH);
-  } else if (t < CROUCH + AIR) {
-    const v = (t - CROUCH) / AIR;
-    x = dx * easeInOut(v);
-    y = -height * 4 * v * (1 - v);
-    // Fastest at takeoff and touchdown, so most stretched there; round at the top.
-    const airStretch = v < 0.5 ? stretch * (1 - v * 2) : stretch * 0.6 * (v * 2 - 1);
-    tall = v < 0.12 ? lerp(1 - crouch, 1 + airStretch, easeOut(v / 0.12)) : 1 + airStretch;
-  } else {
-    const w = (t - CROUCH - AIR) / (1 - CROUCH - AIR);
-    x = dx;
-    tall = w < 0.35 ? lerp(1 + stretch * 0.6, 1 - thud, easeOut(w / 0.35))
-      : w < 0.7 ? lerp(1 - thud, 1 + thud * 0.3, easeInOut((w - 0.35) / 0.35))
-        : lerp(1 + thud * 0.3, 1, easeInOut((w - 0.7) / 0.3));
-  }
-  return { x, y, scaleX: 1 - 0.8 * (tall - 1), scaleY: tall };
-}
-
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const degreesRolled = (distance, radius) => (distance / radius) * (180 / Math.PI);
+// Width moves opposite to height, so a squashed or stretched face keeps its volume.
+const squash = (tall) => ({ scaleX: 1 - 0.8 * (tall - 1), scaleY: tall });
 
-// A new face rolls in from behind the slip's left edge (the row is clipped there) and
-// coasts to a stop in its spot. Its turn is worked back from the spot, so it arrives
-// exactly upright. It passes over the faces to its left, which sit under it anyway.
-function rollIn(el, delay) {
-  const rect = el.getBoundingClientRect();
-  const curtain = el.closest('.slip-peek')?.getBoundingClientRect().left ?? 0;
-  const start = -(rect.right - curtain + 2); // just behind the slip's left edge
-  const duration = Math.min(1000, Math.max(520, 250 + Math.abs(start) * 0.9));
-  const radius = rect.width / 2;
-  el.animate(
-    frames((t) => {
-      const x = start * (1 - t) ** 2; // slowing to a stop
-      return { x, turn: degreesRolled(x, radius) };
-    }),
-    { duration, delay, fill: 'backwards', easing: 'linear' },
-  );
-}
-
-// A face whose pick changed but kept its spot does a tiny jump in place (drifting over
-// too, if someone else's change shifted the row).
-function tinyHop(el, dx, delay) {
-  el.animate(
-    frames((t) => {
-      const pose = jumpPose(t, TINY_JUMP, -dx);
-      return { ...pose, x: dx + pose.x }; // from where it was to its spot
-    }, 0, 1, 48, JUMP_ORIGIN),
-    { duration: TINY_JUMP.ms, delay, fill: 'backwards', easing: 'linear' },
-  );
-}
-
-// A face whose pick moved it hops from its old spot to its new one. The real face
-// takes off from its old place in the stack; at the top of the hop, a copy waiting
-// hidden in the new spot (so in its new place in the stack) takes over and comes down.
-// The copy has its image decoded by then, so the handover can't blink; the two
-// overlap for a frame.
-function hop(row, el, old, oldRight, delay) {
-  const to = el.getBoundingClientRect();
-  const dx = to.left - old.rect.left;
-  // Squash, stretch, and a little tilt toward where it's going while in the air.
-  const path = (t) => {
-    const v = Math.min(1, Math.max(0, (t - CROUCH) / AIR));
-    return { ...jumpPose(t, BIG_JUMP, dx), turn: Math.sign(dx) * 14 * Math.sin(Math.PI * v) };
+// A jump across `distance` px, as a projectile: the apex grows with distance (but
+// always clears the row), air time follows from gravity, and the crouch, stretch, and
+// landing grow with the jump.
+function jumpFor(distance) {
+  const height = Math.max(34, 18 + distance * 0.32);
+  const airMs = 2 * Math.sqrt((2 * height) / JUMP_GRAVITY) * 1000;
+  const size = Math.min(1, (height - 34) / 50); // 0 for a short hop, 1 for a long leap
+  return {
+    height,
+    airMs,
+    crouchMs: 130 + 70 * size,
+    landMs: 170 + 90 * size,
+    crouch: 0.18 + 0.1 * size,
+    stretch: 0.12 + 0.1 * size,
+    thud: 0.18 + 0.1 * size,
   };
+}
+
+// A face jumping to a new spot: it crouches, launches, flies a real arc, and lands
+// with a thud. The real face takes off from its old place in the stack; at the top of
+// the arc, a copy waiting hidden in the new spot (so in its new place in the stack)
+// takes over and comes down. The copy has its image decoded by then, so the handover
+// can't blink; the two overlap for a frame.
+function jumpTo(row, box, el, old, oldRight, jump, delay) {
+  const to = el.getBoundingClientRect().left - box.left;
+  const dx = to - old.at.left;
+  const total = jump.crouchMs + jump.airMs + jump.landMs;
+  const crouchEnd = jump.crouchMs / total;
+  const airEnd = (jump.crouchMs + jump.airMs) / total;
+  const pose = (t) => {
+    if (t < crouchEnd) return squash(1 - jump.crouch * easeOut(t / crouchEnd));
+    if (t < airEnd) {
+      const v = (t - crouchEnd) / (airEnd - crouchEnd);
+      // Fastest, so most stretched, at takeoff and touchdown; round at the top.
+      const airStretch = v < 0.5 ? jump.stretch * (1 - v * 2) : jump.stretch * 0.6 * (v * 2 - 1);
+      const tall = v < 0.12 ? lerp(1 - jump.crouch, 1 + airStretch, easeOut(v / 0.12)) : 1 + airStretch;
+      return {
+        // Nearly steady sideways speed (a real arc), easing a little at both ends so
+        // it lifts clear of its neighbors before crossing them.
+        x: dx * (0.6 * v + 0.4 * easeInOut(v)),
+        y: -jump.height * 4 * v * (1 - v),
+        turn: Math.sign(dx) * 12 * Math.sin(Math.PI * v),
+        ...squash(tall),
+      };
+    }
+    const w = (t - airEnd) / (1 - airEnd);
+    const tall = w < 0.35 ? lerp(1 + jump.stretch * 0.6, 1 - jump.thud, easeOut(w / 0.35))
+      : w < 0.7 ? lerp(1 - jump.thud, 1 + jump.thud * 0.3, easeInOut((w - 0.35) / 0.35))
+        : lerp(1 + jump.thud * 0.3, 1, easeInOut((w - 0.7) / 0.3));
+    return { x: dx, ...squash(tall) };
+  };
+  const apex = (crouchEnd + airEnd) / 2;
+
   const copy = el.cloneNode(true);
   el.replaceWith(copy);
   // The real face, back in its old place in the stack, takes off.
   for (const animation of el.getAnimations()) animation.cancel();
   el.classList.add('face-drop');
   el.setAttribute('data-transient', '');
-  const box = row.getBoundingClientRect();
-  Object.assign(el.style, { left: `${old.rect.left - box.left}px`, top: `${old.rect.top - box.top}px` });
+  Object.assign(el.style, { left: `${old.at.left}px`, top: `${old.at.top}px` });
   row.insertBefore(el, oldRight);
-  const apex = CROUCH + AIR / 2;
-  const handover = apex + 1 / 48;
-  el.animate(frames(path, 0, handover, 30, JUMP_ORIGIN), { duration: BIG_JUMP.ms * handover, delay, fill: 'backwards', easing: 'linear' })
+  const handover = apex + 1 / 60;
+  el.animate(frames(pose, 0, handover, 30, JUMP_ORIGIN), { duration: total * handover, delay, fill: 'backwards', easing: 'linear' })
     .finished.then(() => el.remove());
 
   // The copy, in its new spot: hidden until the apex, then down into its place.
   copy.animate(
-    frames((t) => ({ ...path(t), x: path(t).x - dx, opacity: t >= apex ? 1 : 0 }), 0, 1, 60, JUMP_ORIGIN),
-    { duration: BIG_JUMP.ms, delay, fill: 'backwards', easing: 'linear' },
+    frames((t) => ({ ...pose(t), x: pose(t).x - dx, opacity: t >= apex ? 1 : 0 }), 0, 1, 60, JUMP_ORIGIN),
+    { duration: total, delay, fill: 'backwards', easing: 'linear' },
+  );
+}
+
+// A face whose pick changed but kept its spot squashes in place as its sticker lands:
+// a quick press into the ground and a rebound, no lift.
+function thud(el, delay) {
+  const tall = (t) => (t < 0.3 ? 1 - 0.16 * easeOut(t / 0.3)
+    : t < 0.65 ? lerp(0.84, 1.05, easeInOut((t - 0.3) / 0.35))
+      : lerp(1.05, 1, easeInOut((t - 0.65) / 0.35)));
+  el.animate(frames((t) => squash(tall(t)), 0, 1, 24, JUMP_ORIGIN), { duration: 320, delay, easing: 'linear' });
+}
+
+// A new face rolls in from behind the slip's left edge (the row is clipped there),
+// slowing at a steady rate to a stop in its spot. Its turn is worked back from the
+// spot, so it arrives exactly upright. `openAtMs` is when it's one face from its spot:
+// the others have made room by then.
+function rollFor(el) {
+  const rect = el.getBoundingClientRect();
+  const curtain = el.closest('.slip-peek')?.getBoundingClientRect().left ?? 0;
+  const start = -(rect.right - curtain + 2); // just behind the slip's left edge
+  const duration = Math.min(1000, Math.max(560, 280 + Math.abs(start) * 0.9));
+  const openAt = 1 - Math.sqrt(Math.min(1, rect.width / Math.abs(start))); // x = start·(1-t)²
+  return { start, duration, radius: rect.width / 2, openAtMs: duration * openAt };
+}
+function rollIn(el, { start, duration, radius }, delay) {
+  el.animate(
+    frames((t) => {
+      const x = start * (1 - t) ** 2;
+      return { x, turn: degreesRolled(x, radius) };
+    }),
+    { duration, delay, fill: 'backwards', easing: 'linear' },
   );
 }
 
@@ -197,18 +222,17 @@ function hop(row, el, old, oldRight, delay) {
 // copy, so it can't blink) sits in the row at its old place, before `oldRight`, so it
 // keeps that place in the stack. It's marked transient so a render mid-fall leaves it
 // alone (dom.js).
-function rollOff(row, { el, rect }, oldRight) {
+function rollOff(row, box, { el, at }, oldRight) {
   for (const animation of el.getAnimations()) animation.cancel();
   el.classList.add('face-drop');
   el.setAttribute('data-transient', '');
-  const box = row.getBoundingClientRect();
-  Object.assign(el.style, { left: `${rect.left - box.left}px`, top: `${rect.top - box.top}px` });
+  Object.assign(el.style, { left: `${at.left}px`, top: `${at.top}px` });
   row.insertBefore(el, oldRight);
 
-  const radius = rect.width / 2;
+  const radius = at.width / 2;
   const accel = (2 * ROLL_OFF_PX) / ROLL_OFF_S ** 2; // rolling from rest
   const speed = accel * ROLL_OFF_S; // sideways speed at the edge, kept in the air
-  const fall = innerHeight - rect.top + rect.height + 20;
+  const fall = innerHeight - (box.top + at.top) + at.height + 20;
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
   const total = ROLL_OFF_S + airtime;
   el.animate(

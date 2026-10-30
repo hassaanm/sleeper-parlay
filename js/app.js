@@ -277,7 +277,6 @@ async function removeMine() {
       if (!slip.picks[me]) return false;
       delete slip.picks[me];
     });
-    toast('Removed your pick');
   } catch (e) {
     toast(saveError(e), 'bad');
   }
