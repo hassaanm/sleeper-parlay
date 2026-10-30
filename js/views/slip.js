@@ -171,8 +171,8 @@ function gameBar(pick, st) {
 // Receipt-style totals: leg count, fair odds, and what that would pay. Fair means each
 // leg's price with the vig removed, multiplied together. While tracking, the chance is
 // recomputed live: finished legs count as 100% (hit or push) or 0% (miss), live legs use
-// the market's current price, the rest their current price. The payout then stays at
-// the original one, from each leg's price when it was picked.
+// the market's current price, the rest their current price. The payout is then the
+// locked one, from each leg's price when it was picked.
 function parlayFoot() {
   const legs = legsWithLive();
   if (!legs.length) return '';
@@ -198,7 +198,7 @@ function parlayFoot() {
     <dl class="parlay-foot ${busted ? 'busted' : ''}">
       <div><dt>Legs hit</dt><dd>${hits} of ${legs.length}</dd></div>
       <div><dt>Current chance</dt><dd>${fmtChance(liveProb)}</dd></div>
-      <div><dt>Original payout</dt><dd>${original.mult}×</dd></div>
+      <div><dt>Locked payout</dt><dd>${original.mult}×</dd></div>
     </dl>`;
 }
 
