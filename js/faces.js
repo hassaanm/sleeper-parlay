@@ -24,7 +24,7 @@ const GRAVITY = 2600; // px/s², for falls
 const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
 const ROLL_OFF_PX = 10; // rolled before tipping off the edge
 const ROLL_OFF_S = 0.2;
-const ROLL_OFF_DELAY_MS = 190; // a beat in place first, so the roll-off reads
+const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
@@ -134,7 +134,7 @@ function jumpFor(distance) {
 // A face jumping to a new spot: it crouches, launches, flies a real arc, and lands
 // with a thud. The real face takes off from its old place in the stack; at the top of
 // the arc, a copy waiting hidden in the new spot (so in its new place in the stack)
-// takes over and comes down. The copy has its image decoded by then, so the handover
+// takes over and comes down. The copy's image is decoded up front, so the handover
 // can't blink; the two overlap for a frame.
 function jumpTo(row, box, el, old, oldRight, jump, delay) {
   const to = el.getBoundingClientRect().left - box.left;
@@ -168,6 +168,13 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
 
   const copy = el.cloneNode(true);
   el.replaceWith(copy);
+  // Decode the copy's image now: it's hidden until the apex, and a browser may
+  // otherwise leave a hidden new image undecoded and draw it blank for a frame (Safari
+  // does), which shows as a blink mid-jump.
+  if (copy instanceof HTMLImageElement) {
+    copy.removeAttribute('loading');
+    copy.decode().catch(() => {});
+  }
   // The real face, back in its old place in the stack, takes off.
   for (const animation of el.getAnimations()) animation.cancel();
   el.classList.add('face-drop');
@@ -192,7 +199,7 @@ const JIGGLE = [[0, 1], [0.3, 1.22], [0.42, 0.8], [0.54, 1.12], [0.68, 0.94], [0
 function jiggle(el, delay) {
   el.animate(
     JIGGLE.map(([offset, wide]) => ({ offset, transform: `scale(${wide}, ${2 - wide})`, transformOrigin: JUMP_ORIGIN, easing: 'ease-in-out' })),
-    { duration: 720, delay },
+    { duration: 500, delay },
   );
 }
 
@@ -200,7 +207,7 @@ function jiggle(el, delay) {
 // one steady speed, wherever its spot is, slowing only over its last few pixels to a
 // stop. Its turn is worked back from the spot, so it arrives exactly upright.
 // `openAtMs` is when it's one face from its spot: the others have made room by then.
-const ROLL_SPEED = 300; // px/s
+const ROLL_SPEED = 200; // px/s
 const ROLL_BRAKE_PX = 28; // slowing to a stop over the last stretch
 function rollFor(el) {
   const rect = el.getBoundingClientRect();
