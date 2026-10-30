@@ -28,12 +28,17 @@ export function pickBlockedReason(slip, userId, start, { admin = false, now = Da
     ?? (start <= now ? 'That game has started.' : null);
 }
 
-// Who already holds a conflicting leg: one leg per game + bet type (or one per game
-// when the slip's blockSameGame setting is on).
+// Moneyline and spread share one slot per game: a favorite's spread with the other
+// team's moneyline can never both hit, and the rest just double up on the same side.
+// Totals are independent.
+const slotOf = (type) => (type === 'total' ? 'total' : 'side');
+
+// Who already holds a conflicting leg: one moneyline-or-spread and one total per game
+// (or one leg per game when the slip's blockSameGame setting is on).
 export function clashFor(slip, userId, opt) {
   for (const [uid, pick] of Object.entries(slip.picks ?? {})) {
     if (uid === userId || pick.gameId !== opt.gameId) continue;
-    if (slip.settings?.blockSameGame || pick.type === opt.type) return { userId: uid, pick };
+    if (slip.settings?.blockSameGame || slotOf(pick.type) === slotOf(opt.type)) return { userId: uid, pick };
   }
   return null;
 }

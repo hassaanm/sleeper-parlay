@@ -4,7 +4,7 @@
 //   new pick            rolls in from behind the slip's left edge to its spot
 //   changed, same spot  jiggles in place as its sticker lands
 //   changed, new spot   jumps to its new spot on a real arc, higher for longer jumps
-//   removed             rolls off to the right and falls off the screen
+//   removed             rolls right, behind the others, past the last one, and falls
 //
 // The other faces shuffle to their new spots alongside. New picks and changes start
 // as the pick's sticker hits its cell on the board (board.js), so the two feel connected.
@@ -22,8 +22,8 @@ const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').match
 const IMPACT_MS = Math.round(STICKER_SLAP_MS * 0.58); // when a slapped sticker hits its cell
 const GRAVITY = 2600; // px/s², for falls
 const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
-const ROLL_OFF_PX = 10; // rolled before tipping off the edge
-const ROLL_OFF_S = 0.2;
+const ROLL_OFF_PAST = 6; // px past the last face before tipping off
+const ROLL_OFF_SPEEDUP_PX = 12; // reaching rolling speed from rest
 const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
@@ -73,14 +73,18 @@ export function animateFaces(root, before) {
   // rolling in; or, for a removal alone, once the leaving face is off the edge.
   const jumps = new Map(jumpers.map((id) => [id, jumpFor(Math.abs(spot(after.get(id)) - before.get(id).at.left))]));
   const rolls = new Map(added.map((id) => [id, rollFor(after.get(id))]));
-  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + ROLL_OFF_S * 1000 : 0 };
+  // A leaving face rolls past the end of the row before it drops.
+  const rowEnd = Math.max(...[...before.values()].map(({ at }) => at.left + at.width));
+  const offs = new Map(removed.map((id) => [id, rollOffFor(before.get(id).at, rowEnd)]));
+  const edgeMs = Math.max(0, ...[...offs.values()].map((off) => off.rollMs));
+  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + edgeMs : 0 };
   for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
   for (const roll of rolls.values()) {
     const duration = Math.min(520, Math.max(320, roll.openAtMs));
     shuffle = { duration, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + Math.max(0, roll.openAtMs - duration) };
   }
 
-  for (const id of removed) rollOff(row, box, before.get(id), oldRightOf(id));
+  for (const id of removed) rollOff(row, box, before.get(id), oldRightOf(id), offs.get(id));
   for (const [id, roll] of rolls) rollIn(after.get(id), roll, IMPACT_MS);
   for (const [id, jump] of jumps) jumpTo(row, box, after.get(id), before.get(id), oldRightOf(id), jump, IMPACT_MS);
   for (const id of newOrder) {
@@ -239,15 +243,28 @@ function rollIn(el, { left, duration, radius }, delay) {
   );
 }
 
-// A removed face rolls off to the right like a ball off a cliff: it starts rolling
-// from rest and speeds up over a few pixels, then leaves the edge and falls. In the
-// air it keeps the small sideways speed it rolled off with while gravity pulls it
-// straight down, faster and faster, so the path curves into a near-vertical drop; it
-// keeps spinning at the rate it was rolling. The face (the real element, never a fresh
-// copy, so it can't blink) sits in the row at its old place, before `oldRight`, so it
-// keeps that place in the stack. It's marked transient so a render mid-fall leaves it
-// alone (dom.js).
-function rollOff(row, box, { el, at }, oldRight) {
+// A removed face rolls off to the right like a ball off a cliff: after a beat, it
+// picks up speed from rest and rolls at the roll-in speed, behind the faces to its
+// right, until it's fully past the last one (just a short way, if it was last). Then it
+// leaves the edge and falls: it keeps its rolling speed sideways while gravity pulls it
+// down faster and faster, so the path curves into a steepening drop, spinning at the
+// rate it rolled. The others close up once it's gone over the edge.
+function rollOffFor(at, rowEnd) {
+  const distance = Math.max(ROLL_OFF_PAST + 4, rowEnd - at.left + ROLL_OFF_PAST);
+  const accel = ROLL_SPEED ** 2 / (2 * ROLL_OFF_SPEEDUP_PX);
+  const speedup = Math.min(distance, ROLL_OFF_SPEEDUP_PX);
+  const speedupS = Math.sqrt((2 * speedup) / accel);
+  const edgeSpeed = accel * speedupS;
+  const rollS = speedupS + (distance - speedup) / edgeSpeed;
+  // Distance rolled at time t (s), on the row.
+  const rolled = (t) => (t < speedupS ? 0.5 * accel * t ** 2 : speedup + edgeSpeed * (t - speedupS));
+  return { distance, rollS, edgeSpeed, rolled, rollMs: rollS * 1000 };
+}
+
+// The face (the real element, never a fresh copy, so it can't blink) sits in the row
+// at its old place, before `oldRight`, so it keeps that place in the stack. It's
+// marked transient so a render mid-fall leaves it alone (dom.js).
+function rollOff(row, box, { el, at }, oldRight, off) {
   for (const animation of el.getAnimations()) animation.cancel();
   el.classList.add('face-drop');
   el.setAttribute('data-transient', '');
@@ -255,19 +272,16 @@ function rollOff(row, box, { el, at }, oldRight) {
   row.insertBefore(el, oldRight);
 
   const radius = at.width / 2;
-  const accel = (2 * ROLL_OFF_PX) / ROLL_OFF_S ** 2; // rolling from rest
-  const speed = accel * ROLL_OFF_S; // sideways speed at the edge, kept in the air
   const fall = innerHeight - (box.top + at.top) + at.height + 20;
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
-  const total = ROLL_OFF_S + airtime;
+  const total = off.rollS + airtime;
   el.animate(
     frames((u) => {
       const t = u * total;
-      const rolling = t < ROLL_OFF_S;
-      const air = t - ROLL_OFF_S;
-      const x = rolling ? 0.5 * accel * t ** 2 : ROLL_OFF_PX + speed * air;
-      return { x, y: rolling ? 0 : 0.5 * GRAVITY * air ** 2, turn: degreesRolled(x, radius) };
-    }),
+      const air = t - off.rollS;
+      const x = air < 0 ? off.rolled(t) : off.distance + off.edgeSpeed * air;
+      return { x, y: air < 0 ? 0 : 0.5 * GRAVITY * air ** 2, turn: degreesRolled(x, radius) };
+    }, 0, 1, Math.max(48, Math.round(total * 60))),
     // Holding the last pose (off the bottom) until it's removed, so it can't flash back
     // at its old spot for a frame.
     { duration: total * 1000, delay: ROLL_OFF_DELAY_MS, fill: 'both', easing: 'linear' },

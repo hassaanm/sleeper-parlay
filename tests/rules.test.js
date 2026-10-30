@@ -35,9 +35,11 @@ test('the admin can change a locked leg, but not into a started game', () => {
   assert.match(pickBlockedReason(s, 'me', now - 1, { admin: true, now }), /has started/);
 });
 
-test('one leg per game and bet type', () => {
+test('one moneyline-or-spread and one total per game', () => {
   const s = slip({ picks: { them: pick() } });
   assert.equal(clashFor(s, 'me', { gameId: 'g1', type: 'spread' }).userId, 'them');
+  assert.equal(clashFor(s, 'me', { gameId: 'g1', type: 'ml' }).userId, 'them'); // KC -3.5 vs DEN ML can't both hit
+  assert.equal(clashFor(slip({ picks: { them: pick({ type: 'ml' }) } }), 'me', { gameId: 'g1', type: 'spread' }).userId, 'them');
   assert.equal(clashFor(s, 'me', { gameId: 'g1', type: 'total' }), null);
   assert.equal(clashFor(s, 'them', { gameId: 'g1', type: 'spread' }), null);
   assert.equal(clashFor(slip({ ...s, settings: { blockSameGame: true } }), 'me', { gameId: 'g1', type: 'total' }).userId, 'them');
