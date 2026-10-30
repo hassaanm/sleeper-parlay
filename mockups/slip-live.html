@@ -85,6 +85,34 @@
   .vs .side img { width: 16px; height: 16px; }
   .vs .side i { font-style: normal; font-size: 10px; color: var(--muted); }
   .vs .track { height: 8px; }
+
+  /* ---------- C, revised ---------- */
+  .r2 { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; padding: 11px 14px 9px; border-top: 1px solid #2d3963; }
+  .r2:first-child { border-top: 0; }
+  .r2 .lg { grid-row: 1 / 5; align-self: start; position: relative; width: 30px; height: 30px; margin-top: 2px; }
+  .r2 .lg img.logo { width: 28px; height: 28px; }
+  .r2 .lg .avatar { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #1a2240; z-index: 1; }
+  .r2 .head { grid-column: 2; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .r2 .pk { font-size: 14px; font-weight: 750; }
+  .r2 .clock2 { font-size: 11px; font-weight: 700; color: #ff8f9b; white-space: nowrap; }
+  .r2 .final2 { font-size: 11px; font-weight: 700; color: var(--muted); }
+  /* Bottom right: who has it, then its chance now (or ✓/✗ once final). */
+  .r2 .foot2 { grid-column: 2; display: flex; justify-content: flex-end; align-items: baseline; gap: 8px; margin-top: 1px; }
+  .r2 .foot2 small { font-size: 11px; font-weight: 600; color: var(--muted); }
+  .r2 .foot2 b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .r2 .foot2 .mark { font-size: 15px; }
+  .r2 .downs { grid-column: 2; text-align: center; height: 15px; margin-top: 3px; font-size: 10.5px; font-weight: 700; color: #b9c2dd; white-space: nowrap; }
+  .r2 .downs .tri { font-size: 8px; color: var(--text); margin: 0 4px; }
+  .r2 .lane { grid-column: 2; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+  .r2 .end { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  .r2 .end img { width: 16px; height: 16px; }
+  .r2 .end.zero, .r2 .end.line { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .r2 .bar { position: relative; height: 26px; }
+  .r2 .bar .track { position: absolute; left: 0; right: 0; top: 4px; height: 6px; }
+  .r2 .bar .under { position: absolute; top: 14px; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .r2 .bar .under.now { color: var(--text); }
+  .r2 .tie .fill { display: none; }
+  .r2 .tie .dot { background: #8fa3d8; }
 </style>
 </head>
 <body>
@@ -218,6 +246,61 @@ const optionC = () => LEGS.map((leg) => {
   </div>`;
 }).join('');
 
+// C, revised: the bar is the game. Spread and moneyline put the other team's score on
+// the left and the picked team's on the right; the center tick is a tie (moneyline) or
+// the picked side's spread, labeled under it. Totals run from 0 to the line, which sits
+// near the right end, and the running total follows the dot. The down sits over the
+// bar with an arrow on the side of the team with the ball. Chance (or ✓/✗) and who
+// picked it stay on the right.
+function standing2(leg) {
+  const g = GAMES[leg.g];
+  const live = g.state === 'in';
+  if (leg.type === 'total') {
+    const pts = g.as + g.hs;
+    const over = pts > leg.line;
+    const win = leg.side === 'over' ? over : !over;
+    const at = Math.min(100, (pts / leg.line) * 82); // the line sits at 82% of the way
+    return { kind: 'total', at, target: 82, cls: win ? 'win' : 'lose', pts, line: leg.line };
+  }
+  const mine = leg.team === g.away ? g.as : g.hs;
+  const theirs = leg.team === g.away ? g.hs : g.as;
+  const margin = mine - theirs + (leg.type === 'spread' ? leg.line : 0);
+  return {
+    kind: 'center', at: 50 + 50 * Math.tanh(margin / 14), cls: margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie',
+    mine, theirs, other: leg.team === g.away ? g.home : g.away, center: leg.type === 'spread' ? signed(leg.line) : 'Tie',
+  };
+}
+
+const optionC2 = () => LEGS.map((leg) => {
+  const g = GAMES[leg.g], s = standing2(leg);
+  const live = g.state === 'in';
+  // Which side of the bar has the ball: the picked team is on the right.
+  const ballRight = s.kind === 'center' ? g.ball === leg.team : g.ball === g.home;
+  const [down] = (g.down ?? '').split(' · ');
+  const downs = live
+    ? (s.kind === 'center'
+      ? (ballRight ? `${g.down}<span class="tri">▶</span>` : `<span class="tri">◀</span>${g.down}`)
+      : `${g.ball} ball · ${g.down}`)
+    : '';
+  const lo = Math.min(50, s.at), hi = Math.max(50, s.at);
+  const bar = s.kind === 'total'
+    ? `<div class="bar prog ${s.cls}"><div class="track"><span class="fill" style="left:0;width:${s.at}%"></span><i class="tick" style="left:${s.target}%"></i><span class="dot" style="left:${s.at}%"></span></div>
+        <span class="under now" style="left:${Math.max(6, Math.min(94, s.at))}%">${s.pts}</span></div>`
+    : `<div class="bar prog ${s.cls}"><div class="track"><span class="fill" style="left:${lo}%;width:${hi - lo}%"></span><i class="tick" style="left:50%"></i><span class="dot" style="left:${s.at}%"></span></div>
+        <span class="under" style="left:50%">${s.center}</span></div>`;
+  const ends = s.kind === 'total'
+    ? [`<span class="end zero">0</span>`, `<span class="end line">${s.line}</span>`]
+    : [`<span class="end">${logo(s.other, 16)}${s.theirs}</span>`, `<span class="end">${s.mine}${logo(leg.team, 16)}</span>`];
+  return `
+  <div class="r2">
+    <span class="lg">${legLogo(leg)}${face()}</span>
+    <span class="head"><span class="pk">${leg.label}</span>${live ? `<span class="clock2">● ${g.clock}</span>` : '<span class="final2">Final</span>'}</span>
+    <span class="downs">${downs}</span>
+    <span class="lane">${ends[0]}${bar}${ends[1]}</span>
+    <span class="foot2"><small>${leg.who}</small>${right(leg)}</span>
+  </div>`;
+}).join('');
+
 const slip = (body) => `
   <div class="pslip">
     <div class="pslip-head"><span class="tally"><span class="t-hit">✓ 1</span></span><span class="muted" style="font-size:12px">5 legs</span></div>
@@ -233,6 +316,14 @@ document.getElementById('mock').innerHTML = `
     to the right. Small leads move it a lot; blowouts taper off near the end.
     Green = winning, red = losing, blue = an over still on its way.
   </p>
+  <p class="opt">C, REVISED · THE BAR IS THE GAME</p>${slip(optionC2())}
+  <p class="mock-sub" style="margin-top:8px">
+    Spread and moneyline: the picked team is on the right, the center tick is a tie
+    (moneyline) or the picked side's spread. Totals: 0 on the left, the line near the
+    right end; the running total follows the dot. Green or red, nothing else. The down
+    sits over the bar, with the arrow on the side of the team that has the ball.
+  </p>
+  <h1 class="mock-h" style="margin-top:44px">Earlier options</h1>
   <p class="opt">A · EACH LEG GROWS A BAR</p>${slip(optionA())}
   <p class="mock-sub" style="margin-top:8px">Simplest change from today. Every row gets taller, and a game with two legs repeats its score.</p>
   <p class="opt">B · LEGS GROUPED BY GAME</p>${slip(optionB())}
