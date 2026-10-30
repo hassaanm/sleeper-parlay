@@ -918,9 +918,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar { position: relative; height: 26px; margin: 0 2px; }
 
 .gbar i { position: absolute; display: block; }
-/* The track is a hair thinner than the fill, so no sliver of it shows around the colored
-   part's soft edges (that read as an outline). */
-.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4.5px; height: 5px; border-radius: 99px; background: #2b3557; }
+.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
 .gbar-dot { top: 2.5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1; }
