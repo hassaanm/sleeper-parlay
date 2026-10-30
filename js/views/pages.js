@@ -333,7 +333,7 @@ function renderMatchupPage(gameId) {
   const emptyRow = (text) => `<p class="cmp-empty">${text}</p>`;
 
   return wrap(`${head}
-    <div class="cmp">${cmpHead('Tale of the tape')}${tape}</div>
+    <div class="cmp">${cmpHead('Season stats')}${tape}</div>
 
     ${offDef}
 
