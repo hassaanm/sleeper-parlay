@@ -10,8 +10,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Paths below are relative, so "/<leagueId>/" (trailing slash) would break them. -->
-  <script>if (/\/\d{6,}\/$/.test(location.pathname)) location.replace(location.pathname.slice(0, -1) + location.search + location.hash);</script>
+  <!-- Paths below are relative, so "/<leagueId>/" (trailing slash) would break them.
+       Leading slashes collapse to one, so "//other.site/..." can't redirect off this site. -->
+  <script>if (/\/\d{6,}\/$/.test(location.pathname)) location.replace(location.pathname.replace(/^\/+/, '/').slice(0, -1) + location.search + location.hash);</script>
   <link rel="stylesheet" href="styles.css">
   <!-- Fetch every module up front instead of one import level at a time. Optional:
        a module missing here still loads, just later. -->
