@@ -3,7 +3,7 @@
 import { multiplierToAmerican } from '../lines.js';
 import { pickTeams } from '../rules.js';
 import { isTracking, legsWithLive, myLegLocked, picks, state } from '../state.js';
-import { avatar, chevron, dayTimeFmt, esc, fmtChance, fmtLine, fmtOdds, pretty, seeded, signSpan, teamLogo } from '../ui.js';
+import { avatar, chevron, dayTimeFmt, esc, fmtChance, fmtLine, fmtOdds, pretty, signSpan, teamLogo } from '../ui.js';
 
 // Fair (no-vig) parlay: multiply each leg's fair probability. A reference for what
 // the slip should pay, since the real price is set wherever the parlay gets placed.
@@ -31,7 +31,6 @@ function slipHeader(withChevron) {
       <span class="tally">
         ${miss ? '<span class="tally-bust">Busted</span>' : hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
         ${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}
-        <small>of ${legs.length}</small>
       </span>`;
   } else {
     // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
@@ -45,7 +44,7 @@ function slipHeader(withChevron) {
     <div class="slip-peek">
       ${left}
       <span class="peek-right">
-        ${mine ? myLegChip(mine) : '<span class="my-leg empty">Add your leg</span>'}
+        ${mine ? myLegChip(mine) : myLegLocked() || isTracking(legs) ? '' : '<span class="my-leg empty">Add your leg</span>'}
         ${withChevron ? `<span class="slip-chev round-btn">${chevron('up')}</span>` : ''}
       </span>
     </div>`;
@@ -70,17 +69,19 @@ function parlayLegs() {
     const st = l.status;
     const live = st?.state === 'in';
     const final = st?.state === 'post';
-    const score = st && st.state !== 'pre' ? `${away} ${st.awayScore}–${st.homeScore} ${home}` : '';
-    const stamp = final ? `<span class="ink-stamp ${l.grade}" style="--rot:${Math.round(-14 + seeded(l.pick.optKey)() * 10)}deg">${l.grade === 'hit' ? 'HIT' : l.grade === 'miss' ? 'MISS' : 'PUSH'}</span>` : '';
+    const score = st && st.state !== 'pre'
+      ? `<span class="leg-score"><i>${esc(away)}</i><b>${st.awayScore}</b><span>–</span><b>${st.homeScore}</b><i>${esc(home)}</i></span>`
+      : '';
 
     if (tracking) {
-      // Tracking row: the pick, then the game's score and clock underneath; on the
-      // right, the chance now (live market) and where it started, green if it's up.
+      // Tracking row: the pick, then the game's clock and score underneath. On the
+      // right: a ✓ or ✗ once it's final; while live, the chance now, green while it's at
+      // or above where it started and red below; then who has it.
       const sub = live
-        ? `<span class="live-tag ${l.grade}">● ${esc(st.detail)}</span><span>${esc(score)}</span>`
-        : final ? `<span>Final</span><span>${esc(score)}</span>` : `<span>${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}</span>`;
-      const now = final ? (l.grade === 'miss' ? 0 : 100) : live && l.livePrice ? l.livePrice : l.price;
-      const delta = now - l.pick.price;
+        ? `<span class="live-tag">● ${esc(st.detail)}</span>${score}`
+        : final ? `<span>Final</span>${score}` : `<span>${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}</span>`;
+      const now = live && l.livePrice ? l.livePrice : l.price;
+      const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
         <li class="leg ${isMine ? 'leg-you' : ''} ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
           <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
@@ -88,10 +89,9 @@ function parlayLegs() {
             <span class="leg-pick">${esc(pretty(l.pick.label))}${isMine ? ' <em class="you-tag">You</em>' : ''}</span>
             <span class="leg-sub">${sub}</span>
           </div>
-          ${stamp}
           <div class="leg-right">
-            <span class="leg-odds">${final ? '' : signSpan(fmtOdds(now))}</span>
-            <small class="leg-from ${final ? '' : delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${final ? esc(l.member.name) : `${delta > 0 ? '▲' : delta < 0 ? '▼' : 'from'} ${fmtOdds(l.pick.price)}`}</small>
+            ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}
+            <small class="leg-from">${esc(l.member.name)}</small>
           </div>
         </li>`;
     }
@@ -134,13 +134,12 @@ function parlayFoot() {
     if (l.status?.state === 'post') return acc * (l.grade === 'miss' ? 0 : 1);
     return acc * (l.liveFair ?? l.fair);
   }, 1);
-  const startProb = legs.reduce((acc, l) => acc * (l.pick.fair ?? l.pick.price / 100), 1);
   const busted = legs.some((l) => l.status?.state === 'post' && l.grade === 'miss');
   const hits = legs.filter((l) => l.status?.state === 'post' && l.grade !== 'miss').length;
   return `
     <dl class="parlay-foot ${busted ? 'busted' : ''}">
       <div><dt>Legs hit</dt><dd>${hits} of ${legs.length}</dd></div>
-      <div><dt>Chance now</dt><dd>${fmtChance(liveProb)} <small class="${liveProb > startProb ? 'up' : liveProb < startProb ? 'down' : ''}">from ${fmtChance(startProb)}</small></dd></div>
+      <div><dt>Current chance</dt><dd>${fmtChance(liveProb)}</dd></div>
       <div><dt>Fair payout</dt><dd>${fair.mult}×</dd></div>
     </dl>`;
 }

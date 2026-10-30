@@ -822,7 +822,6 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Tracking (parlay underway): tally in the header, score line under each pick, chance
    now vs where it started, tinted rows once a leg is decided. */
 .tally { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.tally small { font-size: 12px; font-weight: 600; color: var(--muted); }
 .t-hit { color: var(--accent); }
 .t-miss { color: var(--bad); }
 .tally-bust, .tally-cash {
@@ -831,35 +830,26 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .tally-bust { color: var(--bad); }
 .tally-cash { color: var(--accent); }
-.legs.tracking .leg-sub { display: flex; gap: 6px; align-items: center; }
-.legs.tracking .leg-sub span:last-child { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.legs.tracking .leg-sub { display: flex; gap: 8px; align-items: center; }
+/* "KC 35 – 24 DEN": the scores stand out, the teams step back. */
+.leg-score { display: inline-flex; align-items: baseline; gap: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
+.leg-score i { font-style: normal; font-weight: 600; color: var(--muted); }
+.leg-score b { font-weight: 800; }
+.leg-score span { color: var(--faint); }
 .leg-from { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.leg-from.up { color: var(--accent); }
-.leg-from.down { color: var(--bad); }
+.leg-odds.up { color: var(--accent); }
+.leg-odds.down { color: var(--bad); }
+.mark { font-size: 17px; font-weight: 900; line-height: 1; }
+.mark.hit { color: var(--accent); }
+.mark.miss { color: var(--bad); }
+.mark.push { color: var(--gold); }
 .leg-you { background-color: rgba(255, 255, 255, 0.045); }
 .you-tag { font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); color: var(--text); vertical-align: 2px; }
 .leg-final.hit { background-color: rgba(0, 214, 168, 0.07); }
 .leg-final.miss { background-color: rgba(255, 107, 125, 0.07); }
-.parlay-foot dd small { font-size: 11px; font-weight: 600; margin-left: 6px; }
-.parlay-foot dd small.up { color: var(--accent); }
-.parlay-foot dd small.down { color: var(--bad); }
 .parlay-foot.busted dd { text-decoration: line-through; text-decoration-color: rgba(255, 107, 125, 0.6); }
 .parlay-foot.busted div:first-child dd { text-decoration: none; }
-.live-tag { font-weight: 700; }
-.live-tag.hit { color: var(--accent); }
-.live-tag.miss { color: var(--bad); }
-.live-tag.push { color: var(--gold); }
-/* Final legs get an inked stamp across the row. */
-.leg-final { overflow: hidden; }
-.ink-stamp {
-  position: absolute; right: 74px; top: 50%; transform: translateY(-50%) rotate(var(--rot));
-  padding: 1px 8px; border: 2px solid currentColor; border-radius: 5px;
-  font-size: 13px; font-weight: 900; letter-spacing: 0.14em; opacity: 0.82; pointer-events: none;
-  mix-blend-mode: screen;
-}
-.ink-stamp.hit { color: var(--accent); }
-.ink-stamp.miss { color: var(--bad); }
-.ink-stamp.push { color: var(--gold); }
+.live-tag { font-weight: 700; color: #ff8f9b; }
 .leg-final.miss .leg-pick, .leg-final.miss .leg-odds { opacity: 0.55; }
 @keyframes fade { from { opacity: 0; } }
 
