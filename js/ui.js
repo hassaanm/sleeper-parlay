@@ -103,14 +103,18 @@ export function rankTier(rank, size) {
   return '';
 }
 
-// A league rank, everywhere it shows: a pill reading "5th", tinted by tier.
-export const rankPill = (rank, size) => `<span class="rk-pill ${rankTier(rank, size)}">${rank ? ordinal(rank) : '—'}</span>`;
+// A league rank, everywhere it shows: quiet text reading "5th", beside its number.
+export const rankText = (rank) => `<small class="rk">${rank ? ordinal(rank) : '—'}</small>`;
 
 // A game result, everywhere it shows: a W, L, or T chip.
 export const resultChip = (result) => `<span class="res-chip ${result}">${result}</span>`;
 
 // Green for a positive number, red for a negative one (point diff, margins).
 export const toneOf = (n) => (n > 0 ? 'good' : n < 0 ? 'bad' : '');
+
+// Stat formats: whole percents ("41%") and signed counts ("+3", "−2").
+export const fmtPct = (n) => (Number.isFinite(n) ? `${Math.round(n)}%` : '—');
+export const fmtSigned = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
 export const chevronSmall = () =>
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';

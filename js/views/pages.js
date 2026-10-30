@@ -5,7 +5,7 @@ import { gameKey } from '../rules.js';
 import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../teams.js';
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
 import { awayWinPct, state } from '../state.js';
-import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, rankPill, rankTier, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
+import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
 // over the hero; once you scroll, the top bar turns solid and shows a title.
@@ -50,8 +50,7 @@ function rankRow(label, value, rank, size) {
   return `
     <div class="rk-row">
       <span class="rk-label">${label}</span>
-      <span class="rk-val">${value}</span>
-      ${rankPill(rank, size)}
+      <span class="rk-val">${value}${rankText(rank)}</span>
       <span class="rk-bar"><i class="${rankTier(rank, size)}" style="width:${pct}%"></i></span>
     </div>`;
 }
@@ -111,26 +110,28 @@ function renderTeamPage(abbr) {
   if (!league) return hero + researchLoading();
   if (!t) return hero + '<p class="muted center-note">No games yet this season.</p>';
 
-  // Offense and defense as two wide cards: the header row carries the overall rank
-  // (points scored or allowed per game), then that unit's numbers sit side by side.
-  // On the defense card the yards are the ones allowed.
+  // Offense, defense, and sacks & turnovers as wide cards: the header row carries the
+  // headline number and its rank (points scored, points allowed, turnover margin), then
+  // the unit's numbers sit side by side. On the defense card, everything is allowed.
+  const cells = (rows) => rows.map(([label, key, show = fmt1]) => rankRow(label, show(t.per[key]), t.ranks[key], size)).join('');
   const unitCard = (label, rank, value, unit, cells) => `
     <div class="cmp unit-card">
-      <div class="card-head"><span>${label}</span><span class="unit-rank"><b>${value}</b><small>${unit}</small>${rankPill(rank, size)}</span></div>
+      <div class="card-head"><span>${label}</span><span class="unit-rank"><b>${value}</b><small>${unit}</small>${rankText(rank)}</span></div>
       <div class="unit-cells">${cells}</div>
     </div>`;
 
   return `${hero}
-    ${unitCard('Offense', t.ranks.points, fmt1(t.per.points), 'pts/g',
-      rankRow('PASS YDS / G', fmt1(t.per.passYd), t.ranks.passYd, size)
-      + rankRow('RUSH YDS / G', fmt1(t.per.rushYd), t.ranks.rushYd, size)
-      + rankRow('TOTAL YDS / G', fmt1(t.per.yards), t.ranks.yards, size))}
-    ${unitCard('Defense', t.ranks.allowed, fmt1(t.per.allowed), 'opp pts/g',
-      rankRow('PASS YDS / G', fmt1(t.per.oppPassYd), t.ranks.oppPassYd, size)
-      + rankRow('RUSH YDS / G', fmt1(t.per.oppRushYd), t.ranks.oppRushYd, size)
-      + rankRow('TOTAL YDS / G', fmt1(t.per.yardsAllowed), t.ranks.yardsAllowed, size)
-      + rankRow('SACKS', t.per.sacks, t.ranks.sacks, size)
-      + rankRow('TAKEAWAYS', t.per.takeaways, t.ranks.takeaways, size))}
+    ${unitCard('Offense', t.ranks.points, fmt1(t.per.points), 'pts/g', cells([
+      ['PASS YDS / G', 'passYd'], ['RUSH YDS / G', 'rushYd'], ['TOTAL YDS / G', 'yards'],
+      ['YDS / PLAY', 'yardsPerPlay'], ['3RD DOWN', 'thirdPct', fmtPct], ['RED ZONE TD', 'redZonePct', fmtPct],
+    ]))}
+    ${unitCard('Defense', t.ranks.allowed, fmt1(t.per.allowed), 'opp pts/g', cells([
+      ['PASS YDS / G', 'oppPassYd'], ['RUSH YDS / G', 'oppRushYd'], ['TOTAL YDS / G', 'yardsAllowed'],
+      ['YDS / PLAY', 'oppYardsPerPlay'], ['3RD DOWN', 'oppThirdPct', fmtPct], ['RED ZONE TD', 'oppRedZonePct', fmtPct],
+    ]))}
+    ${unitCard('Sacks & turnovers', t.ranks.turnoverMargin, fmtSigned(t.per.turnoverMargin), 'margin', cells([
+      ['SACKS', 'sacks', String], ['TAKEAWAYS', 'takeaways', String], ['GIVEAWAYS', 'giveaways', String],
+    ]))}
 
     <div class="cmp">
       <div class="card-head"><span>Season</span></div>
@@ -208,7 +209,7 @@ function renderMatchupPage(gameId) {
   const h = league.teams.get(H);
   if (!a || !h) return wrap(head + '<p class="muted center-note">Not enough games yet to compare.</p>');
   const size = league.size;
-  const rank = (r) => (r ? rankPill(r, size) : '');
+  const rank = (r) => (r ? rankText(r) : '');
   // Each card's first row names the section, between the two teams' columns.
   const cmpHead = (title) => `<div class="cmp-head"><span>${teamLogo(A, 16)}${esc(A)}</span><span class="cmp-title">${title}</span><span>${esc(H)}${teamLogo(H, 16)}</span></div>`;
 
@@ -216,8 +217,10 @@ function renderMatchupPage(gameId) {
   // team colors sit between (the bigger share of the bar is the better number).
   // Per-game numbers show one decimal; season counts (sacks, takeaways) show whole.
   const compareRow = (label, av, hv, aRank, hRank, higherIsBetter = true, show = fmt1) => {
-    const goodA = higherIsBetter ? av : hv;
-    const goodH = higherIsBetter ? hv : av;
+    // Shift both values above zero first, so a negative (a turnover margin) still splits.
+    const floor = Math.min(av, hv, 0);
+    const goodA = (higherIsBetter ? av : hv) - floor + (floor < 0 ? 1 : 0);
+    const goodH = (higherIsBetter ? hv : av) - floor + (floor < 0 ? 1 : 0);
     const aShare = goodA + goodH ? Math.round((100 * goodA) / (goodA + goodH)) : 50;
     const numeric = typeof av === 'number' && typeof hv === 'number';
     const aBetter = numeric && (higherIsBetter ? av > hv : av < hv);
@@ -233,8 +236,8 @@ function renderMatchupPage(gameId) {
       </div>`;
   };
 
-  // Season stats: the offense's numbers, then what the defense allows, then sacks and
-  // takeaways. Each row's bar favors the better number.
+  // Season stats in three groups: the offense, what the defense allows, then sacks and
+  // turnovers. Each row's bar favors the better number.
   const statRows = (rows) => rows.map(([label, key, higher, show]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher, show)).join('');
   const seasonStats = `
     <div class="cmp-group">Offense</div>
@@ -243,6 +246,9 @@ function renderMatchupPage(gameId) {
       ['PASS YDS / G', 'passYd', true],
       ['RUSH YDS / G', 'rushYd', true],
       ['TOTAL YDS / G', 'yards', true],
+      ['YDS / PLAY', 'yardsPerPlay', true],
+      ['3RD DOWN %', 'thirdPct', true, fmtPct],
+      ['RED ZONE TD %', 'redZonePct', true, fmtPct],
     ])}
     <div class="cmp-group">Defense</div>
     ${statRows([
@@ -250,8 +256,16 @@ function renderMatchupPage(gameId) {
       ['OPP PASS YDS / G', 'oppPassYd', false],
       ['OPP RUSH YDS / G', 'oppRushYd', false],
       ['OPP TOTAL YDS / G', 'yardsAllowed', false],
+      ['OPP YDS / PLAY', 'oppYardsPerPlay', false],
+      ['OPP 3RD DOWN %', 'oppThirdPct', false, fmtPct],
+      ['OPP RED ZONE TD %', 'oppRedZonePct', false, fmtPct],
+    ])}
+    <div class="cmp-group">Sacks &amp; turnovers</div>
+    ${statRows([
       ['SACKS', 'sacks', true, String],
       ['TAKEAWAYS', 'takeaways', true, String],
+      ['GIVEAWAYS', 'giveaways', false, String],
+      ['TURNOVER MARGIN', 'turnoverMargin', true, fmtSigned],
     ])}`;
 
   // Same layout as compareRow, without a winner or bar: for rows that describe each

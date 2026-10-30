@@ -66,54 +66,73 @@ export function buildLeague(results) {
   return { teams, size: [...teams.values()].filter((t) => t.gp).length, hasStats: false };
 }
 
+// Offense totals read from a team's own game row. Passing yards are net of sacks (the
+// NFL's team number), so passing plus rushing is total yards.
+const GAME_TOTALS = {
+  passYd: (s) => (s.pass_yd ?? 0) - (s.pass_sack_yds ?? 0),
+  rushYd: (s) => s.rush_yd ?? 0,
+  plays: (s) => (s.pass_att ?? 0) + (s.rush_att ?? 0) + (s.pass_sack ?? 0),
+  thirdConv: (s) => s.down_3_conv ?? 0,
+  thirdAtt: (s) => s.down_3_att ?? 0,
+  rzConv: (s) => s.rz_conv ?? 0,
+  rzAtt: (s) => s.rz_att ?? 0,
+  sacked: (s) => s.pass_sack ?? 0,
+  giveaways: (s) => (s.pass_int ?? 0) + (s.fum_lost ?? 0),
+};
+
 /**
- * Adds Sleeper's season stats to a league from buildLeague: per-game numbers, a 1..32
- * league rank on each, and this week's expected starters.
- * stats: { offense: player rows, defense: DEF rows, games: TEAM rows } (api.fetchSeasonStats)
+ * Adds Sleeper's season stats to a league from buildLeague: per-game and rate numbers,
+ * a 1..32 league rank on each, and this week's expected starters.
+ * stats: { players: player rows, games: TEAM rows, one per team per game } (api.fetchSeasonStats)
  */
 export function addStats(league, stats) {
   const { teams } = league;
-  const zero = { passYd: 0, rushYd: 0, oppPassYd: 0, oppRushYd: 0 };
-  for (const t of teams.values()) Object.assign(t, zero, { players: [], defense: null });
-
-  // Yards from each team's game rows. Passing yards are net of sacks (the NFL's team
-  // number), so passing plus rushing is total yards. The same row, credited to the
-  // opponent, is what that defense allowed.
+  // Each game row counts once for the team (its offense) and once for its opponent
+  // (what that defense allowed): `off` and `def` totals.
+  for (const t of teams.values()) {
+    t.off = Object.fromEntries(Object.keys(GAME_TOTALS).map((k) => [k, 0]));
+    t.def = { ...t.off };
+    t.players = [];
+  }
   for (const row of stats?.games ?? []) {
-    const s = row.stats ?? {};
-    const pass = (s.pass_yd ?? 0) - (s.pass_sack_yds ?? 0);
-    const rush = s.rush_yd ?? 0;
     const offense = teams.get(row.team);
     const defense = teams.get(row.opponent);
-    if (offense) Object.assign(offense, { passYd: offense.passYd + pass, rushYd: offense.rushYd + rush });
-    if (defense) Object.assign(defense, { oppPassYd: defense.oppPassYd + pass, oppRushYd: defense.oppRushYd + rush });
+    for (const [key, read] of Object.entries(GAME_TOTALS)) {
+      const value = read(row.stats ?? {});
+      if (offense) offense.off[key] += value;
+      if (defense) defense.def[key] += value;
+    }
   }
   // Players belong to the team they're on now (trades), so starters reflect this
   // week's roster.
-  for (const row of stats?.offense ?? []) {
+  for (const row of stats?.players ?? []) {
     const current = row.player?.team ?? row.team;
     if (teams.has(current)) teams.get(current).players.push(row);
   }
-  for (const row of stats?.defense ?? []) {
-    const t = teams.get(row.player_id);
-    if (!t) continue;
-    const s = row.stats;
-    t.defense = { sacks: s.sack ?? 0, takeaways: (s.int ?? 0) + (s.fum_rec ?? 0) };
-  }
 
+  const pct = (made, tries) => (tries ? (100 * made) / tries : 0);
   for (const t of teams.values()) {
-    const gp = t.gp;
+    const { off, def, gp } = t;
     t.per = {
       points: per(t.pointsFor, gp),
-      passYd: per(t.passYd, gp),
-      rushYd: per(t.rushYd, gp),
-      yards: per(t.passYd + t.rushYd, gp),
+      passYd: per(off.passYd, gp),
+      rushYd: per(off.rushYd, gp),
+      yards: per(off.passYd + off.rushYd, gp),
+      yardsPerPlay: per(off.passYd + off.rushYd, off.plays),
+      thirdPct: pct(off.thirdConv, off.thirdAtt),
+      redZonePct: pct(off.rzConv, off.rzAtt),
       allowed: per(t.pointsAgainst, gp),
-      oppPassYd: per(t.oppPassYd, gp),
-      oppRushYd: per(t.oppRushYd, gp),
-      yardsAllowed: per(t.oppPassYd + t.oppRushYd, gp),
-      sacks: t.defense?.sacks ?? 0,
-      takeaways: t.defense?.takeaways ?? 0,
+      oppPassYd: per(def.passYd, gp),
+      oppRushYd: per(def.rushYd, gp),
+      yardsAllowed: per(def.passYd + def.rushYd, gp),
+      oppYardsPerPlay: per(def.passYd + def.rushYd, def.plays),
+      oppThirdPct: pct(def.thirdConv, def.thirdAtt),
+      oppRedZonePct: pct(def.rzConv, def.rzAtt),
+      // A defense's sacks and takeaways are its opponents' sacks taken and giveaways.
+      sacks: def.sacked,
+      takeaways: def.giveaways,
+      giveaways: off.giveaways,
+      turnoverMargin: def.giveaways - off.giveaways,
     };
     t.starters = pickStarters(t.players);
   }
@@ -123,8 +142,8 @@ export function addStats(league, stats) {
     const sorted = [...teams.values()].filter((t) => t.gp).sort((a, b) => (higherIsBetter ? b.per[key] - a.per[key] : a.per[key] - b.per[key]));
     sorted.forEach((t, i) => ((t.ranks ??= {})[key] = i + 1));
   };
-  for (const key of ['points', 'passYd', 'rushYd', 'yards', 'sacks', 'takeaways']) rankOn(key, true);
-  for (const key of ['allowed', 'oppPassYd', 'oppRushYd', 'yardsAllowed']) rankOn(key, false);
+  for (const key of ['points', 'passYd', 'rushYd', 'yards', 'yardsPerPlay', 'thirdPct', 'redZonePct', 'sacks', 'takeaways', 'turnoverMargin']) rankOn(key, true);
+  for (const key of ['allowed', 'oppPassYd', 'oppRushYd', 'yardsAllowed', 'oppYardsPerPlay', 'oppThirdPct', 'oppRedZonePct', 'giveaways']) rankOn(key, false);
 
   league.hasStats = true;
   return league;

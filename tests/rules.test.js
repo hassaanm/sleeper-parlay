@@ -5,7 +5,7 @@ import { clashFor, gradePick, legLockedReason, pickBlockedReason, pickFrom, pick
 
 const HOUR = 3_600_000;
 const now = Date.UTC(2026, 10, 1, 17); // Sun 12:00 PM CT
-const pick = (over) => ({ optKey: 'm1:yes', gameId: 'g1', type: 'spread', label: 'KC -3.5', matchup: 'KC @ DEN', price: 50, start: now + HOUR, ...over });
+const pick = (over) => ({ optKey: 'm1:yes', gameId: 'g1', type: 'spread', label: 'KC -3.5', team: 'KC', line: -3.5, matchup: 'KC @ DEN', price: 50, start: now + HOUR, ...over });
 const slip = (over = {}) => ({ settings: {}, picks: {}, ...over });
 
 test('a slip locks by hand or when the deadline passes', () => {
@@ -46,27 +46,25 @@ test('one leg per game and bet type', () => {
 test('spreads, totals, and moneylines grade against the score', () => {
   assert.equal(gradePick(pick(), 24, 20), 'hit'); // KC -3.5 wins by 4
   assert.equal(gradePick(pick(), 23, 20), 'miss');
-  assert.equal(gradePick(pick({ label: 'DEN +3.5' }), 23, 20), 'hit');
-  assert.equal(gradePick(pick({ label: 'KC −3' }), 23, 20), 'push'); // typographic minus
-  assert.equal(gradePick(pick({ type: 'total', label: 'Over 44.5' }), 24, 21), 'hit');
-  assert.equal(gradePick(pick({ type: 'total', label: 'Under 44.5' }), 24, 21), 'miss');
-  assert.equal(gradePick(pick({ type: 'ml', label: 'DEN ML' }), 17, 20), 'hit');
+  assert.equal(gradePick(pick({ team: 'DEN', line: 3.5 }), 23, 20), 'hit');
+  assert.equal(gradePick(pick({ line: -3 }), 23, 20), 'push');
+  const total = (side) => pick({ type: 'total', team: undefined, line: 44.5, side });
+  assert.equal(gradePick(total('over'), 24, 21), 'hit');
+  assert.equal(gradePick(total('under'), 24, 21), 'miss');
+  assert.equal(gradePick(pick({ type: 'ml', team: 'DEN', line: undefined }), 17, 20), 'hit');
 });
 
 test('pickTeams describes the matchup from the backed team', () => {
   assert.deepEqual(pickTeams(pick()), { team: 'KC', away: 'KC', home: 'DEN', vs: '@ DEN' });
-  assert.equal(pickTeams(pick({ label: 'DEN +3.5' })).vs, 'vs KC');
-  assert.equal(pickTeams(pick({ type: 'total', label: 'Over 44.5' })).team, null);
+  assert.equal(pickTeams(pick({ team: 'DEN' })).vs, 'vs KC');
+  assert.equal(pickTeams(pick({ type: 'total' })).team, null);
 });
 
-test('legs saved with team, line, and side grade from those fields', () => {
-  const opt = { key: 'm2:no', gameId: 'g1', type: 'spread', label: 'DEN +3.5', team: 'DEN', line: 3.5, price: 48, fair: 0.49 };
-  const saved = pickFrom(opt, { matchup: 'KC @ DEN', start: now + HOUR }, now);
-  assert.deepEqual([saved.team, saved.line, saved.side], ['DEN', 3.5, undefined]);
-  assert.equal(gradePick(saved, 23, 20), 'hit');
-  // The fields win over the label.
-  assert.equal(gradePick({ ...saved, label: 'garbled' }, 23, 20), 'hit');
-  const over = pickFrom({ key: 'm3:yes', gameId: 'g1', type: 'total', label: 'Over 44.5', line: 44.5, side: 'over', price: 50 }, { matchup: 'KC @ DEN', start: now }, now);
-  assert.equal(gradePick({ ...over, label: '?' }, 24, 21), 'hit');
-  assert.equal(pickTeams({ ...saved, label: '?' }).vs, 'vs KC');
+test('pickFrom saves the team, line, and side from the option', () => {
+  const game = { matchup: 'KC @ DEN', start: now + HOUR };
+  const spread = pickFrom({ key: 'm2:no', gameId: 'g1', type: 'spread', label: 'DEN +3.5', team: 'DEN', line: 3.5, price: 48, fair: 0.49 }, game, now);
+  assert.deepEqual([spread.team, spread.line, spread.side, spread.start, spread.pickedAt], ['DEN', 3.5, undefined, now + HOUR, now]);
+  const over = pickFrom({ key: 'm3:yes', gameId: 'g1', type: 'total', label: 'Over 44.5', line: 44.5, side: 'over', price: 50 }, game, now);
+  assert.deepEqual([over.team, over.line, over.side], [undefined, 44.5, 'over']);
+  assert.equal(gradePick(over, 24, 21), 'hit');
 });

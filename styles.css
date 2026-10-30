@@ -387,10 +387,24 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Team hero: centered, so the corner buttons never crowd it. */
 /* Team color washes in from the top and fades out softly behind the logo. */
 .tp-hero {
-  display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 2px 16px 16px; text-align: center;
+  position: relative; display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 2px 16px 16px; text-align: center;
   background:
     radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--team) 42%, transparent), transparent 75%),
     linear-gradient(180deg, color-mix(in srgb, var(--team) 14%, transparent), transparent 85%);
+}
+/* Pulling a sheet down past its top shows the space above the hero. Each hero's glow
+   continues up into it: the same colors as the hero's top edge, held all the way up
+   (a very tall ellipse), so the gradient never looks cut off. */
+.tp-hero::before, .mp-hero::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 100vh; pointer-events: none; }
+.tp-hero::before {
+  background:
+    radial-gradient(70% 10000% at 50% 100%, color-mix(in srgb, var(--team) 42%, transparent), transparent 75%),
+    color-mix(in srgb, var(--team) 14%, transparent);
+}
+.mp-hero::before {
+  background:
+    radial-gradient(60% 10000% at 12% 100%, color-mix(in srgb, var(--away) 40%, transparent), transparent 72%),
+    radial-gradient(60% 10000% at 88% 100%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%);
 }
 .logo-disc { display: grid; place-items: center; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35)); }
 /* Team logo files carry empty space above and below the mark; trim it so the name
@@ -413,7 +427,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .unit-rank { display: inline-flex; align-items: center; gap: 5px; letter-spacing: 0; text-transform: none; }
 .unit-rank b { font-size: 12.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
 .unit-rank small { font-size: 11px; font-weight: 600; color: var(--muted); }
-.unit-rank .rk-pill { margin-left: 3px; }
+.unit-rank .rk { margin-left: 4px; }
 .unit-card .card-head { align-items: center; padding-top: 8px; padding-bottom: 7px; }
 .unit-cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 14px; padding: 9px 0 10px; border-top: 1px solid var(--line-soft); }
 .unit-card .rk-row { grid-template-columns: 1fr auto; row-gap: 3px; column-gap: 6px; }
@@ -449,11 +463,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .sched-opp b { font-size: 14px; font-weight: 700; }
 .sched-row .sched-score { text-align: right; font-size: 14px; font-weight: 650; }
 
-/* Shared pieces, the same in every view. A league rank (ui.rankPill): neutral, green in
-   the top quarter, red in the bottom quarter. */
-.rk-pill { display: inline-block; padding: 1px 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); font-size: 10.5px; font-weight: 750; line-height: 1.45; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rk-pill.top { background: rgba(0, 214, 168, 0.14); color: var(--accent); }
-.rk-pill.bottom { background: rgba(255, 107, 125, 0.14); color: var(--bad); }
+/* Shared pieces, the same in every view. A league rank (ui.rankText): quiet text beside
+   its number. */
+.rk { font-size: 10.5px; font-weight: 700; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* A game result (ui.resultChip). */
 .res-chip { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 11px; font-weight: 800; flex: none; }
 .res-chip.W { background: rgba(0, 214, 168, 0.16); color: var(--accent); }
@@ -463,8 +475,7 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Ranked stat rows */
 .rk-row { display: grid; align-items: center; column-gap: 10px; }
 .rk-label { font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
-.rk-val { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.rk-row .rk-pill { justify-self: end; }
+.rk-val { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .rk-bar { grid-column: 1 / -1; height: 3px; margin-top: 8px; border-radius: 2px; background: var(--line-soft); overflow: hidden; }
 .rk-bar i { display: block; height: 100%; border-radius: 2px; background: var(--faint); }
 .rk-bar i.top { background: var(--accent); }
@@ -491,7 +502,7 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Matchup hero: both team colors meeting in the middle, game info stacked between. */
 /* Each team's color glows from its own top corner and the two meet softly in the middle. */
 .mp-hero {
-  margin: 0 -16px; padding: 16px 16px 6px;
+  position: relative; margin: 0 -16px; padding: 16px 16px 6px;
   background:
     radial-gradient(60% 100% at 12% 0%, color-mix(in srgb, var(--away) 40%, transparent), transparent 72%),
     radial-gradient(60% 100% at 88% 0%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%);
@@ -523,19 +534,29 @@ h1, h2 { letter-spacing: -0.02em; }
 .cmp-head span { display: inline-flex; align-items: center; gap: 6px; }
 .cmp-head span:last-child { justify-self: end; }
 .cmp-head .cmp-title { color: var(--text); letter-spacing: 0.08em; }
-/* A group label inside a comparison card: "Offense", then "Defense". */
-.cmp-group { padding: 9px 0 1px; border-top: 1px solid var(--line-soft); font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; text-align: center; }
+/* A group divider inside a comparison card ("Offense", "Defense", ...): a quiet band
+   across the card with the group's name. */
+.cmp-group {
+  margin: 0 -14px; padding: 6px 14px 5px; background: rgba(255, 255, 255, 0.025);
+  border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; text-align: center;
+}
 .cmp-head + .cmp-group { border-top: none; }
-.cmp-group + .cmp-row { border-top: none; padding-top: 4px; }
+.cmp-group + .cmp-row { border-top: none; }
 .cmp-empty { margin: 0; padding: 9px 0 8px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--faint); text-align: center; }
-.cmp-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 90px; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
-/* Value on the outside edge, its league rank beside it toward the middle. */
-.cmp-val { display: flex; align-items: center; gap: 6px; line-height: 1.15; white-space: nowrap; }
-.cmp-val.right { flex-direction: row-reverse; }
+.cmp-row { display: grid; grid-template-columns: 80px minmax(0, 1fr) 80px; align-items: center; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
+/* Value and rank in fixed columns: values line up on their right edge (and decimals),
+   ranks line up beside them toward the middle, row after row. Home mirrors away. */
+.cmp-val { display: grid; grid-template-columns: 46px auto; justify-content: start; align-items: baseline; column-gap: 6px; line-height: 1.15; white-space: nowrap; }
+.cmp-val b { text-align: right; }
+.cmp-val.right { grid-template-columns: auto 46px; justify-content: end; }
+.cmp-val.right .rk { order: -1; }
+.cmp-row.plain-row .cmp-val { display: flex; }
+.cmp-row.plain-row .cmp-val.right { justify-content: flex-end; }
 .cmp-val b { font-size: 15px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cmp-val.better b { color: var(--text); font-weight: 800; }
 .cmp-mid { display: grid; gap: 5px; justify-items: center; }
-.cmp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--muted); text-align: center; }
+.cmp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: var(--muted); text-align: center; white-space: nowrap; }
 .cmp-bar { display: flex; width: 100%; height: 4px; border-radius: 99px; overflow: hidden; opacity: 0.85; }
 .cmp-bar i + i { box-shadow: inset 2px 0 0 var(--card); }
 .cmp-val.plain b { color: var(--text); font-weight: 700; }

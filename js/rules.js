@@ -38,8 +38,8 @@ export function clashFor(slip, userId, opt) {
   return null;
 }
 
-// A saved leg, from a line option and its game. The team, line, and side are stored as
-// data so grading never has to read them back out of the label.
+// A saved leg, from a line option and its game. The label is for display; grading reads
+// the team (moneyline, spread), line (spread, total), and side (total: over or under).
 export function pickFrom(opt, game, now = Date.now()) {
   return {
     optKey: opt.key,
@@ -57,29 +57,18 @@ export function pickFrom(opt, game, now = Date.now()) {
   };
 }
 
-// What a leg backs: { team, line, side }. Legs saved before those fields existed are
-// read from the label ("JAX -7.5", "Over 45.5", "KC ML").
-function legTerms(pick) {
-  const [first, rest] = pick.label.split(' ');
-  if (pick.type === 'total') {
-    return { team: null, line: pick.line ?? Number(rest), side: pick.side ?? (first === 'Over' ? 'over' : 'under') };
-  }
-  const line = pick.type === 'spread' ? pick.line ?? Number(String(rest).replace('−', '-')) : 0;
-  return { team: pick.team ?? first, line, side: null };
-}
-
 // Grade a pick against a score: 'hit', 'miss', or 'push'. Used for finals, and for
 // "covering right now" while a game is live.
 export function gradePick(pick, awayScore, homeScore) {
   const [away] = pick.matchup.split(' @ ');
-  const { team, line, side } = legTerms(pick);
   let margin;
   if (pick.type === 'total') {
-    margin = side === 'over' ? awayScore + homeScore - line : line - (awayScore + homeScore);
+    const total = awayScore + homeScore;
+    margin = pick.side === 'over' ? total - pick.line : pick.line - total;
   } else {
-    const mine = team === away ? awayScore : homeScore;
-    const theirs = team === away ? homeScore : awayScore;
-    margin = mine + line - theirs;
+    const mine = pick.team === away ? awayScore : homeScore;
+    const theirs = pick.team === away ? homeScore : awayScore;
+    margin = mine + (pick.type === 'spread' ? pick.line : 0) - theirs;
   }
   return margin > 0 ? 'hit' : margin < 0 ? 'miss' : 'push';
 }
@@ -88,8 +77,7 @@ export function gradePick(pick, awayScore, homeScore) {
 export function pickTeams(pick) {
   const [away, home] = pick.matchup.split(' @ ');
   if (pick.type === 'total') return { team: null, away, home, vs: `${away} @ ${home}` };
-  const { team } = legTerms(pick);
-  return { team, away, home, vs: team === away ? `@ ${home}` : `vs ${away}` };
+  return { team: pick.team, away, home, vs: pick.team === away ? `@ ${home}` : `vs ${away}` };
 }
 
 // One key for a game across Sleeper's scores and the lines: "AWAY@HOME".

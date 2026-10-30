@@ -22,18 +22,17 @@ export async function fetchEvents(ids) {
 }
 
 // Season-to-date stats from Sleeper, through `week`: one row per player (QB/RB/WR/TE),
-// one per team defense, and one per team per game (the "TEAM" rows, which name the
-// opponent, so yards allowed can be split into passing and rushing). About 2.5 MB, so
-// only fetched when someone opens a research page.
+// for starters, and one per team per game (the "TEAM" rows). A team row names the
+// opponent, so the same row gives one team's offense and what the other's defense
+// allowed. About 2.5 MB, so only fetched when someone opens a research page.
 const STATS = 'https://api.sleeper.com/stats/nfl';
 export async function fetchSeasonStats(season, week) {
   const query = (positions) => `season_type=regular&${positions.map((p) => `position[]=${p}`).join('&')}`;
-  const [offense, defense, ...games] = await Promise.all([
+  const [players, ...games] = await Promise.all([
     getJson(`${STATS}/${season}?${query(['QB', 'RB', 'WR', 'TE'])}`),
-    getJson(`${STATS}/${season}?${query(['DEF'])}`),
     ...Array.from({ length: week }, (_, i) => getJson(`${STATS}/${season}/${i + 1}?${query(['TEAM'])}`).catch(() => [])),
   ]);
-  return { offense, defense, games: games.flat() };
+  return { players, games: games.flat() };
 }
 
 export const playerHeadshot = (playerId) => `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`;
