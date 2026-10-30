@@ -15,11 +15,14 @@ export const fmtOdds = (price) => (state.oddsFormat === 'pct' ? (price > 0 && pr
 // Typographic minus for line labels like "JAX -7.5".
 export const pretty = (label) => String(label ?? '').replace(/ -(?=\d)/, ' −');
 
-export function avatar(member, size = 32, extraClass = '') {
+// `key` (optional) marks the avatar for the DOM patcher, and for animations that track
+// one member's avatar across renders.
+export function avatar(member, size = 32, extraClass = '', key = '') {
   const style = `width:${size}px;height:${size}px`;
-  if (member?.avatar) return `<img class="avatar ${extraClass}" style="${style}" src="${esc(member.avatar)}" alt="" loading="lazy">`;
+  const attrs = key ? ` data-key="${esc(key)}"` : '';
+  if (member?.avatar) return `<img class="avatar ${extraClass}"${attrs} style="${style}" src="${esc(member.avatar)}" alt="" loading="lazy">`;
   const initials = (member?.name ?? '?').slice(0, 2).toUpperCase();
-  return `<span class="avatar avatar-fallback ${extraClass}" style="${style};font-size:${Math.round(size * 0.38)}px">${esc(initials)}</span>`;
+  return `<span class="avatar avatar-fallback ${extraClass}"${attrs} style="${style};font-size:${Math.round(size * 0.38)}px">${esc(initials)}</span>`;
 }
 
 export function teamLogo(abbr, size = 32) {

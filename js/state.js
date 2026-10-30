@@ -33,7 +33,7 @@ export const state = {
   demoSeeded: false,
   busyKey: null,
   justPicked: null, // the cell you just picked, for its pop animation
-  facesHold: null, // faces order kept while your avatar flies into the slip
+  arriving: null, // whose avatar is flying into the slip's faces row (hidden there until it lands)
   // Admin page ("?admin"): unlocked for this tab once the password matches. While the
   // admin picks on someone's behalf, `acting` holds who, and who to switch back to.
   admin: { route: new URLSearchParams(location.search).has('admin'), authed: sessionGet('parlay:admin') === '1', error: null },
@@ -43,7 +43,6 @@ export const state = {
   // Nudge the closed slip once per visit so people notice it pulls up.
   slipNudge: safeGet('parlay:nudged') !== '1',
   nudging: false,
-  bumpUntil: 0,
   tear: {}, // where each slip's tear line sits, in px from the bottom: { slip, ticket }
   failedImages: new Set(), // player headshots that failed to load, kept hidden
   landing: { query: '', error: null },

@@ -114,7 +114,6 @@ async function startSlip() {
       if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`);
     }
     state.slip = slip;
-    if (!firstLoad && Object.keys(slip?.picks ?? {}).length > legsBefore) setTimeout(bumpFaces, 50);
     if (firstLoad) state.me = rememberedMe(slip);
 
     if (weekChanged) {
@@ -234,7 +233,9 @@ async function choose(key) {
   if (game.locked || !opt.available) return toast('That line is closed.', 'bad');
 
   const from = $app.querySelector(`.cell[data-key="${CSS.escape(key)}"]`)?.getBoundingClientRect();
-  const facesBefore = legsWithLive().map((l) => l.member.id);
+  // Your avatar where it sits now, if you're changing your leg: it falls away once the
+  // new leg saves.
+  const oldFace = faceSnapshot(me);
   let picked = false;
   state.busyKey = key;
   render();
@@ -259,22 +260,80 @@ async function choose(key) {
     toast(saveError(e), 'bad');
   } finally {
     state.busyKey = null;
-    // Keep the faces row in its old order until the avatar lands in it.
-    if (picked && from) state.facesHold = facesBefore;
+    // Your avatar's new spot opens up hidden; the others slide to make room (render),
+    // the old one falls, and the new one flies in from the cell you tapped.
+    const animate = picked && from && !reducedMotion();
+    if (animate) state.arriving = me;
     render();
-    if (state.facesHold && !flyToSlip(from)) releaseFaces();
+    if (animate) {
+      if (oldFace) dropFace(oldFace);
+      flyToSlip(from);
+    }
   }
 }
+
+// ---------- the faces row (who's in) ----------
+
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SLIDE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
 // are both in the page, and the hidden one measures as 0x0 at the top left.
 const visibleFaces = () => [...$app.querySelectorAll('.slip-peek .faces')].find((f) => f.offsetWidth);
 
-// Your avatar hops from the cell you tapped into the slip at the bottom.
+// Every face in the showing row: member id -> { el, rect }.
+function faceRects() {
+  const row = visibleFaces();
+  if (!row) return null;
+  return new Map([...row.querySelectorAll('[data-key]')].map((el) => [el.dataset.key, { el, rect: el.getBoundingClientRect() }]));
+}
+const faceSnapshot = (id) => faceRects()?.get(id) ?? null;
+
+// After a render, the faces row animates what changed: faces that moved slide to their
+// new spots, new faces pop in, and faces that left fall off the screen. The face that's
+// arriving (yours, mid-flight) is left to flyToSlip.
+function animateFaces(before) {
+  const row = visibleFaces();
+  if (!before || !row || reducedMotion()) return;
+  const after = new Map([...row.querySelectorAll('[data-key]')].map((el) => [el.dataset.key, el]));
+  for (const [id, el] of after) {
+    if (id === state.arriving) continue;
+    const old = before.get(id);
+    if (!old) {
+      el.animate([{ transform: 'scale(0.3)', opacity: 0 }, { transform: 'scale(1.15)', opacity: 1, offset: 0.6 }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
+      continue;
+    }
+    const dx = old.rect.left - el.getBoundingClientRect().left;
+    if (Math.abs(dx) > 0.5) el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], SLIDE);
+  }
+  for (const [id, old] of before) if (!after.has(id)) dropFace(old);
+}
+
+// A face that leaves the row hops, tips over, and falls off the bottom of the screen.
+function dropFace({ el, rect }) {
+  const face = el.cloneNode(true);
+  face.classList.remove('arriving');
+  face.classList.add('face-drop');
+  Object.assign(face.style, { left: `${rect.left}px`, top: `${rect.top}px` });
+  document.body.appendChild(face);
+  const drift = (Math.random() < 0.5 ? -1 : 1) * (20 + Math.random() * 30);
+  const fall = innerHeight - rect.top + 60;
+  face.animate(
+    [
+      { transform: 'translate(0, 0) rotate(0deg)', easing: 'cubic-bezier(0.2, 0.6, 0.4, 1)' },
+      { transform: `translate(${drift * 0.3}px, -38px) rotate(${drift * 0.4}deg) scale(1.1)`, offset: 0.3, easing: 'cubic-bezier(0.55, 0, 1, 0.45)' },
+      { transform: `translate(${drift}px, ${fall}px) rotate(${drift * 3}deg) scale(1.1)` },
+    ],
+    { duration: 900 },
+  ).finished.then(() => face.remove());
+}
+
+// Your avatar flies from the cell you tapped to its spot in the faces row, then takes
+// its place there.
 function flyToSlip(from) {
-  const me = memberById(state.me);
-  const target = visibleFaces();
-  if (!me || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  const me = memberById(state.arriving);
+  const target = visibleFaces()?.querySelector(`[data-key="${CSS.escape(state.arriving)}"]`);
+  if (!me || !target) return land();
   const to = target.getBoundingClientRect();
   const size = 30;
   const el = document.createElement('div');
@@ -282,40 +341,33 @@ function flyToSlip(from) {
   el.innerHTML = avatar(me, size);
   const x0 = from.left + from.width / 2 - size / 2;
   const y0 = from.top + from.height / 2 - size / 2;
-  const x1 = to.right - size + 4;
-  const y1 = to.top + to.height / 2 - size / 2;
+  // Center on the target, scaled down to its size.
+  const dx = to.left + to.width / 2 - (x0 + size / 2);
+  const dy = to.top + to.height / 2 - (y0 + size / 2);
+  const end = to.width / size;
   Object.assign(el.style, { left: `${x0}px`, top: `${y0}px` });
   document.body.appendChild(el);
-  const lift = Math.min(120, Math.abs(y1 - y0) * 0.35);
+  const lift = Math.min(120, Math.abs(dy) * 0.35);
   el.animate(
     [
-      { transform: 'translate(0, 0) scale(1.15)', opacity: 1 },
-      { transform: `translate(${(x1 - x0) / 2}px, ${(y1 - y0) / 2 - lift}px) scale(1.05)`, opacity: 1, offset: 0.45 },
-      { transform: `translate(${x1 - x0}px, ${y1 - y0}px) scale(0.75)`, opacity: 0.9 },
+      { transform: 'translate(0, 0) scale(1.15)' },
+      { transform: `translate(${dx / 2}px, ${dy / 2 - lift}px) scale(1.05)`, offset: 0.45 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${end})` },
     ],
     { duration: 650, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
   ).finished.then(() => {
     el.remove();
-    releaseFaces();
-    bumpFaces();
+    land();
   });
-  return true;
 }
 
-function releaseFaces() {
-  state.facesHold = null;
+// The flight is over: show your face in its spot, with a small settle.
+function land() {
+  const id = state.arriving;
+  state.arriving = null;
   render();
-}
-
-// The faces row bounces when a leg is added. Renders keep the class for the length of
-// the bounce, so a redraw mid-bounce doesn't cut it short.
-function bumpFaces() {
-  const faces = visibleFaces();
-  if (!faces) return;
-  state.bumpUntil = Date.now() + 500;
-  faces.classList.remove('bump');
-  void faces.offsetWidth; // restart the animation
-  faces.classList.add('bump');
+  visibleFaces()?.querySelector(`[data-key="${CSS.escape(id ?? '')}"]`)
+    ?.animate([{ transform: 'scale(1.3)' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(0.2, 1.6, 0.4, 1)' });
 }
 
 async function removeMine() {
@@ -425,7 +477,9 @@ function render() {
     slipDrag.pendingRender = true;
     return;
   }
+  const faces = faceRects();
   patch($app, (state.slipId ? renderSlipPage() : renderLanding()) + renderToast());
+  animateFaces(faces);
   document.body.classList.toggle('no-scroll', state.sheetOpen || state.pages.length > 0);
   if (state.resetPageScroll) $app.querySelector('.tsheet-body')?.scrollTo(0, 0);
   state.resetPageScroll = false;

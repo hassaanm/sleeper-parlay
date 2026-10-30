@@ -301,11 +301,11 @@ h1, h2 { letter-spacing: -0.02em; }
   100% { transform: rotate(var(--rot)) scale(1); }
 }
 
-/* Your avatar flying into the slip after a pick, and the slip's faces bouncing. */
+/* Your avatar flying into the slip after a pick, and a face falling out of the row
+   (app.js flyToSlip, dropFace). */
 .flyer { position: fixed; z-index: 70; pointer-events: none; border-radius: 50%; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5); }
 .flyer .avatar { display: block; box-shadow: 0 0 0 2px var(--accent); }
-.faces.bump { animation: faces-bump 0.5s cubic-bezier(0.2, 1.6, 0.4, 1); }
-@keyframes faces-bump { 0% { transform: scale(1); } 35% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.face-drop { position: fixed; z-index: 70; margin: 0; pointer-events: none; box-shadow: 0 0 0 2px var(--paper), 0 6px 14px rgba(0, 0, 0, 0.45); }
 .cell.blocked { opacity: 0.32; cursor: not-allowed; }
 .cell[aria-disabled]:not(.taken):not(.blocked) { opacity: 0.35; cursor: not-allowed; }
 .cell.busy { animation: pulse 0.9s ease-in-out infinite; }
@@ -633,7 +633,7 @@ h1, h2 { letter-spacing: -0.02em; }
   mask-composite: add, add, intersect;
 }
 .parlay-card.ticket .slip-peek { height: 50px; }
-.parlay-card.ticket .sheet-body { border-top: 1px dashed var(--line); padding: 2px 0 6px; --notch-y: calc(100% + 6px); }
+.parlay-card.ticket .sheet-body { border-top: 1px dashed var(--line); padding: 0 0 6px; --notch-y: calc(100% + 6px); }
 .parlay-card.ticket .parlay-foot { margin: 6px 0 0; padding: 12px 16px 0; }
 
 .legs { list-style: none; margin: 0; padding: 0; }
@@ -720,9 +720,10 @@ h1, h2 { letter-spacing: -0.02em; }
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   height: var(--peek); padding: 4px 14px 0; transition: height 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.faces { display: flex; align-items: center; padding-left: 7px; flex: none; transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: left center; }
-.faces .stacked { margin-left: -7px; box-shadow: 0 0 0 2px var(--paper); }
-.faces small { margin-left: 5px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.faces { display: flex; align-items: center; padding-left: calc(-1 * var(--overlap, -7px)); flex: none; }
+.faces .stacked { margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
+/* Holds your spot while your avatar flies in. */
+.faces .arriving { visibility: hidden; }
 .faces-empty { font-size: 13px; color: var(--muted); margin-left: -7px; }
 .peek-right { display: flex; align-items: center; gap: 8px; }
 .my-leg {
@@ -741,7 +742,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .my-leg.empty { padding: 4px 10px; background: none; border: 1px dashed var(--line); color: var(--muted); font-weight: 600; }
 
 .slip .sheet-body {
-  overflow-y: auto; padding: 2px 0 6px; overscroll-behavior: contain;
+  overflow-y: auto; padding: 0 0 6px; overscroll-behavior: contain; /* no top gap: a tinted first leg meets the dashed line */
   border-top: 1px dashed var(--line); transition: opacity 0.25s ease;
 }
 /* Leg highlights run edge to edge, but the tear-line notches always win: the legs

@@ -34,10 +34,11 @@ function slipHeader(withChevron) {
         <small>of ${legs.length}</small>
       </span>`;
   } else {
-    // While your avatar is in flight, faces keep the order from before your pick.
-    const shown = state.facesHold ? state.facesHold.map((id) => legs.find((l) => l.member.id === id)).filter(Boolean) : legs;
-    const faces = shown.slice(0, 6).map((l) => avatar(l.member, 24, 'stacked')).join('');
-    left = `<span class="faces ${Date.now() < state.bumpUntil ? 'bump' : ''}">${shown.length ? faces : '<span class="faces-empty">No legs yet</span>'}${shown.length > 6 ? `<small>+${shown.length - 6}</small>` : ''}</span>`;
+    // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
+    // league still fits. Your avatar stays hidden while it flies in (app.js flyToSlip).
+    const overlap = legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
+    const faces = legs.map((l) => avatar(l.member, 24, `stacked${l.member.id === state.arriving ? ' arriving' : ''}`, l.member.id)).join('');
+    left = `<span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>`;
   }
   return `
     <div class="slip-peek">
