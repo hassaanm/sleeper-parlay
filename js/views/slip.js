@@ -158,7 +158,8 @@ function gameBar(pick, st) {
   return `
     <div class="leg-game ${tone} ${final ? 'final' : ''}">
       ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
-      <span class="gbar" style="--lo:${Math.min(from, at)}%;--hi:${Math.max(from, at)}%">
+      <span class="gbar">
+        <i class="gbar-fill" style="left:${Math.min(from, at)}%;width:${Math.abs(at - from)}%"></i>
         <i class="gbar-tick" style="left:${pick.type === 'total' ? LINE_AT : 50}%"></i>
         <i class="gbar-dot" style="left:${at}%"></i>
         ${final ? '' : `<small class="gbar-lbl" style="left:${at}%">${barLabel(pick, st)}</small>`}

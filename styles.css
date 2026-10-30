@@ -918,13 +918,8 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar { position: relative; height: 26px; margin: 0 2px; }
 
 .gbar i { position: absolute; display: block; }
-/* One piece: slate, with the colored part (--lo to --hi) painted into it. A separate fill
-   laid over the track let the slate bleed through its edges at fractional pixel
-   positions, as a dark fringe. The colored part's ends sit under the tick and the dot. */
-.gbar::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px;
-  background: linear-gradient(90deg, #2b3557 var(--lo), var(--tone, #2b3557) var(--lo), var(--tone, #2b3557) var(--hi), #2b3557 var(--hi));
-}
+.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
+.gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
 .gbar-dot { top: 2.5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1; }
 /* A thin ring in a darker shade of the dot's own color. */
@@ -951,10 +946,8 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar-lbl { position: absolute; top: 15px; transform: translateX(-50%); font-size: 10.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .gbar-lbl .num { position: relative; }
 .gbar-lbl .sg { position: absolute; right: 100%; }
-.leg-game.win { --tone: var(--accent); }
-.leg-game.lose { --tone: var(--bad); }
-.leg-game.win .gbar-dot { background: var(--accent); }
-.leg-game.lose .gbar-dot { background: var(--bad); }
+.leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
+.leg-game.lose .gbar-fill, .leg-game.lose .gbar-dot { background: var(--bad); }
 .leg-game.tie .gbar-dot { background: #8fa3d8; }
 .leg-game.win .gbar-lbl { color: var(--accent); }
 .leg-game.lose .gbar-lbl { color: var(--bad); }
