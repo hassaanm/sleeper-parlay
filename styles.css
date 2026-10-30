@@ -142,6 +142,8 @@ h1, h2 { letter-spacing: -0.02em; }
 .topbar-text { display: grid; min-width: 0; line-height: 1.2; }
 .topbar-text strong { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-text small { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Once picks lock, a lock sits before the leg count. */
+.locked-legs { display: inline-flex; vertical-align: -1px; margin-right: 3px; color: var(--gold); }
 .league-avatar { border-radius: 10px; }
 /* The demo's stage picker: a small pill between the league and you. While a stage
    loads, the pill pulses and the board dims (app.js switchDemoStage). */

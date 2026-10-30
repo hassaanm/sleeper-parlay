@@ -12,7 +12,7 @@ export const basePath = `/${pathParts.join('/')}${pathParts.length ? '/' : ''}`;
 export const DEMO = new URLSearchParams(location.search).has('demo');
 // The demo's stages of a week (demo.js), picked from the top bar: "?demo=<id>".
 export const DEMO_MODES = [
-  { id: 'pre', label: 'Picking' }, // half your league mates have picked; you haven't
+  { id: 'pre', label: 'Pick' }, // half your league mates have picked; you haven't
   { id: 'live-win', label: 'Live ✓' }, // games underway, every leg winning so far
   { id: 'live-loss', label: 'Live ✗' }, // games underway, a leg already missed
   { id: 'won', label: 'Won' }, // every game over, every leg hit
