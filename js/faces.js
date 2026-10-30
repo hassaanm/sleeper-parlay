@@ -2,7 +2,7 @@
 // the same way for your picks and for friends' picks arriving live:
 //
 //   new pick            rolls in from behind the slip's left edge to its spot
-//   changed, same spot  squashes in place, a small "thud" as its sticker lands
+//   changed, same spot  jiggles in place as its sticker lands
 //   changed, new spot   jumps to its new spot on a real arc, higher for longer jumps
 //   removed             rolls off to the right and falls off the screen
 //
@@ -24,6 +24,7 @@ const GRAVITY = 2600; // px/s², for falls
 const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
 const ROLL_OFF_PX = 10; // rolled before tipping off the edge
 const ROLL_OFF_S = 0.2;
+const ROLL_OFF_DELAY_MS = 250; // a beat in place first, so the roll-off reads
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
@@ -72,7 +73,7 @@ export function animateFaces(root, before) {
   // rolling in; or, for a removal alone, once the leaving face is off the edge.
   const jumps = new Map(jumpers.map((id) => [id, jumpFor(Math.abs(spot(after.get(id)) - before.get(id).at.left))]));
   const rolls = new Map(added.map((id) => [id, rollFor(after.get(id))]));
-  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_S * 1000 : 0 };
+  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + ROLL_OFF_S * 1000 : 0 };
   for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
   for (const roll of rolls.values()) {
     const duration = Math.min(520, Math.max(320, roll.openAtMs));
@@ -87,7 +88,7 @@ export function animateFaces(root, before) {
     const el = after.get(id);
     const dx = before.get(id).at.left - spot(el);
     if (Math.abs(dx) > 0.5) el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...shuffle, fill: 'backwards' });
-    if (stayers.includes(id)) thud(el, IMPACT_MS);
+    if (stayers.includes(id)) jiggle(el, IMPACT_MS);
   }
 }
 
@@ -183,13 +184,18 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
   );
 }
 
-// A face whose pick changed but kept its spot squashes in place as its sticker lands:
-// a quick press into the ground and a rebound, no lift.
-function thud(el, delay) {
-  const tall = (t) => (t < 0.3 ? 1 - 0.16 * easeOut(t / 0.3)
-    : t < 0.65 ? lerp(0.84, 1.05, easeInOut((t - 0.3) / 0.35))
-      : lerp(1.05, 1, easeInOut((t - 0.65) / 0.35)));
-  el.animate(frames((t) => squash(tall(t)), 0, 1, 24, JUMP_ORIGIN), { duration: 320, delay, easing: 'linear' });
+// A face whose pick changed but kept its spot jiggles in place as its sticker lands,
+// like jelly: it wobbles side to side from its base, three swings dying out, with a
+// little springy stretch in step.
+function jiggle(el, delay) {
+  el.animate(
+    frames((t) => {
+      const decay = (1 - t) ** 2;
+      const swing = Math.sin(t * Math.PI * 6);
+      return { turn: 14 * swing * decay, ...squash(1 + 0.07 * Math.cos(t * Math.PI * 6) * decay) };
+    }, 0, 1, 48, JUMP_ORIGIN),
+    { duration: 560, delay, easing: 'linear' },
+  );
 }
 
 // A new face rolls in from behind the slip's left edge (the row is clipped there),
@@ -243,6 +249,6 @@ function rollOff(row, box, { el, at }, oldRight) {
       const x = rolling ? 0.5 * accel * t ** 2 : ROLL_OFF_PX + speed * air;
       return { x, y: rolling ? 0 : 0.5 * GRAVITY * air ** 2, turn: degreesRolled(x, radius) };
     }),
-    { duration: total * 1000, easing: 'linear' },
+    { duration: total * 1000, delay: ROLL_OFF_DELAY_MS, fill: 'backwards', easing: 'linear' },
   ).finished.then(() => el.remove());
 }
