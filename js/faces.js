@@ -188,7 +188,7 @@ const JIGGLE = [[0, 1], [0.3, 1.13], [0.42, 0.88], [0.54, 1.07], [0.68, 0.965], 
 function jiggle(el, delay) {
   el.animate(
     JIGGLE.map(([offset, wide]) => ({ offset, transform: `scale(${wide}, ${2 - wide})`, transformOrigin: JUMP_ORIGIN, easing: 'ease-in-out' })),
-    { duration: 600, delay },
+    { duration: 500, delay },
   );
 }
 
