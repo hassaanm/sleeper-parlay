@@ -108,13 +108,16 @@ function peelOff(root, el, key, delay) {
   if (delay) el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: delay });
 }
 
-// A face that leaves the row rolls over its edge, then falls under gravity, tumbling,
-// off the bottom of the screen. Fall time comes from gravity, so a short drop (the
-// phone slip at the bottom) is quick and a long one (the desktop sidebar) takes
-// longer, the way a real fall would. The face (the real element, never a fresh copy,
-// so it can't blink) sits in the row at its old place, before `rightNeighbor`, so it
-// keeps that place in the stack. It's marked transient so a render mid-fall leaves it
-// alone (dom.js).
+// A face that leaves the row rolls off its left edge like a ball off a cliff: it starts
+// rolling from rest and speeds up over a few pixels, then leaves the edge and falls.
+// In the air it keeps the small sideways speed it rolled off with while gravity pulls
+// it straight down, faster and faster, so the path curves into a near-vertical drop;
+// it keeps spinning at the rate it was rolling. Positions come from the physics frame
+// by frame. The face (the real element, never a fresh copy, so it can't blink) sits in
+// the row at its old place, before `rightNeighbor`, so it keeps that place in the
+// stack. It's marked transient so a render mid-fall leaves it alone (dom.js).
+const ROLL_PX = 10; // rolled before leaving the edge
+const ROLL_S = 0.2;
 function dropFace(row, { el, rect }, rightNeighbor) {
   for (const animation of el.getAnimations()) animation.cancel();
   el.classList.add('face-drop');
@@ -122,19 +125,26 @@ function dropFace(row, { el, rect }, rightNeighbor) {
   const box = row.getBoundingClientRect();
   Object.assign(el.style, { left: `${rect.left - box.left}px`, top: `${rect.top - box.top}px` });
   row.insertBefore(el, rightNeighbor);
-  const side = Math.random() < 0.5 ? -1 : 1;
-  const roll = 0.2; // s, tipping over
+
+  const radius = rect.width / 2;
+  const accel = (2 * ROLL_PX) / ROLL_S ** 2; // rolling from rest
+  const speed = accel * ROLL_S; // sideways speed at the edge, kept in the air
   const fall = innerHeight - rect.top + rect.height + 20;
-  const drop = Math.sqrt((2 * fall) / GRAVITY);
-  const drift = side * (16 + Math.random() * 20);
-  el.animate(
-    [
-      { transform: 'translate(0, 0) rotate(0deg)', easing: 'cubic-bezier(0.3, 0.6, 0.5, 1)' }, // rolling over, easing out
-      { transform: `translate(${side * 8}px, 3px) rotate(${side * 35}deg)`, offset: roll / (roll + drop), easing: 'cubic-bezier(0.11, 0, 0.5, 0)' }, // then falling, speeding up
-      { transform: `translate(${side * 8 + drift}px, ${fall}px) rotate(${side * (35 + 220 * drop)}deg)` },
-    ],
-    { duration: (roll + drop) * 1000 },
-  ).finished.then(() => el.remove());
+  const airtime = Math.sqrt((2 * fall) / GRAVITY);
+  const total = ROLL_S + airtime;
+  const frames = [];
+  for (let i = 0; i <= 40; i++) {
+    const t = (i / 40) * total;
+    const rolling = t < ROLL_S;
+    const air = t - ROLL_S;
+    const x = rolling ? 0.5 * accel * t ** 2 : ROLL_PX + speed * air;
+    const y = rolling ? 0 : 0.5 * GRAVITY * air ** 2;
+    // Rolling without slipping turns it by distance / radius; in the air it keeps
+    // spinning at the rate it left the edge.
+    const turn = (x / radius) * (180 / Math.PI);
+    frames.push({ transform: `translate(${-x}px, ${y}px) rotate(${-turn}deg)` });
+  }
+  el.animate(frames, { duration: total * 1000, easing: 'linear' }).finished.then(() => el.remove());
 }
 
 // CSS cubic-bezier(x1, y1, x2, y2) as a function of time 0..1, for paths built frame
