@@ -86,6 +86,22 @@
   .vs .side i { font-style: normal; font-size: 10px; color: var(--muted); }
   .vs .track { height: 8px; }
 
+  /* ---------- D: today's slip row, plus one row for the game ---------- */
+  .pslip .legs .leg { padding-top: 7px; padding-bottom: 7px; }
+  .pslip .legs .leg + .leg { border-top-color: #2d3963; }
+  .leg-sub .tri { font-size: 8px; color: var(--text); }
+  .leg-sub .dd { color: #b9c2dd; font-weight: 600; }
+  /* Away team's score on the left, home team's on the right; the bar between them. */
+  .leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; margin-top: -2px; }
+  .leg-game img { width: 14px; height: 14px; }
+  .leg-game b { font-size: 12.5px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  .leg-game b.lost { color: var(--muted); }
+  .leg-game .num-muted { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .gbar { position: relative; height: 22px; }
+  .gbar .track { position: absolute; left: 0; right: 0; top: 8px; height: 6px; }
+  .gbar .lbl { position: absolute; top: 15px; transform: translateX(-50%); font-size: 9px; font-weight: 700; color: var(--muted); line-height: 1; white-space: nowrap; }
+  .gbar.tie .fill { display: none; } .gbar.tie .dot { background: #8fa3d8; }
+
   /* ---------- C, revised ---------- */
   .r2 { display: grid; grid-template-columns: 34px 1fr; gap: 0 10px; padding: 11px 14px 9px; border-top: 1px solid #2d3963; }
   .r2:first-child { border-top: 0; }
@@ -301,6 +317,52 @@ const optionC2 = () => LEGS.map((leg) => {
   </div>`;
 }).join('');
 
+// D: the slip row stays as it is (pick, chance, who), with the clock and the down on
+// its second line; one more row below shows the game as a bar. Home is always on the
+// right. Spread and moneyline: the center tick is a tie (moneyline) or the picked
+// side's spread, labeled under it, and the dot moves toward the side winning the leg.
+// Totals: the running total on the left, the line on the right (its tick near the end).
+function optionD() {
+  return `<ol class="legs tracking">${LEGS.map((leg) => {
+    const g = GAMES[leg.g];
+    const live = g.state === 'in';
+    const final = g.state === 'post';
+    const pickedHome = leg.team === g.home;
+    let row;
+    if (leg.type === 'total') {
+      const pts = g.as + g.hs;
+      const over = pts > leg.line;
+      const cls = (leg.side === 'over') === over ? 'win' : 'lose';
+      const at = Math.min(100, (pts / leg.line) * 92);
+      row = `<b class="${cls === 'win' ? 'up' : 'down'}" style="grid-column:1 / 3">${pts} pts</b>
+        <div class="gbar prog ${cls}"><div class="track"><span class="fill" style="left:0;width:${at}%"></span><i class="tick" style="left:92%"></i><span class="dot" style="left:${at}%"></span></div></div>
+        <span class="num-muted" style="grid-column:4 / 6">${leg.line}</span>`;
+    } else {
+      const mine = pickedHome ? g.hs : g.as;
+      const theirs = pickedHome ? g.as : g.hs;
+      const margin = mine - theirs + (leg.type === 'spread' ? leg.line : 0);
+      const toward = 50 * Math.tanh(margin / 14) * (pickedHome ? 1 : -1);
+      const at = 50 + toward;
+      const cls = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
+      const lo = Math.min(50, at), hi = Math.max(50, at);
+      row = `${logo(g.away, 14)}<b class="${final && g.as < g.hs ? 'lost' : ''}">${g.as}</b>
+        <div class="gbar prog ${cls}"><div class="track"><span class="fill" style="left:${lo}%;width:${hi - lo}%"></span><i class="tick" style="left:50%"></i><span class="dot" style="left:${at}%"></span></div>
+          <span class="lbl" style="left:50%">${leg.type === 'spread' ? `${leg.team} ${signed(leg.line)}` : 'Tie'}</span></div>
+        <b class="${final && g.hs < g.as ? 'lost' : ''}">${g.hs}</b>${logo(g.home, 14)}`;
+    }
+    const ball = live && g.ball ? (g.ball === g.away ? `<span class="tri">◀</span><span class="dd">${g.down}</span>` : `<span class="dd">${g.down}</span><span class="tri">▶</span>`) : '';
+    const sub = live ? `<span class="live-tag">● ${g.clock}</span>${ball}` : '<span>Final</span>';
+    const rightTop = final ? `<span class="leg-odds">${right(leg)}</span>` : `<span class="leg-odds ${leg.now >= leg.price ? 'up' : 'down'}">${leg.now}%</span>`;
+    return `
+      <li class="leg ${final ? `leg-final ${standing(leg).cls === 'win' ? 'hit' : 'miss'}` : ''}">
+        <span class="leg-logo">${legLogo(leg)}<img class="avatar leg-face" style="width:18px;height:18px" src="${AV[0]}" alt=""></span>
+        <div class="leg-body"><span class="leg-pick">${leg.label}</span><span class="leg-sub">${sub}</span></div>
+        <div class="leg-right">${rightTop}<small class="leg-from">${leg.who}</small></div>
+        <div class="leg-game">${row}</div>
+      </li>`;
+  }).join('')}</ol>`;
+}
+
 const slip = (body) => `
   <div class="pslip">
     <div class="pslip-head"><span class="tally"><span class="t-hit">✓ 1</span></span><span class="muted" style="font-size:12px">5 legs</span></div>
@@ -316,7 +378,15 @@ document.getElementById('mock').innerHTML = `
     to the right. Small leads move it a lot; blowouts taper off near the end.
     Green = winning, red = losing, blue = an over still on its way.
   </p>
-  <p class="opt">C, REVISED · THE BAR IS THE GAME</p>${slip(optionC2())}
+  <p class="opt">D · TODAY'S ROW, PLUS ONE ROW FOR THE GAME</p>${slip(optionD())}
+  <p class="mock-sub" style="margin-top:8px">
+    The row stays as it is: the pick, its chance, and who has it. Its second line is the
+    clock and the down, with the arrow on the side of the team that has the ball. Below
+    it, the game as a bar: away on the left, home on the right. Spread and moneyline:
+    the center is a tie (or the picked side's spread) and the dot moves toward whichever
+    side is winning the leg. Totals: the running total on the left, the line on the right.
+  </p>
+  <p class="opt" style="margin-top:34px">C, REVISED (EARLIER TODAY)</p>${slip(optionC2())}
   <p class="mock-sub" style="margin-top:8px">
     Spread and moneyline: the picked team is on the right, the center tick is a tie
     (moneyline) or the picked side's spread. Totals: 0 on the left, the line near the
