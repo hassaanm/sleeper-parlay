@@ -458,7 +458,7 @@ function dissolveStickers(before) {
         { opacity: 1, scale: 1, filter: 'blur(0)' },
         { opacity: 0, scale: 1.3, filter: 'blur(3px)' },
       ],
-      { duration: 480, easing: 'ease-out', fill: 'forwards' },
+      { duration: 250, easing: 'ease-out', fill: 'forwards' },
     ).finished.then(() => el.remove());
   }
 }

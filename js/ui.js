@@ -108,7 +108,7 @@ export function rankTier(rank, size) {
 }
 
 // How long a new sticker's slap takes (styles.css .sticker.slap must match).
-export const STICKER_SLAP_MS = 800;
+export const STICKER_SLAP_MS = 650;
 
 // A league rank, everywhere it shows: quiet text reading "5th", beside its number.
 export const rankText = (rank) => `<small class="rk">${rank ? ordinal(rank) : '—'}</small>`;
