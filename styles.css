@@ -741,9 +741,10 @@ h1, h2 { letter-spacing: -0.02em; }
   background-clip: padding-box; /* row tints stop at the divider above, so they never hide it */
 }
 .leg + .leg { border-top: 1px dashed var(--line); }
-/* Your leg: your name with a green squiggle under it (before picks lock, your row has
-   the green Remove instead). */
-.ll-who.me { text-decoration: underline wavy var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; padding-bottom: 3px; }
+/* Your leg: your name in white with a white squiggle under it. White isn't a win, loss,
+   or live color, so it stands out without saying anything about how the leg's doing.
+   (Before picks lock, your row has the green Remove instead.) */
+.ll-who.me { color: var(--text); text-decoration: underline wavy rgba(255, 255, 255, 0.75); text-decoration-thickness: 1px; text-underline-offset: 3px; padding-bottom: 3px; }
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
 .logo-pair { position: relative; width: 30px; height: 30px; }
