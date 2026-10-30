@@ -61,7 +61,6 @@ export const state = {
   tear: {}, // where each slip's tear line sits, in px from the bottom: { slip, ticket }
   failedImages: new Set(), // player headshots that failed to load, kept hidden
   landing: { query: '', error: null },
-  toast: null,
 };
 
 export const isLocked = () => slipLocked(state.slip);
@@ -94,7 +93,7 @@ export function picks() {
 }
 
 // Why the current member can't take `opt` right now, in words, or null if they can. The
-// board greys out a cell with a problem, and tapping it shows this (app.js choose).
+// board greys out a cell with a problem, and tapping it does nothing (app.js choose).
 export function pickProblem(opt) {
   const game = gameById(opt.gameId);
   if (!game) return 'That line is closed.';

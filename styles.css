@@ -968,15 +968,6 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg-final.miss .leg-pick, .leg-final.miss .leg-odds { opacity: 0.55; }
 @keyframes fade { from { opacity: 0; } }
 
-.toast {
-  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px); transform: translateX(-50%); z-index: 60;
-  background: var(--raise); border: 1px solid var(--line); padding: 11px 16px; border-radius: 12px;
-  box-shadow: var(--shadow); font-weight: 600; font-size: 14px; width: max-content; max-width: calc(100vw - 32px); text-align: center;
-  animation: rise 0.2s ease-out;
-}
-.toast-good { border-color: var(--accent); }
-.toast-bad { border-color: var(--bad); color: #ffd3d9; }
-@keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 /* ---------- desktop ---------- */
 
@@ -984,7 +975,6 @@ h1, h2 { letter-spacing: -0.02em; }
   .layout { grid-template-columns: minmax(0, 1fr) 370px; padding-bottom: 48px; }
   .parlay-side { display: block; position: sticky; top: calc(var(--topbar-h) + var(--subbar-h) + 20px); margin-top: 20px; }
   .slip-wrap { display: none; }
-  .toast { bottom: 24px; }
   .g-grid { grid-template-columns: 6px 100px repeat(3, minmax(0, 1fr)); }
 }
 

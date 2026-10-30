@@ -12,19 +12,12 @@ import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
 import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
-import { dayTimeFmt, pretty } from './ui.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 
 const $app = document.getElementById('app');
 
 // ---------- helpers ----------
-
-// A failed save, in words. fetch rejects with a TypeError ("Failed to fetch", "Load
-// failed") when the network is down, and store.js gives up on hung requests.
-const saveError = (e) => (e?.name === 'TimeoutError' || (e instanceof TypeError && /fetch|load|network/i.test(e.message))
-  ? 'Couldn’t reach the server. Check your connection and try again.'
-  : e.message);
 
 // Takes a slip from a push, a save, or a read, if it's newer than the one on screen
 // (not the echo of our own save, or a slow read). A slip for a new week also drops last
@@ -65,18 +58,6 @@ const acceptSlip = (slip) => slip && setSlip(slip);
 
 // This slip's season and week, as numbers for the scores and stats endpoints.
 const slipWeek = () => ({ season: Number(state.slip.season), week: Number(state.slip.week) });
-
-function toast(message, tone = 'info') {
-  state.toast = { message, tone, id: Date.now() };
-  render();
-  const id = state.toast.id;
-  setTimeout(() => {
-    if (state.toast?.id === id) {
-      state.toast = null;
-      render();
-    }
-  }, 3200);
-}
 
 // ---------- data loading ----------
 
@@ -125,7 +106,6 @@ async function seedDemoPicks() {
     })
     .filter((o) => o?.available);
   const { share, me } = demoPickers(state.demoMode);
-  let added = 0;
   acceptSlip(await store.updateSlip(state.slipId, (slip) => {
     const mates = slip.members.filter((m) => m.id !== state.me);
     const target = Math.floor(mates.length * share) - mates.filter((m) => slip.picks[m.id]).length;
@@ -135,12 +115,10 @@ async function seedDemoPicks() {
       const opt = shuffle(open).find((o) => !clashFor(slip, member.id, o));
       if (!opt) break;
       slip.picks[member.id] = pickFrom(opt, gameById(opt.gameId));
-      added++;
     }
     // Past 'pre', the week is underway, so picks are locked.
     if (state.demoMode !== 'pre') slip.settings.locked = true;
   }));
-  if (added) toast(`Demo: added ${added} picks`, 'good');
 }
 
 // Moves the demo to another stage in place (a reload would flash the whole page): a
@@ -321,22 +299,18 @@ async function ensureCurrentSlip() {
 
 // Saves a change to your own leg, and shows it right away instead of after the save
 // (state.pending): the cell turns yours, the stickers swap, and your face moves in the
-// slip's row (faces.js). If the save fails, it all goes back. True if it saved.
+// slip's row (faces.js). If the save fails, it all goes back.
 async function saveMyLeg(userId, pick, mutate) {
   state.pending = { userId, pick };
-  let error = null;
   try {
     render();
     acceptSlip(await store.updateSlip(state.slipId, mutate));
-  } catch (e) {
-    error = e;
+  } catch {
     acceptSlip(await store.getSlip(state.slipId).catch(() => null));
   } finally {
     state.pending = null;
   }
   render();
-  if (error) toast(saveError(error), 'bad');
-  return !error;
 }
 
 async function choose(key) {
@@ -348,20 +322,18 @@ async function choose(key) {
   if (previous?.optKey === key) return;
   const game = gameById(opt.gameId);
   if (!game) return;
-  const problem = pickProblem(opt);
-  if (problem) return toast(problem, 'bad');
+  if (pickProblem(opt)) return;
 
   navigator.vibrate?.(12);
   state.justPicked = key;
   setTimeout(() => (state.justPicked = null), 1000); // through the cell's dip as the sticker lands
-  const saved = await saveMyLeg(me, pickFrom(opt, game), (slip) => {
+  await saveMyLeg(me, pickFrom(opt, game), (slip) => {
     const reason = pickBlockedReason(slip, me, game.start, { admin: !!acting });
     if (reason) throw new Error(reason);
     const clash = clashFor(slip, me, opt);
     if (clash) throw new Error(`${memberName(clash.userId, slip)} just took ${clash.pick.label}. Pick another leg.`);
     slip.picks[me] = pickFrom(opt, game);
   });
-  if (saved && matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
 }
 
 async function removeMine() {
@@ -559,13 +531,14 @@ async function adminLogin() {
   render();
 }
 
-async function adminUpdate(mutate, message) {
+// An admin change; if it can't be saved, the page shows the slip as it is.
+async function adminUpdate(mutate) {
   try {
     acceptSlip(await store.updateSlip(state.slipId, mutate));
-    toast(message, 'good');
-  } catch (e) {
-    toast(saveError(e), 'bad');
+  } catch {
+    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
   }
+  render();
 }
 
 // A new deadline reopens picks and drops picks on games that kick off before it
@@ -584,7 +557,7 @@ async function setCutoff(cutoff) {
     slip.settings.cutoff = cutoff;
     slip.settings.locked = false;
     for (const [id, p] of Object.entries(slip.picks)) if (cutoff && p.start < cutoff) delete slip.picks[id];
-  }, cutoff ? `Picks lock ${dayTimeFmt.format(cutoff)}` : 'Deadline removed');
+  });
 }
 
 // ---------- research pages ----------
@@ -729,20 +702,20 @@ $app.addEventListener('click', (e) => {
     case 'close-sheet': return setSlipOpen(false);
     case 'remove-mine': return removeMine();
     case 'admin-cutoff': return setCutoff(id === 'none' ? null : Number(id));
-    case 'admin-lock': return adminUpdate((slip) => (slip.settings.locked = true), 'Picks locked');
+    case 'admin-lock': return adminUpdate((slip) => (slip.settings.locked = true));
     case 'admin-unlock':
       // Unlocking after the deadline passed clears it; pick a new one to lock again.
       return adminUpdate((slip) => {
         slip.settings.locked = false;
         if (slipLocked(slip)) slip.settings.cutoff = null;
-      }, 'Picks unlocked');
+      });
     case 'admin-remove': {
       const pick = picks()[id];
       if (!pick || !confirm(`Remove ${memberName(id)}’s pick (${pick.label})?`)) return;
       return adminUpdate((slip) => {
-        if (slip.picks[id]?.optKey !== pick.optKey) throw new Error(`${memberName(id)} changed their pick meanwhile, so nothing was removed.`);
+        if (slip.picks[id]?.optKey !== pick.optKey) return false; // they changed it meanwhile
         delete slip.picks[id];
-      }, 'Pick removed');
+      });
     }
     case 'admin-act':
       state.acting = { id, prevMe: state.me };
