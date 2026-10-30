@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mockups · Over/under bars</title>
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { padding-bottom: 60px; }
+  .mock { max-width: 480px; margin: 0 auto; padding: 0 10px; }
+  .mock-h { margin: 26px 4px 4px; font-size: 14px; font-weight: 800; color: var(--text); }
+  .mock-sub { margin: 0 4px 10px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+  .pslip { border-radius: 16px; background: var(--bg-2); border: 1px solid #2d3963; overflow: hidden; }
+  .pslip .leg { border-top: 1px solid #2d3963; }
+  .pslip .leg:first-child { border-top: 0; }
+</style>
+</head>
+<body>
+<div class="mock" id="mock"></div>
+<script type="module">
+const logo = (t) => `<img class="logo" style="width:14px;height:14px" src="https://sleepercdn.com/images/team_logos/nfl/${t.toLowerCase()}.png" alt="">`;
+const big = (a, h) => `<span class="logo-pair"><img class="logo" style="width:20px;height:20px" src="https://sleepercdn.com/images/team_logos/nfl/${a.toLowerCase()}.png" alt=""><img class="logo" style="width:20px;height:20px" src="https://sleepercdn.com/images/team_logos/nfl/${h.toLowerCase()}.png" alt=""></span>`;
+
+// side, line, away, home, scores, clock, who, odds
+const LEGS = [
+  ['under', 45.5, 'KC', 'DEN', 0, 0, 'Q1 14:12', 'dshin', '+108'],
+  ['under', 45.5, 'LV', 'NYJ', 10, 7, 'Q2 8:40', 'gmeko', '74%'],
+  ['under', 43.5, 'TB', 'ATL', 20, 21, 'Q4 2:05', 'mjuenke', '61%'],
+  ['under', 40.5, 'BUF', 'BAL', 27, 21, 'Q4 6:30', 'Veritas616', '3%'],
+  ['over', 45.5, 'WAS', 'PHI', 10, 7, 'Q2 8:40', 'Hibachi420', '41%'],
+  ['over', 47.5, 'DAL', 'ARI', 21, 24, 'Q4 9:12', 'jrgong8', '38%'],
+];
+
+const sg = (n) => `<span class="num"><span class="sg">${n > 0 ? '+' : '−'}</span>${Math.abs(n)}</span>`;
+const clamp = (x) => Math.max(6, Math.min(94, x));
+
+function row([side, line, away, home, a, h, clock, who, odds], mirrorUnder) {
+  const pts = a + h;
+  const cushion = side === 'over' ? pts - line : line - pts;
+  const win = cushion > 0;
+  // Points along the bar: 0 at the left end, the line in the middle, twice the line at
+  // the right end. Mirrored unders run the other way, so winning sits right.
+  const along = 50 + (50 * (pts - line)) / line;
+  const at = clamp(side === 'under' && mirrorUnder ? 100 - along : along);
+  const left = Math.min(50, at), width = Math.abs(at - 50);
+  return `
+    <li class="leg tracked leg-live">
+      <span class="leg-logo">${big(away, home)}</span>
+      <span class="leg-pick">${side === 'over' ? 'Over' : 'Under'} ${line}</span>
+      <span class="leg-odds ${win ? 'up' : 'down'}">${odds}</span>
+      <div class="leg-line">
+        <span class="ll-side"><span class="ll-when"><span class="live-tag">● ${clock}</span></span></span>
+        <span class="ll-dot"><span style="color:#b9c2dd;font-weight:700">${pts} pts</span></span>
+        <span class="ll-side right"><small class="ll-who">${who}</small></span>
+      </div>
+      <div class="leg-game ${win ? 'win' : 'lose'}">
+        ${logo(away)}<b>${a}</b>
+        <span class="gbar">
+          <i class="gbar-fill" style="left:${left}%;width:${width}%"></i>
+          <i class="gbar-tick" style="left:50%"></i>
+          <i class="gbar-dot" style="left:${at}%"></i>
+          <small class="gbar-lbl" style="left:${at}%">${sg(cushion)}</small>
+        </span>
+        <b>${h}</b>${logo(home)}
+      </div>
+    </li>`;
+}
+
+const section = (title, sub, mirror) => `
+  <div class="mock-h">${title}</div>
+  <p class="mock-sub">${sub}</p>
+  <div class="pslip"><ol class="legs tracking">${LEGS.map((l) => row(l, mirror)).join('')}</ol></div>`;
+
+document.getElementById('mock').innerHTML =
+  section('A · Your way', 'Line in the middle. The dot is the running total: more points always moves it right. An under that’s winning grows green to the left.', false) +
+  section('B · Mirrored unders', 'Same, but unders run backward so winning is always on the right, like spreads. Scoring moves an under’s dot left.', true);
+</script>
+</body>
+</html>
