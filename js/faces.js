@@ -181,13 +181,19 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
   el.setAttribute('data-transient', '');
   Object.assign(el.style, { left: `${old.at.left}px`, top: `${old.at.top}px` });
   row.insertBefore(el, oldRight);
-  const handover = apex + 1 / 60;
-  el.animate(frames(pose, 0, handover, 30, JUMP_ORIGIN), { duration: total * handover, delay, fill: 'backwards', easing: 'linear' })
+  // Both follow the same sampled path, so where they overlap at the handover they're
+  // pixel-identical. The real face's half ends on the sample at the apex and holds
+  // that pose until it's removed (without `forwards` it could flash back at its
+  // takeoff spot for a frame, a ghost trailing the jump).
+  const STEPS = 60;
+  const handoverStep = Math.ceil(apex * STEPS);
+  const handover = handoverStep / STEPS;
+  el.animate(frames(pose, 0, handover, handoverStep, JUMP_ORIGIN), { duration: total * handover, delay, fill: 'both', easing: 'linear' })
     .finished.then(() => el.remove());
 
-  // The copy, in its new spot: hidden until the apex, then down into its place.
+  // The copy, in its new spot: hidden until the apex step, then down into its place.
   copy.animate(
-    frames((t) => ({ ...pose(t), x: pose(t).x - dx, opacity: t >= apex ? 1 : 0 }), 0, 1, 60, JUMP_ORIGIN),
+    frames((t) => ({ ...pose(t), x: pose(t).x - dx, opacity: t >= handover - 1e-9 ? 1 : 0 }), 0, 1, STEPS, JUMP_ORIGIN),
     { duration: total, delay, fill: 'backwards', easing: 'linear' },
   );
 }
@@ -195,11 +201,11 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
 // A face whose pick changed but kept its spot jiggles in place as its sticker lands,
 // like a rubber band: the whole face squeezes wide, springs tall, wide, tall, dying
 // out, with its base kept on the ground.
-const JIGGLE = [[0, 1], [0.3, 1.22], [0.42, 0.8], [0.54, 1.12], [0.68, 0.94], [0.8, 1.04], [1, 1]]; // [time, width]
+const JIGGLE = [[0, 1], [0.3, 1.13], [0.42, 0.88], [0.54, 1.07], [0.68, 0.965], [0.8, 1.025], [1, 1]]; // [time, width]
 function jiggle(el, delay) {
   el.animate(
     JIGGLE.map(([offset, wide]) => ({ offset, transform: `scale(${wide}, ${2 - wide})`, transformOrigin: JUMP_ORIGIN, easing: 'ease-in-out' })),
-    { duration: 500, delay },
+    { duration: 600, delay },
   );
 }
 
@@ -262,6 +268,8 @@ function rollOff(row, box, { el, at }, oldRight) {
       const x = rolling ? 0.5 * accel * t ** 2 : ROLL_OFF_PX + speed * air;
       return { x, y: rolling ? 0 : 0.5 * GRAVITY * air ** 2, turn: degreesRolled(x, radius) };
     }),
-    { duration: total * 1000, delay: ROLL_OFF_DELAY_MS, fill: 'backwards', easing: 'linear' },
+    // Holding the last pose (off the bottom) until it's removed, so it can't flash back
+    // at its old spot for a frame.
+    { duration: total * 1000, delay: ROLL_OFF_DELAY_MS, fill: 'both', easing: 'linear' },
   ).finished.then(() => el.remove());
 }
