@@ -244,14 +244,15 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Simple Icons' FOX glyph sits in a square with lots of padding; scale it up and crop. */
 .tv-crop-fox .tv-img { height: 11px; display: flex; align-items: center; }
 .tv-crop-fox .tv-img img { height: 24px; }
-/* Real ESPN wordmark and ABC circle (a faint ring, so the black circle shows on the dark
-   card). The NFL Network file puts "NETWORK" under the shield; show only the shield. */
+/* Real ESPN and Prime Video wordmarks, and ABC's circle (with a faint ring, so the black
+   circle shows on the dark card). The NFL Network file puts "NETWORK" under the shield;
+   show only the shield. */
 .tv-crop-espn .tv-img img { height: 10px; }
 .tv-crop-abc .tv-img img { height: 16px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45); }
 .tv-crop-abc .tv-img { overflow: visible; }
 .tv-crop-nfln .tv-img { width: 12px; height: 16px; }
 .tv-crop-nfln .tv-img img { height: 24.5px; max-width: none; margin-left: -25.2px; }
-.tv-prime { background: #1399ff; border-color: #1399ff; font-weight: 700; letter-spacing: 0; text-transform: lowercase; }
+.tv-crop-prime .tv-img img { height: 15px; }
 .tv-peacock { background: #000; border-color: #fff3; }
 
 /* Sportsbook grid: team | money | spread | total */

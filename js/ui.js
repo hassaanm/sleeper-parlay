@@ -51,9 +51,9 @@ export function weatherIcon(text = '') {
 
 // TV networks (Sleeper's channel codes: CBS, FOX, NBC/Peacock, ESPN, ABC, AMZN, NFLN).
 // Real logos where a free source has them: NBC's color peacock, ESPN's red wordmark,
-// ABC's black circle, and the NFL Network shield from Wikimedia; CBS, FOX (in gold),
-// Netflix, YouTube from Simple Icons. Prime Video gets a badge in its brand color.
-// Unknown networks are text.
+// ABC's black circle, Prime Video's wordmark, and the NFL Network shield from
+// Wikimedia; CBS, FOX (in gold), Netflix, YouTube from Simple Icons. Unknown networks
+// are text.
 const WIKI = 'https://upload.wikimedia.org/wikipedia';
 const NETWORKS = [
   [/^cbs/, 'CBS', { src: 'https://cdn.simpleicons.org/cbs/ffffff', label: 'CBS' }],
@@ -64,7 +64,7 @@ const NETWORKS = [
   [/youtube/, 'YouTube', { src: 'https://cdn.simpleicons.org/youtube', label: 'YT' }],
   [/^espn/, 'ESPN', { src: `${WIKI}/commons/2/2f/ESPN_wordmark.svg`, crop: 'espn' }],
   [/^abc/, 'ABC', { src: `${WIKI}/commons/2/2f/ABC-2021-LOGO.svg`, crop: 'abc' }],
-  [/prime|amzn|amazon/, 'prime video', { badge: 'prime' }],
+  [/prime|amzn|amazon/, 'Prime Video', { src: `${WIKI}/commons/9/90/Prime_Video_logo_(2024).svg`, crop: 'prime' }],
   [/^nfl ?n/, 'NFL Network', { src: `${WIKI}/en/8/8f/NFL_Network_logo.svg`, crop: 'nfln' }],
   [/peacock/, 'Peacock', { badge: 'peacock' }],
 ];
