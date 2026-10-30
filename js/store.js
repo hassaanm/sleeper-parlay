@@ -66,6 +66,11 @@ function normalize(slip) {
   return slip;
 }
 
+// Starts the demo over: drops this browser's copy of the slip.
+export function clearLocalSlip(id) {
+  try { localStorage.removeItem(localBackend.key(id)); } catch { /* private mode */ }
+}
+
 export async function getSlip(id) {
   return normalize((await backend.get(id)).data);
 }

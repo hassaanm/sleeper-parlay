@@ -3,7 +3,7 @@
 import { matchupColors } from '../teams.js';
 import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
-import { beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
+import { DEMO_MODE, DEMO_MODES, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
 import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
@@ -20,6 +20,7 @@ export function renderTopbar(me) {
         <small>Week ${esc(slip.week)} · ${legCount} ${legCount === 1 ? 'leg' : 'legs'}${isLocked() ? ' · 🔒 Locked' : ''}</small>
       </div>
     </div>
+    ${DEMO_MODE ? demoPicker() : ''}
     ${me && !state.acting ? `
       <button class="me-chip" data-action="switch-user" aria-label="Signed in as ${esc(me.name)}. Not you?">
         <span class="me-text"><strong>${esc(me.name)}</strong><small>not you?</small></span>
@@ -27,6 +28,15 @@ export function renderTopbar(me) {
       </button>` : ''}
   </header>`;
 }
+
+// The demo's stage, as a small pill between the league and you (app.js reloads into the
+// one picked).
+const demoPicker = () => `
+  <label class="demo-pick" title="Demo: show the slip at another stage of the week">
+    <select id="demo-mode" aria-label="Demo stage">
+      ${DEMO_MODES.map((m) => `<option value="${m.id}" ${m.id === DEMO_MODE ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}
+    </select>
+  </label>`;
 
 // Countdown to the pick deadline, as flip-clock tiles. tickClocks updates it every
 // second without a re-render; at zero the page re-renders locked.

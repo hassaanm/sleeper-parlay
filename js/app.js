@@ -3,6 +3,7 @@ import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
 import * as markets from './markets.js';
+import { demoPickers, fakeMomentum, fakeWeek } from './demo.js';
 import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
 import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
@@ -10,8 +11,8 @@ import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, DEMO_LIVE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
-import { dayTimeFmt, pretty, seeded } from './ui.js';
+import { DEMO, DEMO_MODE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
+import { dayTimeFmt, pretty } from './ui.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 
@@ -99,8 +100,8 @@ async function loadLines() {
       state.demoSeeded = true;
       await seedDemoPicks();
     }
-    fakeLiveWeek();
-    if (DEMO_LIVE) loadStartedPrices();
+    fakeDemoWeek();
+    if (DEMO && DEMO_MODE !== 'pre') loadStartedPrices();
   } catch (e) {
     if (request !== linesRequest) return;
     state.gamesError = e.message;
@@ -109,8 +110,8 @@ async function loadLines() {
   openIfTracking();
 }
 
-// "?demo" gives about half your league mates a random leg, following the same
-// conflict rules. Demo slips live in this browser's localStorage only.
+// The demo gives some of your league mates a random leg (and you one too, past the
+// 'pre' stage), following the same conflict rules. Demo slips live in this browser only.
 async function seedDemoPicks() {
   const shuffle = (list) => list.map((x) => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(([, x]) => x);
   // Moneylines and main spread/total lines only, so the demo looks like real picks.
@@ -122,63 +123,28 @@ async function seedDemoPicks() {
       return [...g.ml, spread?.away, spread?.home, total?.over, total?.under];
     })
     .filter((o) => o?.available);
+  const { share, me } = demoPickers(DEMO_MODE);
   let added = 0;
   acceptSlip(await store.updateSlip(state.slipId, (slip) => {
-    // Half of your league mates (not counting you) end up with a pick.
     const mates = slip.members.filter((m) => m.id !== state.me);
-    const target = Math.floor(mates.length / 2) - mates.filter((m) => slip.picks[m.id]).length;
+    const target = Math.floor(mates.length * share) - mates.filter((m) => slip.picks[m.id]).length;
     const pickers = shuffle(mates.filter((m) => !slip.picks[m.id])).slice(0, Math.max(0, target));
+    if (me && state.me && !slip.picks[state.me]) pickers.push(slip.members.find((m) => m.id === state.me));
     for (const member of pickers) {
       const opt = shuffle(open).find((o) => !clashFor(slip, member.id, o));
       if (!opt) break;
       slip.picks[member.id] = pickFrom(opt, gameById(opt.gameId));
       added++;
     }
+    // Past 'pre', the week is underway, so picks are locked.
+    if (DEMO_MODE !== 'pre') slip.settings.locked = true;
   }));
-  if (added) toast(`Demo: added ${added} league-mate picks`, 'good');
+  if (added) toast(`Demo: added ${added} picks`, 'good');
 }
 
-// "?demo=live" previews a week underway. Games with picks start first, alternating final
-// and live, so the slip shows hits, misses, and live legs; then more games fill in until
-// about a third are final and a quarter live. Scores are made up, the same every time.
-function fakeLiveWeek() {
-  if (!DEMO_LIVE || !state.sports) return;
-  const picked = new Set(Object.values(picks()).map((p) => p.gameId));
-  const byStart = [...state.games].sort((a, b) => a.start - b.start);
-  const status = new Map(byStart.filter((g) => picked.has(g.id)).map((g, i) => [g, i % 2 ? 'in' : 'post']));
-  const target = (s, share) => [...status.values()].filter((v) => v === s).length < Math.ceil(state.games.length * share);
-  for (const g of byStart) if (!status.has(g) && target('post', 0.35)) status.set(g, 'post');
-  for (const g of byStart) if (!status.has(g) && target('in', 0.25)) status.set(g, 'in');
-  for (const [game, st] of status) {
-    game.locked = true;
-    const info = state.sports.games.get(gameKey(game.away, game.home));
-    if (!info) continue;
-    const rand = seeded(game.id);
-    const score = () => [0, 3, 7, 10, 13, 14, 17, 20, 21, 24, 27, 28, 31, 35][Math.floor(rand() * 14)];
-    const clock = `Q${1 + Math.floor(rand() * 4)} ${Math.floor(rand() * 15)}:${String(Math.floor(rand() * 60)).padStart(2, '0')}`;
-    const ball = rand() < 0.5 ? game.away : game.home;
-    const yards = 1 + Math.floor(rand() * 49);
-    info.status = {
-      ...info.status, state: st, detail: st === 'post' ? 'Final' : clock, awayScore: score(), homeScore: score(),
-      ...(st === 'in' ? {
-        possession: ball, downDistance: `${['1st', '2nd', '3rd'][Math.floor(rand() * 3)]} & ${1 + Math.floor(rand() * 10)}`,
-        spot: `${rand() < 0.5 ? game.away : game.home} ${yards}`, redZone: yards < 20 && rand() < 0.5,
-        timeouts: [1 + Math.floor(rand() * 3), 1 + Math.floor(rand() * 3)],
-      } : {}),
-    };
-  }
-}
-
-// The demo's made-up finals have no real history: a win-chance line that wanders and
-// ends with the winner.
-function fakeMomentum(g) {
-  const rand = seeded(`${g.key}:momentum`);
-  const end = g.status.awayScore > g.status.homeScore ? 99 : g.status.awayScore < g.status.homeScore ? 1 : 50;
-  let p = 50;
-  return Array.from({ length: 49 }, (_, i) => {
-    p = Math.min(95, Math.max(5, p + (rand() - 0.5) * 18));
-    return Math.round(p + ((end - p) * i) / 48 * (i / 48));
-  });
+// Past the 'pre' stage, the demo makes up how this week's games are going (demo.js).
+function fakeDemoWeek() {
+  if (DEMO && state.sports) fakeWeek(DEMO_MODE, state.games, state.sports.games, picks());
 }
 
 // Prices for games that have kicked off (markets.js): every live game's, on each
@@ -186,8 +152,8 @@ function fakeMomentum(g) {
 async function loadStartedPrices() {
   const live = scoreboardGames('in');
   const final = scoreboardGames('post');
-  // The live demo's made-up started games haven't begun: today's prices stand in.
-  const madeUp = (g) => DEMO_LIVE && g.start > Date.now();
+  // The demo's made-up started games haven't begun: today's prices stand in.
+  const madeUp = (g) => DEMO && g.start > Date.now();
   const current = [...live, ...final.filter(madeUp)];
   if (current.length) {
     try {
@@ -210,6 +176,11 @@ async function loadStartedPrices() {
 }
 
 async function startSlip() {
+  // Each demo stage starts from a fresh slip, so switching stages shows that stage.
+  if (DEMO && safeGet(`parlay:demo-mode:${state.slipId}`) !== DEMO_MODE) {
+    store.clearLocalSlip(state.slipId);
+    safeSet(`parlay:demo-mode:${state.slipId}`, DEMO_MODE);
+  }
   try {
     await ensureCurrentSlip();
   } catch (e) {
@@ -252,7 +223,7 @@ async function loadSports() {
     if (request !== sportsRequest) return;
     const league = buildLeague(results);
     state.sports = { games, league, teams: league.teams };
-    fakeLiveWeek();
+    fakeDemoWeek();
     render();
     openIfTracking();
     loadStartedPrices();
@@ -541,9 +512,6 @@ async function adminLogin() {
   const hex = [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
   state.admin.authed = hex === ADMIN_PASSWORD_SHA256;
   state.admin.error = state.admin.authed ? null : 'Wrong password.';
-  if (state.admin.authed) {
-    try { sessionStorage.setItem('parlay:admin', '1'); } catch { /* private mode */ }
-  }
   render();
 }
 
@@ -753,6 +721,14 @@ $app.addEventListener('click', (e) => {
 
 $app.addEventListener('input', (e) => {
   if (e.target.id === 'league-query') state.landing.query = e.target.value;
+});
+
+// The demo's stage picker (top bar) reloads into that stage.
+$app.addEventListener('change', (e) => {
+  if (e.target.id !== 'demo-mode') return;
+  const url = new URL(location.href);
+  url.searchParams.set('demo', e.target.value);
+  location.href = url;
 });
 
 $app.addEventListener('submit', (e) => {

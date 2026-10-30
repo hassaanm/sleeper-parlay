@@ -10,8 +10,17 @@ const pathParts = location.pathname.replace(/\/index\.html$/, '').split('/').fil
 const routeLeagueId = /^\d{6,}$/.test(pathParts.at(-1) ?? '') ? pathParts.pop() : null;
 export const basePath = `/${pathParts.join('/')}${pathParts.length ? '/' : ''}`;
 export const DEMO = new URLSearchParams(location.search).has('demo');
-// "?demo=live": the demo, partway through the week (app.js fakeLiveWeek).
-export const DEMO_LIVE = DEMO && new URLSearchParams(location.search).get('demo') === 'live';
+// The demo's stages of a week (demo.js), picked from the top bar: "?demo=<id>".
+export const DEMO_MODES = [
+  { id: 'pre', label: 'Pre' }, // half your league mates have picked; you haven't
+  { id: 'live-win', label: 'Live ✓' }, // games underway, every leg winning so far
+  { id: 'live-loss', label: 'Live ✗' }, // games underway, a leg already missed
+  { id: 'won', label: 'Won' }, // every game over, every leg hit
+  { id: 'lost', label: 'Lost' }, // every game over, some legs missed
+];
+const demoParam = new URLSearchParams(location.search).get('demo');
+export const DEMO_MODE = !DEMO ? null
+  : DEMO_MODES.some((m) => m.id === demoParam) ? demoParam : demoParam === 'live' ? 'live-win' : 'pre';
 
 export const state = {
   slipId: routeLeagueId,
@@ -36,9 +45,10 @@ export const state = {
   demoSeeded: false,
   pending: null, // your leg while its save is in flight: { userId, pick } (pick null = removed); see picks()
   justPicked: null, // the cell you just picked, for its pop animation
-  // Admin page ("?admin"): unlocked for this tab once the password matches. While the
-  // admin picks on someone's behalf, `acting` holds who, and who to switch back to.
-  admin: { route: new URLSearchParams(location.search).has('admin'), authed: sessionGet('parlay:admin') === '1', error: null },
+  // Admin page ("?admin"): unlocked once the password matches, until the page is left or
+  // reloaded (every visit asks again). While the admin picks on someone's behalf,
+  // `acting` holds who, and who to switch back to.
+  admin: { route: new URLSearchParams(location.search).has('admin'), authed: false, error: null },
   acting: null, // { id, prevMe }
   oddsFormat: safeGet('parlay:odds') === 'pct' ? 'pct' : 'american',
   sheetOpen: false,
@@ -58,10 +68,6 @@ export const myLegLocked = () => !state.acting && !!legLockedReason(state.slip, 
 
 export function safeGet(key) {
   try { return localStorage.getItem(key); } catch { return null; }
-}
-
-function sessionGet(key) {
-  try { return sessionStorage.getItem(key); } catch { return null; }
 }
 
 export function safeSet(key, value) {
