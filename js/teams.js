@@ -21,7 +21,7 @@ const TEAM_COLORS = {
   IND: ['#2F6FE0', '#B5BCC2'],
   JAX: ['#D7A22A', '#13A0B0'],
   KC: ['#E8263F', '#FFB81C'],
-  LV: ['#B5BCC2', '#6E777D'],
+  LV: ['#B5BCC2', '#000000'],
   LAC: ['#2AA3E8', '#FFC20E'],
   LAR: ['#FFD100', '#3366E6'],
   MIA: ['#15AAB3', '#FC6A1E'],
@@ -35,7 +35,7 @@ const TEAM_COLORS = {
   SF: ['#D6283A', '#C2A465'],
   SEA: ['#3B63B8', '#69BE28'],
   TB: ['#E0242B', '#A39B91'],
-  TEN: ['#6CB4EE', '#D6283F'],
+  TEN: ['#6CB4EE', '#F2F4F7'],
   WAS: ['#B52C45', '#FFB612'],
 };
 
@@ -91,15 +91,11 @@ function distance(a, b) {
 
 /**
  * Colors for a matchup: each team's main color, unless the two read as the same (hues
- * within 28 degrees, like blue vs blue). Then the away team switches to its second
- * color, unless that still clashes and the home team's second color does better.
+ * within 28 degrees, like blue vs blue). Then the home team keeps its main color and
+ * the away team switches to its second one.
  */
 export function matchupColors(away, home) {
   const [awayMain, awayAlt] = TEAM_COLORS[away] ?? FALLBACK;
-  const [homeMain, homeAlt] = TEAM_COLORS[home] ?? FALLBACK;
-  if (distance(awayMain, homeMain) >= 28) return { away: awayMain, home: homeMain };
-  const awaySwitch = distance(awayAlt, homeMain);
-  return awaySwitch >= 28 || awaySwitch >= distance(awayMain, homeAlt)
-    ? { away: awayAlt, home: homeMain }
-    : { away: awayMain, home: homeAlt };
+  const [homeMain] = TEAM_COLORS[home] ?? FALLBACK;
+  return { away: distance(awayMain, homeMain) >= 28 ? awayMain : awayAlt, home: homeMain };
 }

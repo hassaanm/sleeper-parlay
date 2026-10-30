@@ -226,6 +226,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .game.has-mine { border-color: rgba(0, 214, 168, 0.5); }
 .g-meta {
   display: flex; align-items: center; gap: 14px; margin: 2px 4px 8px; overflow: hidden;
+  min-height: 21px; /* the Matchup button's height, so a card without one lines up */
   font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap;
 }
 .meta-time { font-weight: 600; color: #b9c2dd; }
@@ -412,7 +413,7 @@ h1, h2 { letter-spacing: -0.02em; }
 
 /* Final: the win chance through the game (short enough that a ✓ below doesn't touch
    it), the final margin, and the total points. */
-.momentum { display: block; width: 100%; height: 16px; align-self: center; }
+.momentum { display: block; width: 100%; height: 18px; align-self: center; }
 .settle { display: grid; place-items: center; height: 24px; font-size: 12px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- research pages (team, matchup) ---------- */
