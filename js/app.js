@@ -507,7 +507,15 @@ function render() {
   syncStrips();
   syncTearLine();
   syncPageBar();
+  fitNames();
   if (state.games.length) state.stickersPrimed = true;
+}
+
+// In the live slip, a name too long to fit beside the down shrinks (only that one).
+function fitNames() {
+  for (const el of $app.querySelectorAll('.ll-who')) {
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('tight');
+  }
 }
 
 // The countdown ticks without a re-render: each digit that changed flips down. The flip
