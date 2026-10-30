@@ -1,41 +1,41 @@
 // The 32 teams: names, divisions, and colors.
 
-// Hand-picked team colors, tuned to read well on the app's dark background: every
-// color sits in a similar brightness band so no team looks faded next to another.
-// Dark official colors (navy, midnight green) are brightened; the hue stays true.
-// [primary, alternate]
+// Team colors, picked from each team's Sleeper logo so a bar or chart in that color
+// reads as that team at a glance: [the color you see most in the logo, another one
+// from it]. Tuned for the app's dark background (dark navies and greens brightened,
+// oranges pushed far enough from reds to tell apart in a thin bar).
 const TEAM_COLORS = {
   ARI: ['#D2223E', '#FFB612'],
   ATL: ['#E0283F', '#B5BCC2'],
   BAL: ['#7A4FD6', '#D4A82C'],
   BUF: ['#2F6FE0', '#E0283F'],
   CAR: ['#1E9BE0', '#B5BCC2'],
-  CHI: ['#3E63C2', '#F26B2E'],
-  CIN: ['#FB5A1E', '#B5BCC2'],
-  CLE: ['#FF5A1F', '#A0703F'],
+  CHI: ['#FF7F22', '#3E63C2'],
+  CIN: ['#FF7F22', '#B5BCC2'],
+  CLE: ['#FF7F22', '#B07A47'],
   DAL: ['#2F6FE0', '#B5BCC2'],
-  DEN: ['#FB5A1E', '#3E63C2'],
+  DEN: ['#FF7F22', '#3E63C2'],
   DET: ['#1E8FD6', '#B5BCC2'],
   GB: ['#2E9A5C', '#FFB612'],
-  HOU: ['#3E5FC2', '#E0283F'],
+  HOU: ['#E0283F', '#3E5FC2'],
   IND: ['#2F6FE0', '#B5BCC2'],
-  JAX: ['#13A0B0', '#D7A22A'],
+  JAX: ['#D7A22A', '#13A0B0'],
   KC: ['#E8263F', '#FFB81C'],
   LV: ['#B5BCC2', '#6E777D'],
   LAC: ['#2AA3E8', '#FFC20E'],
-  LAR: ['#3366E6', '#FFD100'],
+  LAR: ['#FFD100', '#3366E6'],
   MIA: ['#15AAB3', '#FC6A1E'],
-  MIN: ['#7F4FD0', '#FFC62F'],
+  MIN: ['#FFC62F', '#7F4FD0'],
   NE: ['#3E5FC2', '#D6283F'],
   NO: ['#D3BC8D', '#B5BCC2'],
-  NYG: ['#3360D6', '#D6283F'],
+  NYG: ['#3360D6', '#B5BCC2'],
   NYJ: ['#22A06A', '#B5BCC2'],
   PHI: ['#1A9098', '#B5BCC2'],
-  PIT: ['#FFB612', '#B5BCC2'],
+  PIT: ['#FFC21A', '#3E73C8'],
   SF: ['#D6283A', '#C2A465'],
   SEA: ['#3B63B8', '#69BE28'],
   TB: ['#E0242B', '#A39B91'],
-  TEN: ['#4B9BE6', '#D6283F'],
+  TEN: ['#6CB4EE', '#D6283F'],
   WAS: ['#B52C45', '#FFB612'],
 };
 
@@ -90,14 +90,16 @@ function distance(a, b) {
 }
 
 /**
- * Colors for a matchup. Home always gets its primary. Away gets its primary too,
- * unless the two read as the same (hues within 28 degrees, like red vs red); then away
- * takes whichever of its colors stands apart more.
+ * Colors for a matchup: each team's main color, unless the two read as the same (hues
+ * within 28 degrees, like blue vs blue). Then the away team switches to its second
+ * color, unless that still clashes and the home team's second color does better.
  */
 export function matchupColors(away, home) {
-  const [awayPrimary, awayAlt] = TEAM_COLORS[away] ?? FALLBACK;
-  const [homePrimary] = TEAM_COLORS[home] ?? FALLBACK;
-  if (distance(awayPrimary, homePrimary) >= 28) return { away: awayPrimary, home: homePrimary };
-  const awayColor = distance(awayAlt, homePrimary) > distance(awayPrimary, homePrimary) ? awayAlt : awayPrimary;
-  return { away: awayColor, home: homePrimary };
+  const [awayMain, awayAlt] = TEAM_COLORS[away] ?? FALLBACK;
+  const [homeMain, homeAlt] = TEAM_COLORS[home] ?? FALLBACK;
+  if (distance(awayMain, homeMain) >= 28) return { away: awayMain, home: homeMain };
+  const awaySwitch = distance(awayAlt, homeMain);
+  return awaySwitch >= 28 || awaySwitch >= distance(awayMain, homeAlt)
+    ? { away: awayAlt, home: homeMain }
+    : { away: awayMain, home: homeAlt };
 }

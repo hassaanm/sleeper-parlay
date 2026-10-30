@@ -44,7 +44,8 @@
   /* What decided the spread and total, in the row between the teams. */
   .settle { display: grid; place-items: center; height: 24px; font-size: 12px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .settle .num { position: relative; } .settle .sg { position: absolute; right: 100%; }
-  .momentum { display: block; width: 100%; height: 20px; align-self: center; }
+  /* Narrower than its column, so a ✓ on the cell below never touches it. */
+  .momentum { display: block; width: calc(100% - 14px); height: 16px; align-self: center; }
   .g-team.lost { opacity: 0.45; }
 
   /* Where the ball is, in the row between the teams: the arrow points at the team with it. */
@@ -62,13 +63,11 @@
   .cell.frozen { cursor: default; }
   .cell.frozen:active { transform: none; }
   .cell.won { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  /* The ✓ sits on the corner away from the row between the teams: top-right on the top
-     team's cells, bottom-right on the bottom team's. */
+  /* The ✓ sits top-right, across from the sticker in the bottom-left. */
   .cell.won::after {
-    content: '✓'; position: absolute; top: -5px; right: -4px; width: 14px; height: 14px; border-radius: 50%;
-    display: grid; place-items: center; font-size: 9px; font-weight: 900; color: var(--accent-ink); background: var(--accent);
+    content: '✓'; position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 8px; font-weight: 900; color: var(--accent-ink); background: var(--accent);
   }
-  .cell.won.bottom::after { top: auto; bottom: -5px; }
   .cell.lost { opacity: 0.38; }
 
   /* No kickoff prices: what happened, in two tiles instead of six boxes. */
@@ -83,11 +82,20 @@
   .dial .strip-item.on::after { height: 4px; background: var(--accent); }
   .strip-item .num { position: relative; }
   .strip-item .sg { position: absolute; right: 100%; }
+  .net-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 4px 0; overflow: visible; }
+  .net-real { display: inline-grid; place-items: center; height: 22px; padding: 0 6px; border-radius: 6px; background: #fff; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 4px 0; }
+  .sw { display: grid; grid-template-columns: 28px 1fr 1fr; grid-template-rows: auto auto; gap: 3px 6px; align-items: center; padding: 6px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
+  .sw .logo { grid-row: 1 / 3; }
+  .sw span { height: 12px; border-radius: 4px; }
+  .sw small { grid-column: 2 / 4; font-size: 10px; font-weight: 700; color: var(--muted); }
 </style>
 </head>
 <body>
 <main class="mock" id="mock"></main>
 <script type="module">
+import { tvBadges } from '../js/ui.js';
+import { matchupColors, teamColor } from '../js/teams.js';
 const logo = (t, s = 24) => `<img class="logo" style="width:${s}px;height:${s}px" src="https://sleepercdn.com/images/team_logos/nfl/${t.toLowerCase()}.png" alt="${t}">`;
 const face = (src, rot = -9) => `<span class="sticker" style="--rot:${rot}deg;--dx:-3px;--dy:1px"><img class="avatar" style="width:19px;height:19px" src="${src}" alt=""></span>`;
 const A1 = 'https://sleepercdn.com/uploads/960cfe0ec025b2d625fe9a5d9501ddae.jpg';
@@ -149,8 +157,8 @@ const final = card('final', `<span class="meta-time">Thu 8:15 PM</span>${prime}$
   + momentum([37, 50, 42, 46, 41, 40, 33, 34, 38, 47, 49, 45, 55, 49, 42, 37, 35, 36, 23, 22, 19, 17, 13, 14, 15, 16, 16, 16, 15, 9, 6, 7, 5, 6, 4, 3, 3, 5, 6, 3, 5, 5, 6, 9, 6, 13, 14, 2, 1], '#0085CA', '#4b9b5f', '3/3')
   + '<div class="settle" style="grid-area:3/4">GB −8</div>'
   + '<div class="settle" style="grid-area:3/5">46</div>'
-  + cell('2/3', '37%', '', 'frozen cell-ml lost') + cell('4/3', '65%', '', 'frozen cell-ml won bottom', face(A1, -12))
-  + cell('2/4', '+3.5', '49%', 'frozen lost') + cell('4/4', '−3.5', '52%', 'frozen won bottom')
+  + cell('2/3', '37%', '', 'frozen cell-ml lost') + cell('4/3', '65%', '', 'frozen cell-ml won', face(A1, -12))
+  + cell('2/4', '+3.5', '49%', 'frozen lost') + cell('4/4', '−3.5', '52%', 'frozen won')
   + cell('2/5', 'O 44.5', '50%', 'frozen won') + cell('4/5', 'U 44.5', '51%', 'frozen lost'));
 
 document.getElementById('mock').innerHTML = `
@@ -181,8 +189,9 @@ const when = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numer
 const dayOf = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 const signed = (n) => (n > 0 ? `+${n}` : `−${Math.abs(n)}`);
 const realFinal = (g) => {
+  g = { ...g, colors: matchupColors(g.away, g.home) }; // today's colors, not the ones saved with the data
   const winner = g.as > g.hs ? g.away : g.hs > g.as ? g.home : null;
-  const won = (ok, row) => (ok ? ` won${row === 4 ? ' bottom' : ''}` : ' lost');
+  const won = (ok, row) => (ok ? ` won` : ' lost');
   const margin = Math.abs(g.as - g.hs);
   let grid = bar(winner === g.away ? 100 : winner === g.home ? 0 : 50, g.colors.away, g.colors.home)
     + scored(g.away, 2, g.as, { lost: winner === g.home }) + scored(g.home, 4, g.hs, { lost: winner === g.away });
@@ -200,6 +209,23 @@ document.getElementById('mock').insertAdjacentHTML('beforeend', `
   <p class="mock-sub">Real scores, kickoff prices, and win-chance lines.</p>
   <div class="band"><span>FINAL</span><small>${WEEK7.length} games</small></div>
   ${WEEK7.map((g) => { const d = dayOf.format(g.kick); const head = d !== lastDay ? `<h2 class="day-title">${d}</h2>` : ''; lastDay = d; return head + realFinal(g); }).join('')}
+`);
+
+// Networks as the app draws them now, and real ABC and ESPN logos to compare.
+const W = 'https://upload.wikimedia.org/wikipedia/commons';
+const real = (src, label, h = 16) => `<span class="net-real"><img src="${src}" alt="${label}" style="height:${h}px"></span>`;
+// Every team: the main color (from its logo), then the second one used in a clash.
+const TEAMS = ['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LV','LAC','LAR','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SF','SEA','TB','TEN','WAS'];
+document.getElementById('mock').insertAdjacentHTML('beforeend', `
+  <h1 class="mock-h" style="margin-top:40px">TV networks</h1>
+  <p class="mock-sub">As the board shows them today:</p>
+  <div class="g-meta net-row">${tvBadges('CBS/FOX/NBC/Peacock/ESPN/ABC/AMZN/NFLN/Netflix/YouTube')}</div>
+  <p class="mock-sub" style="margin-top:12px">Real ABC and ESPN logos instead of the text badges:</p>
+  <div class="net-row">${real(`${W}/2/2f/ABC-2021-LOGO.svg`, 'ABC', 18)}${real(`${W}/2/2f/ESPN_wordmark.svg`, 'ESPN', 12)}</div>
+
+  <h1 class="mock-h" style="margin-top:40px">Team colors</h1>
+  <p class="mock-sub">Main color from each logo, then the one it switches to when two teams clash.</p>
+  <div class="swatches">${TEAMS.map((t) => `<div class="sw">${logo(t, 28)}<span style="background:${teamColor(t)}"></span><span class="alt" style="background:${matchupColors(t, t).away}"></span><small>${t}</small></div>`).join('')}</div>
 `);
 
 for (const strip of document.querySelectorAll('.strip')) {
