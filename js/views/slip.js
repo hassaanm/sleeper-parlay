@@ -129,6 +129,7 @@ function parlayLegs() {
 const LINE_AT = 88; // a total's line, in % along the bar
 const DOT_MIN = 6;
 const DOT_MAX = 94;
+const TICK_CLEAR = 9; // px from the middle tick to the dot's center at the smallest margin
 // What the bar's dot stands for: the running total, the picked team's lead ("+3", "−4",
 // "Tie"), or a spread's cushion over its line ("+8.5"). Away from the bar, on a finished
 // leg's middle line, it's the final lead with the team ("ARI +34"). The sign hangs off the number's left, so the number
@@ -150,18 +151,25 @@ function gameBar(pick, st, flip) {
   const ends = [[away, st.awayScore], [home, st.homeScore]];
   const [[left, leftScore], [right, rightScore]] = flip ? ends.reverse() : ends;
   const final = st.state === 'post';
-  let at, tone, from = 50;
+  // Where the dot sits and where the fill starts, as CSS lengths along the bar.
+  let at, fillLeft, fillWidth, tone;
   if (pick.type === 'total') {
     const pts = st.awayScore + st.homeScore;
     tone = (pick.side === 'over') === (pts > pick.line) ? 'win' : 'lose';
-    at = Math.max(DOT_MIN, Math.min(DOT_MAX, (pts / pick.line) * LINE_AT));
-    from = 0;
+    at = `${Math.max(DOT_MIN, Math.min(DOT_MAX, (pts / pick.line) * LINE_AT))}%`;
+    [fillLeft, fillWidth] = ['0%', at];
   } else {
     const pickedRight = pick.team === right;
     const lead = pickedRight ? rightScore - leftScore : leftScore - rightScore;
     const margin = lead + (pick.type === 'spread' ? pick.line : 0); // 0: right on the line
-    at = 50 + (DOT_MAX - 50) * Math.tanh(margin / 14) * (pickedRight ? 1 : -1);
     tone = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
+    // Any margin but 0 puts the dot clear of the middle tick (+0.5 just right of it,
+    // −0.5 just left), easing out toward DOT_MAX.
+    const t = Math.tanh(Math.abs(margin) / 14);
+    const off = margin === 0 ? '(0px)' : `(${((1 - t) * TICK_CLEAR).toFixed(2)}px + ${((DOT_MAX - 50) * t).toFixed(2)}%)`;
+    const rightward = (margin >= 0) === pickedRight;
+    at = `calc(50% ${rightward ? '+' : '-'} ${off})`;
+    [fillLeft, fillWidth] = [rightward ? '50%' : at, `calc${off}`];
   }
   const lost = (mine, theirs) => (final && mine < theirs ? 'lost' : '');
   // Once final, the label moves up to the middle of the line above (barLabel), so a
@@ -170,10 +178,10 @@ function gameBar(pick, st, flip) {
     <div class="leg-game ${tone} ${final ? 'final' : ''}">
       ${teamLogo(left, 14)}<b class="gs-left ${lost(leftScore, rightScore)}">${leftScore}</b>
       <span class="gbar">
-        <i class="gbar-fill" style="left:${Math.min(from, at)}%;width:${Math.abs(at - from)}%"></i>
+        <i class="gbar-fill" style="left:${fillLeft};width:${fillWidth}"></i>
         <i class="gbar-tick" style="left:${pick.type === 'total' ? LINE_AT : 50}%"></i>
-        <i class="gbar-dot" style="left:${at}%"></i>
-        ${final ? '' : `<small class="gbar-lbl" style="left:${at}%">${barLabel(pick, st)}</small>`}
+        <i class="gbar-dot" style="left:${at}"></i>
+        ${final ? '' : `<small class="gbar-lbl" style="left:${at}">${barLabel(pick, st)}</small>`}
       </span>
       <b class="gs-right ${lost(rightScore, leftScore)}">${rightScore}</b>${teamLogo(right, 14)}
     </div>`;
