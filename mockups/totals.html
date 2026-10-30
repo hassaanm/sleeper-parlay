@@ -13,6 +13,11 @@
   .pslip { border-radius: 16px; background: var(--bg-2); border: 1px solid #2d3963; overflow: hidden; }
   .pslip .leg { border-top: 1px solid #2d3963; }
   .pslip .leg:first-child { border-top: 0; }
+  .gbar-lbl .tot, .tick-tot, .pick-tot { color: #b9c2dd; font-weight: 700; }
+  .tick-tot { position: absolute; top: 15px; left: 50%; font-size: 10.5px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .tick-tot.l { transform: translateX(calc(-100% - 6px)); }
+  .tick-tot.r { transform: translateX(6px); }
+  .pick-tot { margin-left: 8px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -21,37 +26,45 @@
 const logo = (t) => `<img class="logo" style="width:14px;height:14px" src="https://sleepercdn.com/images/team_logos/nfl/${t.toLowerCase()}.png" alt="">`;
 const big = (a, h) => `<span class="logo-pair"><img class="logo" style="width:20px;height:20px" src="https://sleepercdn.com/images/team_logos/nfl/${a.toLowerCase()}.png" alt=""><img class="logo" style="width:20px;height:20px" src="https://sleepercdn.com/images/team_logos/nfl/${h.toLowerCase()}.png" alt=""></span>`;
 
-// side, line, away, home, scores, clock, who, odds
+// side, line, away, home, scores, clock, who, odds, down, spot, ball on the left?
 const LEGS = [
-  ['under', 45.5, 'KC', 'DEN', 0, 0, 'Q1 14:12', 'dshin', '+108'],
-  ['under', 45.5, 'LV', 'NYJ', 10, 7, 'Q2 8:40', 'gmeko', '74%'],
-  ['under', 43.5, 'TB', 'ATL', 20, 21, 'Q4 2:05', 'mjuenke', '61%'],
-  ['under', 40.5, 'BUF', 'BAL', 27, 21, 'Q4 6:30', 'Veritas616', '3%'],
-  ['over', 45.5, 'WAS', 'PHI', 10, 7, 'Q2 8:40', 'Hibachi420', '41%'],
-  ['over', 47.5, 'DAL', 'ARI', 21, 24, 'Q4 9:12', 'jrgong8', '38%'],
+  ['under', 45.5, 'KC', 'DEN', 0, 0, 'Q1 14:12', 'dshin', '52%', '1st & 10', 'KC 25', true],
+  ['under', 45.5, 'LV', 'NYJ', 10, 7, 'Q2 8:40', 'gmeko', '74%', '3rd & 8', 'NYJ 27', false],
+  ['under', 43.5, 'TB', 'ATL', 20, 21, 'Q4 2:05', 'mjuenke', '61%', '2nd & 4', 'ATL 41', true],
+  ['under', 40.5, 'BUF', 'BAL', 27, 21, 'Q4 6:30', 'Veritas616', '3%', '1st & 10', 'BUF 12', false],
+  ['over', 45.5, 'WAS', 'PHI', 10, 7, 'Q2 8:40', 'Hibachi420', '41%', '3rd & 3', 'PHI 6', false],
+  ['over', 47.5, 'DAL', 'ARI', 21, 24, 'Q4 9:12', 'jrgong8', '38%', '2nd & 7', 'DAL 30', true],
 ];
 
 const sg = (n) => `<span class="num"><span class="sg">${n > 0 ? '+' : '−'}</span>${Math.abs(n)}</span>`;
 const clamp = (x) => Math.max(6, Math.min(94, x));
 
-function row([side, line, away, home, a, h, clock, who, odds], mirrorUnder) {
+// where: 'tick' (total under the line, on the side away from the dot), 'dot' (both under
+// the dot), 'pick' (total beside the pick).
+function row([side, line, away, home, a, h, clock, who, odds, down, spot, leftBall], where) {
   const pts = a + h;
   const cushion = side === 'over' ? pts - line : line - pts;
   const win = cushion > 0;
-  // Points along the bar: 0 at the left end, the line in the middle, twice the line at
-  // the right end. Mirrored unders run the other way, so winning sits right.
+  // Points along the bar: 0 at one end, the line in the middle, twice the line at the
+  // other. Unders run backward, so winning is always on the right.
   const along = 50 + (50 * (pts - line)) / line;
-  const at = clamp(side === 'under' && mirrorUnder ? 100 - along : along);
+  const at = clamp(side === 'under' ? 100 - along : along);
   const left = Math.min(50, at), width = Math.abs(at - 50);
+  const dotRight = at >= 50;
+  const lbl = where === 'dot'
+    ? `${sg(cushion)}<span class="tot"> · ${pts}</span>`
+    : sg(cushion);
+  const tick = where === 'tick'
+    ? `<small class="tick-tot ${dotRight ? 'l' : 'r'}">${pts} pts</small>` : '';
   return `
     <li class="leg tracked leg-live">
       <span class="leg-logo">${big(away, home)}</span>
-      <span class="leg-pick">${side === 'over' ? 'Over' : 'Under'} ${line}</span>
+      <span class="leg-pick">${side === 'over' ? 'Over' : 'Under'} ${line}${where === 'pick' ? `<span class="pick-tot">${pts} pts</span>` : ''}</span>
       <span class="leg-odds ${win ? 'up' : 'down'}">${odds}</span>
       <div class="leg-line">
-        <span class="ll-side"><span class="ll-when"><span class="live-tag">● ${clock}</span></span></span>
-        <span class="ll-dot"><span style="color:#b9c2dd;font-weight:700">${pts} pts</span></span>
-        <span class="ll-side right"><small class="ll-who">${who}</small></span>
+        <span class="ll-side"><span class="ll-when"><span class="live-tag">● ${clock}</span></span><span class="dd">${leftBall ? '<i class="tri">◀</i>' : ''}${down}</span></span>
+        <span class="ll-dot">·</span>
+        <span class="ll-side right"><span class="dd">${spot}${leftBall ? '' : '<i class="tri">▶</i>'}</span><small class="ll-who">${who}</small></span>
       </div>
       <div class="leg-game ${win ? 'win' : 'lose'}">
         ${logo(away)}<b>${a}</b>
@@ -59,21 +72,23 @@ function row([side, line, away, home, a, h, clock, who, odds], mirrorUnder) {
           <i class="gbar-fill" style="left:${left}%;width:${width}%"></i>
           <i class="gbar-tick" style="left:50%"></i>
           <i class="gbar-dot" style="left:${at}%"></i>
-          <small class="gbar-lbl" style="left:${at}%">${sg(cushion)}</small>
+          <small class="gbar-lbl" style="left:${at}%">${lbl}</small>
+          ${tick}
         </span>
         <b>${h}</b>${logo(home)}
       </div>
     </li>`;
 }
 
-const section = (title, sub, mirror) => `
+const section = (title, sub, where) => `
   <div class="mock-h">${title}</div>
   <p class="mock-sub">${sub}</p>
-  <div class="pslip"><ol class="legs tracking">${LEGS.map((l) => row(l, mirror)).join('')}</ol></div>`;
+  <div class="pslip"><ol class="legs tracking">${LEGS.map((l) => row(l, where)).join('')}</ol></div>`;
 
 document.getElementById('mock').innerHTML =
-  section('A · Your way', 'Line in the middle. The dot is the running total: more points always moves it right. An under that’s winning grows green to the left.', false) +
-  section('B · Mirrored unders', 'Same, but unders run backward so winning is always on the right, like spreads. Scoring moves an under’s dot left.', true);
+  section('C1 · Total under the line', 'Cushion under the dot. The running total sits under the middle tick, on the side away from the dot.', 'tick') +
+  section('C2 · Both under the dot', 'Cushion, then the running total, together under the dot.', 'dot') +
+  section('C3 · Total beside the pick', 'Cushion under the dot. The running total sits next to the pick, up top.', 'pick');
 </script>
 </body>
 </html>
