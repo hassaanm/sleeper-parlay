@@ -923,9 +923,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
 .gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; z-index: 1; }
 /* A thin ring in a darker shade of the dot's own color. */
-.leg-game.win .gbar-dot { box-shadow: 0 0 0 1.5px #0a6b56; }
-.leg-game.lose .gbar-dot { box-shadow: 0 0 0 1.5px #8a2a38; }
-.leg-game.tie .gbar-dot { box-shadow: 0 0 0 1.5px #4a5683; }
+.leg-game.win .gbar-dot { box-shadow: 0 0 0 2px #064a3b; }
+.leg-game.lose .gbar-dot { box-shadow: 0 0 0 2px #651c27; }
+.leg-game.tie .gbar-dot { box-shadow: 0 0 0 2px #343d60; }
 /* A finished leg's label is on the line above (the result, centered), so no room is
    kept under its bar. */
 .leg-game.final .gbar { height: 14px; }
