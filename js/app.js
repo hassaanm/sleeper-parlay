@@ -3,7 +3,7 @@ import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
 import * as markets from './markets.js';
-import { demoPickers, fakeMomentum, fakeWeek } from './demo.js';
+import { demoPickers, fakeMomentum, fakeWeek, resetDemo } from './demo.js';
 import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
 import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
@@ -11,7 +11,7 @@ import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, DEMO_MODE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
+import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { dayTimeFmt, pretty } from './ui.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
@@ -101,7 +101,7 @@ async function loadLines() {
       await seedDemoPicks();
     }
     fakeDemoWeek();
-    if (DEMO && DEMO_MODE !== 'pre') loadStartedPrices();
+    if (DEMO && state.demoMode !== 'pre') loadStartedPrices();
   } catch (e) {
     if (request !== linesRequest) return;
     state.gamesError = e.message;
@@ -123,7 +123,7 @@ async function seedDemoPicks() {
       return [...g.ml, spread?.away, spread?.home, total?.over, total?.under];
     })
     .filter((o) => o?.available);
-  const { share, me } = demoPickers(DEMO_MODE);
+  const { share, me } = demoPickers(state.demoMode);
   let added = 0;
   acceptSlip(await store.updateSlip(state.slipId, (slip) => {
     const mates = slip.members.filter((m) => m.id !== state.me);
@@ -137,14 +137,41 @@ async function seedDemoPicks() {
       added++;
     }
     // Past 'pre', the week is underway, so picks are locked.
-    if (DEMO_MODE !== 'pre') slip.settings.locked = true;
+    if (state.demoMode !== 'pre') slip.settings.locked = true;
   }));
   if (added) toast(`Demo: added ${added} picks`, 'good');
 }
 
+// Moves the demo to another stage in place (a reload would flash the whole page): a
+// fresh demo slip, fresh scores and lines, then that stage's picks and made-up games.
+// The board stays up, dimmed, while it loads.
+async function switchDemoStage(mode) {
+  const url = new URL(location.href);
+  url.searchParams.set('demo', mode);
+  history.replaceState(null, '', url);
+  state.demoMode = mode;
+  state.demoSwitching = true;
+  render(); // the pill pulses and the board dims...
+  state.demoSwitching = 'loading'; // ...and stays as it was until the new stage is ready
+  safeSet(`parlay:demo-mode:${state.slipId}`, mode);
+  store.clearLocalSlip(state.slipId);
+  resetDemo();
+  Object.assign(state, { games: [], options: new Map(), prices: new Map(), demoSeeded: false, trackOpened: false });
+  setSlipOpen(false);
+  try {
+    await ensureCurrentSlip();
+    state.slip = await store.getSlip(state.slipId); // a new slip starts over at rev 1
+    await loadSports(); // fresh scoreboard states before the lines (and picks) come back
+    await loadLines();
+  } finally {
+    state.demoSwitching = false;
+    render();
+  }
+}
+
 // Past the 'pre' stage, the demo makes up how this week's games are going (demo.js).
 function fakeDemoWeek() {
-  if (DEMO && state.sports) fakeWeek(DEMO_MODE, state.games, state.sports.games, picks());
+  if (DEMO && state.sports) fakeWeek(state.demoMode, state.games, state.sports.games, picks());
 }
 
 // Prices for games that have kicked off (markets.js): every live game's, on each
@@ -177,9 +204,9 @@ async function loadStartedPrices() {
 
 async function startSlip() {
   // Each demo stage starts from a fresh slip, so switching stages shows that stage.
-  if (DEMO && safeGet(`parlay:demo-mode:${state.slipId}`) !== DEMO_MODE) {
+  if (DEMO && safeGet(`parlay:demo-mode:${state.slipId}`) !== state.demoMode) {
     store.clearLocalSlip(state.slipId);
-    safeSet(`parlay:demo-mode:${state.slipId}`, DEMO_MODE);
+    safeSet(`parlay:demo-mode:${state.slipId}`, state.demoMode);
   }
   try {
     await ensureCurrentSlip();
@@ -462,6 +489,7 @@ function dissolveStickers(before) {
 
 function render() {
   if (holdRender()) return; // the slip is being dragged
+  if (state.demoSwitching === 'loading') return; // the demo's next stage is loading
   trackPicks();
   const faces = captureFaces($app);
   const stickers = new Map([...$app.querySelectorAll('.sticker[data-sticker]:not([data-transient])')].map((el) => [el.dataset.sticker, { el, cell: el.parentElement }]));
@@ -723,12 +751,9 @@ $app.addEventListener('input', (e) => {
   if (e.target.id === 'league-query') state.landing.query = e.target.value;
 });
 
-// The demo's stage picker (top bar) reloads into that stage.
+// The demo's stage picker (top bar).
 $app.addEventListener('change', (e) => {
-  if (e.target.id !== 'demo-mode') return;
-  const url = new URL(location.href);
-  url.searchParams.set('demo', e.target.value);
-  location.href = url;
+  if (e.target.id === 'demo-mode') switchDemoStage(e.target.value);
 });
 
 $app.addEventListener('submit', (e) => {

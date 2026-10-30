@@ -15,6 +15,7 @@ const LIVE_SCORES = FINAL_SCORES.filter((n) => n <= 24);
 // Which games have started and how each picked game's legs should land, decided once
 // per visit, so a pick made later doesn't change it.
 let plan = null;
+export const resetDemo = () => { plan = null; };
 
 function makePlan(mode, games, picks) {
   const byStart = [...games].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));

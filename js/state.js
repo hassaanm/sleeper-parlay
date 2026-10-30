@@ -12,7 +12,7 @@ export const basePath = `/${pathParts.join('/')}${pathParts.length ? '/' : ''}`;
 export const DEMO = new URLSearchParams(location.search).has('demo');
 // The demo's stages of a week (demo.js), picked from the top bar: "?demo=<id>".
 export const DEMO_MODES = [
-  { id: 'pre', label: 'Pre' }, // half your league mates have picked; you haven't
+  { id: 'pre', label: 'Picking' }, // half your league mates have picked; you haven't
   { id: 'live-win', label: 'Live ✓' }, // games underway, every leg winning so far
   { id: 'live-loss', label: 'Live ✗' }, // games underway, a leg already missed
   { id: 'won', label: 'Won' }, // every game over, every leg hit
@@ -43,6 +43,8 @@ export const state = {
   prices: new Map(), // "<away>@<home>" -> a started game's lines (markets.js): live now, or at kickoff once final
   trackOpened: false, // the slip opened itself once this visit because picks are locked or underway
   demoSeeded: false,
+  demoMode: DEMO_MODE, // the demo's stage; the top bar's picker changes it in place
+  demoSwitching: false, // a new stage is loading: true, then 'loading' while the board holds still
   pending: null, // your leg while its save is in flight: { userId, pick } (pick null = removed); see picks()
   justPicked: null, // the cell you just picked, for its pop animation
   // Admin page ("?admin"): unlocked once the password matches, until the page is left or

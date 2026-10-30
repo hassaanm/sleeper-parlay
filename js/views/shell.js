@@ -46,7 +46,7 @@ function renderSlipPage() {
   return `
     ${renderActingBar()}
     <div class="chrome">${renderTopbar(me)}${renderSubbar()}</div>
-    <div class="layout">
+    <div class="layout ${state.demoSwitching ? 'dim' : ''}">
       <main class="games">${renderLockBar()}${renderGames()}</main>
       <aside class="parlay-side">${renderParlayCard()}</aside>
     </div>
