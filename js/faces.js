@@ -10,8 +10,8 @@
 // the pick's sticker hits its cell on the board (board.js), so the two feel connected.
 //
 // Each face sits over the face to its left and under the face to its right. A hopping
-// face changes that place in the stack only while it's clear of the row (nothing
-// overlaps it then), so the change never shows.
+// face changes that place in the stack once, at the top of its hop, where it's clear
+// of the row and nothing overlaps it, so the change never shows.
 import { STICKER_SLAP_MS } from './ui.js';
 
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -73,13 +73,12 @@ export function animateFaces(root, before) {
 }
 
 // Builds keyframes by sampling `at(t)` for t from `from` to `to`:
-// { x, y, turn, z, opacity, scaleX, scaleY }.
+// { x, y, turn, opacity, scaleX, scaleY }.
 function frames(at, from = 0, to = 1, steps = 48) {
   return Array.from({ length: steps + 1 }, (_, i) => {
-    const { x = 0, y = 0, turn = 0, z, opacity, scaleX = 1, scaleY = 1 } = at(from + ((to - from) * i) / steps);
+    const { x = 0, y = 0, turn = 0, opacity, scaleX = 1, scaleY = 1 } = at(from + ((to - from) * i) / steps);
     return {
       transform: `translate(${x}px, ${y}px) rotate(${turn}deg) scale(${scaleX}, ${scaleY})`,
-      ...(z === undefined ? {} : { zIndex: z }),
       ...(opacity === undefined ? {} : { opacity }),
     };
   });
@@ -115,14 +114,13 @@ function tinyHop(el, dx, delay) {
 }
 
 // A face whose pick moved it hops from its old spot to its new one. The real face
-// takes off from its old place in the stack; once it's clear of the row, a copy
-// waiting hidden in the new spot takes over, above every face while it's clear, and
-// comes down into its new place in the stack. The copy has its image decoded by then,
-// so the handover can't blink; the two overlap for a frame.
+// takes off from its old place in the stack; at the top of the hop, a copy waiting
+// hidden in the new spot (so in its new place in the stack) takes over and comes down.
+// The copy has its image decoded by then, so the handover can't blink; the two
+// overlap for a frame.
 function hop(row, el, old, oldRight, delay) {
   const to = el.getBoundingClientRect();
   const dx = to.left - old.rect.left;
-  const size = old.rect.height;
   // Up and down on a parabola; across mostly while high, so it leaves and lands nearly
   // straight up and down. A little tilt toward where it's going.
   const path = (t) => ({
@@ -130,9 +128,6 @@ function hop(row, el, old, oldRight, delay) {
     y: -HOP_HEIGHT * 4 * t * (1 - t),
     turn: Math.sign(dx) * 14 * Math.sin(Math.PI * t),
   });
-  // When it's clear of the row on the way up (and, mirrored, on the way down).
-  const clear = (1 - Math.sqrt(1 - (size + 2) / HOP_HEIGHT)) / 2;
-
   const copy = el.cloneNode(true);
   el.replaceWith(copy);
   // The real face, back in its old place in the stack, takes off.
@@ -142,12 +137,13 @@ function hop(row, el, old, oldRight, delay) {
   const box = row.getBoundingClientRect();
   Object.assign(el.style, { left: `${old.rect.left - box.left}px`, top: `${old.rect.top - box.top}px` });
   row.insertBefore(el, oldRight);
-  const handover = clear + 1 / 48;
+  const apex = 0.5;
+  const handover = apex + 1 / 48;
   el.animate(frames(path, 0, handover, 12), { duration: HOP_MS * handover, delay, fill: 'backwards', easing: 'linear' })
     .finished.then(() => el.remove());
 
-  // The copy, in its new spot: hidden until the handover, above everything while clear
-  // of the row, then down into its place with a small squash on touchdown.
+  // The copy, in its new spot: hidden until the apex, then down into its place with a
+  // small squash on touchdown.
   copy.animate(
     frames((t) => {
       const p = path(t);
@@ -155,8 +151,7 @@ function hop(row, el, old, oldRight, delay) {
       return {
         ...p,
         x: p.x - dx,
-        z: t >= clear && t <= 1 - clear ? 10 : 0,
-        opacity: t >= clear ? 1 : 0,
+        opacity: t >= apex ? 1 : 0,
         scaleX: 1 + 0.08 * landing,
         scaleY: 1 - 0.1 * landing,
       };
