@@ -409,9 +409,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .cell.lost { opacity: 0.38; }
 .cell.push { border-style: dashed; }
 
-/* Final: the win chance through the game (narrower than its column, so a ✓ below never
-   touches it), the final margin, and the total points. */
-.momentum { display: block; width: calc(100% - 14px); height: 16px; align-self: center; }
+/* Final: the win chance through the game (short enough that a ✓ below doesn't touch
+   it), the final margin, and the total points. */
+.momentum { display: block; width: 100%; height: 16px; align-self: center; }
 .settle { display: grid; place-items: center; height: 24px; font-size: 12px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* ---------- research pages (team, matchup) ---------- */
@@ -859,7 +859,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .slip .leg + .leg, .ticket .leg + .leg { border-top-color: #2d3963; }
 /* Tracking (parlay underway): hit and miss counts in the header, the clock and score
    under each pick, the chance now on the right, tinted rows once a leg is decided. */
-.tally { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tally { display: flex; align-items: center; gap: 10px; margin-right: 6px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .t-hit { color: var(--accent); }
 .t-miss { color: var(--bad); }
 .legs.tracking .leg-sub { display: flex; gap: 8px; align-items: center; }

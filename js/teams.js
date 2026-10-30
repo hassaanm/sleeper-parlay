@@ -25,7 +25,7 @@ const TEAM_COLORS = {
   LAC: ['#2AA3E8', '#FFC20E'],
   LAR: ['#FFD100', '#3366E6'],
   MIA: ['#15AAB3', '#FC6A1E'],
-  MIN: ['#FFC62F', '#7F4FD0'],
+  MIN: ['#7F4FD0', '#FFC62F'], // purple, though the logo shows more gold: it's how fans see them
   NE: ['#3E5FC2', '#D6283F'],
   NO: ['#D3BC8D', '#B5BCC2'],
   NYG: ['#3360D6', '#B5BCC2'],
