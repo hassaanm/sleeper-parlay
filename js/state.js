@@ -31,7 +31,7 @@ export const state = {
   resetPageScroll: false,
   pickSince: new Map(), // "<member>:<optKey>" -> when that pick appeared (0 = already there on load); new ones' stickers slap on
   stickersPrimed: false, // false until the first board render; picks there don't animate
-  showStarted: false,
+  prices: new Map(), // "<away>@<home>" -> a started game's lines (markets.js): live now, or at kickoff once final
   trackOpened: false, // the slip opened itself once this visit because picks are locked or underway
   demoSeeded: false,
   pending: null, // your leg while its save is in flight: { userId, pick } (pick null = removed); see picks()
@@ -151,4 +151,12 @@ export function gameTakers(game) {
 
 // Once the first leg's game kicks off (or the slip is locked), the slip switches to
 // tracking: live scores, live chances, and hit/miss as games finish.
+// A game on the scoreboard, and whether it's kicked off ('pre' until scores load).
+export const scoreboardGame = (away, home) => state.sports?.games.get(gameKey(away, home));
+export const hasStarted = (game) => (scoreboardGame(game.away, game.home)?.status.state ?? 'pre') !== 'pre';
+// This week's scoreboard games in one state ('in' or 'post'), by kickoff.
+export const scoreboardGames = (phase) => [...(state.sports?.games.values() ?? [])]
+  .filter((g) => g.status.state === phase)
+  .sort((a, b) => a.start - b.start || a.key.localeCompare(b.key));
+
 export const isTracking = (legs) => isLocked() || legs.some((l) => l.status && l.status.state !== 'pre');

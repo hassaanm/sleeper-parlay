@@ -2,6 +2,7 @@
 import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
+import * as markets from './markets.js';
 import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
 import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
@@ -9,7 +10,7 @@ import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, DEMO_LIVE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, state } from './state.js';
+import { DEMO, DEMO_LIVE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { dayTimeFmt, pretty, seeded } from './ui.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
@@ -46,6 +47,7 @@ function setSlip(slip) {
     state.gamesError = null;
     state.rungs.clear();
     state.sports = null;
+    state.prices = new Map();
     state.research = { league: null, loading: false, error: null };
     state.trackOpened = false;
   }
@@ -98,6 +100,7 @@ async function loadLines() {
       await seedDemoPicks();
     }
     fakeLiveWeek();
+    if (DEMO_LIVE) loadStartedPrices();
   } catch (e) {
     if (request !== linesRequest) return;
     state.gamesError = e.message;
@@ -153,8 +156,57 @@ function fakeLiveWeek() {
     const rand = seeded(game.id);
     const score = () => [0, 3, 7, 10, 13, 14, 17, 20, 21, 24, 27, 28, 31, 35][Math.floor(rand() * 14)];
     const clock = `Q${1 + Math.floor(rand() * 4)} ${Math.floor(rand() * 15)}:${String(Math.floor(rand() * 60)).padStart(2, '0')}`;
-    info.status = { ...info.status, state: st, detail: st === 'post' ? 'Final' : clock, awayScore: score(), homeScore: score() };
+    const ball = rand() < 0.5 ? game.away : game.home;
+    const yards = 1 + Math.floor(rand() * 49);
+    info.status = {
+      ...info.status, state: st, detail: st === 'post' ? 'Final' : clock, awayScore: score(), homeScore: score(),
+      ...(st === 'in' ? {
+        possession: ball, downDistance: `${['1st', '2nd', '3rd'][Math.floor(rand() * 3)]} & ${1 + Math.floor(rand() * 10)}`,
+        spot: `${rand() < 0.5 ? game.away : game.home} ${yards}`, redZone: yards < 20 && rand() < 0.5,
+        timeouts: [1 + Math.floor(rand() * 3), 1 + Math.floor(rand() * 3)],
+      } : {}),
+    };
   }
+}
+
+// The demo's made-up finals have no real history: a win-chance line that wanders and
+// ends with the winner.
+function fakeMomentum(g) {
+  const rand = seeded(`${g.key}:momentum`);
+  const end = g.status.awayScore > g.status.homeScore ? 99 : g.status.awayScore < g.status.homeScore ? 1 : 50;
+  let p = 50;
+  return Array.from({ length: 49 }, (_, i) => {
+    p = Math.min(95, Math.max(5, p + (rand() - 0.5) * 18));
+    return Math.round(p + ((end - p) * i) / 48 * (i / 48));
+  });
+}
+
+// Prices for games that have kicked off (markets.js): every live game's, on each
+// refresh; each finished game's once, then kept in this browser, since they never change.
+async function loadStartedPrices() {
+  const live = scoreboardGames('in');
+  const final = scoreboardGames('post');
+  // The live demo's made-up started games haven't begun: today's prices stand in.
+  const madeUp = (g) => DEMO_LIVE && g.start > Date.now();
+  const current = [...live, ...final.filter(madeUp)];
+  if (current.length) {
+    try {
+      const now = await markets.livePrices(current);
+      for (const g of current) {
+        const lines = now.get(g.key);
+        state.prices.set(g.key, lines && g.status.state === 'post' ? { ...lines, momentum: fakeMomentum(g) } : lines);
+      }
+    } catch { /* keep the last prices; try again next refresh */ }
+  }
+  await Promise.all(final.filter((g) => !madeUp(g) && !state.prices.get(g.key)?.final).map(async (g) => {
+    const saved = `parlay:kickoff:${g.season}:${g.week}:${g.key}`;
+    try {
+      const lines = JSON.parse(safeGet(saved) ?? 'null') ?? (await markets.kickoffPrices(g));
+      safeSet(saved, JSON.stringify(lines));
+      state.prices.set(g.key, { ...lines, final: true });
+    } catch { /* shown without prices; tried again on the next refresh */ }
+  }));
+  render();
 }
 
 async function startSlip() {
@@ -203,6 +255,7 @@ async function loadSports() {
     fakeLiveWeek();
     render();
     openIfTracking();
+    loadStartedPrices();
   } catch {
     // Records and weather are extras; the slip works without them.
   }
@@ -341,6 +394,7 @@ async function refreshLive() {
       }
     }
     if (changed) render();
+    await loadStartedPrices();
   } catch {
     // Try again next minute.
   }
@@ -639,9 +693,6 @@ $app.addEventListener('click', (e) => {
     // Tapping the solid top bar's title scrolls the page back to the top.
     case 'page-top':
       return $app.querySelector('.tsheet-body')?.scrollTo({ top: 0, behavior: 'smooth' });
-    case 'toggle-started':
-      state.showStarted = !state.showStarted;
-      return render();
     case 'be':
       state.me = id;
       state.switchingUser = false;

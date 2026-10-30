@@ -3,8 +3,8 @@
 import { matchupColors } from '../teams.js';
 import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
-import { beforeCutoff, gameTakers, isLocked, memberById, pickProblem, picks, rungIndex, state } from '../state.js';
-import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
+import { beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
+import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
 
@@ -65,7 +65,7 @@ export const clockTiles = (ms) => clockParts(ms).map(([digits, label]) => `
 const dayId = (start) => `day-${new Date(start).toDateString().replaceAll(' ', '-')}`;
 
 export function renderSubbar() {
-  const upcoming = state.games.filter((g) => !g.locked);
+  const upcoming = state.games.filter((g) => !hasStarted(g));
   const days = [...new Map(upcoming.map((g) => [dayFmt.format(g.start), g.start])).values()];
   return `
   <nav class="subbar">
@@ -101,44 +101,51 @@ export function renderWhoAreYou(current) {
 }
 
 export function renderGames() {
+  const live = scoreboardGames('in');
+  const final = scoreboardGames('post');
+  const started = live.length + final.length;
   // A failed refresh keeps the last lines on screen; only a first load shows the error.
-  if (state.gamesError && !state.games.length) return `<div class="card"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`;
-  if (!state.games.length && !state.lobby) return `<div class="loading-block"><div class="spinner"></div><p class="muted">Loading this week’s lines…</p></div>`;
-  if (!state.games.length) return `<div class="card"><p>No NFL games found for this week yet.</p></div>`;
+  if (state.gamesError && !state.games.length && !started) return `<div class="card"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`;
+  if (!state.games.length && !state.lobby && !started) return `<div class="loading-block"><div class="spinner"></div><p class="muted">Loading this week’s lines…</p></div>`;
+  if (!state.games.length && !started) return `<div class="card"><p>No NFL games found for this week yet.</p></div>`;
 
-  const upcoming = state.games.filter((g) => !g.locked);
-  const started = state.games.filter((g) => g.locked);
-  const byDay = new Map();
-  for (const g of upcoming) {
+  // Games still to come by day, then a band and the live games, then the final ones.
+  const upcoming = state.games.filter((g) => !hasStarted(g));
+  const band = (label, games, cls = '') => `<div class="band ${cls}" data-key="band-${label}"><span>${label}</span><small>${games.length} ${games.length === 1 ? 'game' : 'games'}</small></div>`;
+  return byDay(upcoming, renderGame, '')
+    + (live.length ? band('LIVE', live, 'live') + byDay(live, liveCard, 'live-') : '')
+    + (final.length ? band('FINAL', final) + byDay(final, finalCard, 'final-') : '');
+}
+
+// Games grouped under their day's title. Upcoming days get ids for the day chips.
+function byDay(games, render, prefix) {
+  const days = new Map();
+  for (const g of games) {
     const day = dayFmt.format(g.start);
-    if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day).push(g);
+    if (!days.has(day)) days.set(day, []);
+    days.get(day).push(g);
   }
-  const sections = [...byDay].map(([day, games]) => `
-    <section class="day" id="${dayId(games[0].start)}">
+  return [...days].map(([day, list]) => `
+    <section class="day" ${prefix ? `data-key="${prefix}${dayId(list[0].start)}"` : `id="${dayId(list[0].start)}"`}>
       <h2 class="day-title">${esc(day)}</h2>
-      ${games.map(renderGame).join('')}
+      ${list.map(render).join('')}
     </section>`).join('');
-
-  const startedSection = started.length ? `
-    <section class="day started" data-key="started">
-      <button class="day-title started-toggle" data-action="toggle-started">
-        Started · ${started.length} ${started.length === 1 ? 'game' : 'games'} <span>${state.showStarted ? '▴' : '▾'}</span>
-      </button>
-      ${state.showStarted ? started.map(renderGame).join('') : ''}
-    </section>` : '';
-  return sections + startedSection;
 }
 
 // Kickoff time (the day is already in the section header), then TV and weather.
 function gameMeta(game) {
   const info = state.sports?.games.get(gameKey(game.away, game.home));
-  const items = [`<span class="meta-time">${esc(timeFmt.format(game.start))}</span>`];
-  if (info?.tv) items.push(`<span class="tv-list">${tvBadges(info.tv)}</span>`);
-  if (info?.dome) items.push('<span class="wx">🏟️<span>Dome</span></span>');
-  else if (info?.weather) items.push(`<span class="wx" title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)}<span>${esc(info.weather.temp)}°</span></span>`);
-  items.push(`<button class="meta-research" data-action="matchup" data-id="${esc(game.id)}">Matchup ${chevronSmall()}</button>`);
-  return items.join('');
+  return `<span class="meta-time">${esc(timeFmt.format(game.start))}</span>${info ? gameExtras(info) : ''}`
+    + `<button class="meta-research" data-action="matchup" data-id="${esc(game.id)}">Matchup ${chevronSmall()}</button>`;
+}
+
+// A scoreboard game's TV, then (unless it's over) its weather or dome.
+function gameExtras(info, weather = true) {
+  let html = info.tv ? `<span class="tv-list">${tvBadges(info.tv)}</span>` : '';
+  if (!weather) return html;
+  if (info.dome) html += '<span class="wx">🏟️<span>Dome</span></span>';
+  else if (info.weather) html += `<span class="wx" title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)}<span>${esc(info.weather.temp)}°</span></span>`;
+  return html;
 }
 
 function formDots(team) {
@@ -152,21 +159,6 @@ function formDots(team) {
 // holds a game + bet type, the rest of that column is disabled.
 function renderGame(game) {
   const takers = gameTakers(game);
-  if (game.locked) {
-    const st = state.sports?.games.get(gameKey(game.away, game.home))?.status;
-    const scored = st && st.state !== 'pre';
-    return `
-    <article class="game locked ${st?.state === 'in' ? 'is-live' : ''}" data-key="${esc(game.id)}">
-      <div class="locked-line">
-        ${teamLogo(game.away, 20)} <b>${esc(game.away)}</b>${scored ? `<span class="ls">${st.awayScore}</span>` : ''}
-        <span class="muted">–</span>
-        ${scored ? `<span class="ls">${st.homeScore}</span>` : ''}<b>${esc(game.home)}</b> ${teamLogo(game.home, 20)}
-        <span class="kick ${st?.state === 'in' ? 'live' : 'is-locked'}">${st?.state === 'in' ? `● ${esc(st.detail)}` : st?.state === 'post' ? 'Final' : 'Started'}</span>
-      </div>
-      ${takers.length ? `<div class="locked-picks">${takers.map((t) => `<span class="pill">${avatar(t.member, 18)} ${esc(pretty(t.pick.label))}</span>`).join('')}</div>` : ''}
-    </article>`;
-  }
-
   const teamCell = (abbr, row) => {
     const team = state.sports?.teams.get(abbr);
     return `
@@ -179,15 +171,15 @@ function renderGame(game) {
   };
 
   const columns = [
-    { type: 'ml', label: 'Money', has: game.ml.some(Boolean) },
-    { type: 'spread', label: 'Spread', has: !!game.spread?.rungs.length },
-    { type: 'total', label: 'Total', has: !!game.total?.rungs.length },
+    { type: 'ml', has: game.ml.some(Boolean) },
+    { type: 'spread', has: !!game.spread?.rungs.length },
+    { type: 'total', has: !!game.total?.rungs.length },
   ].map((c, i) => ({ ...c, col: i + 3 }));
 
   // Column 1 is the win-chance bar, column 2 the teams, then Money, Spread, Total.
-  let html = columns.map((c) => `<div class="g-head" style="grid-area:1/${c.col}">${c.label}</div>`).join('');
+  let html = HEADS;
   // Rows: 2 = away team, 3 = line strips, 4 = home team.
-  html += winBar(game) + teamCell(game.away, 2) + teamCell(game.home, 4);
+  html += winBar(game.away, game.home, awayWinPct(game)) + teamCell(game.away, 2) + teamCell(game.home, 4);
   for (const c of columns) {
     if (!c.has) {
       html += `<span class="cell cell-empty" style="grid-area:2/${c.col}">—</span><span class="cell cell-empty" style="grid-area:4/${c.col}">—</span>`;
@@ -214,17 +206,145 @@ function renderGame(game) {
   </article>`;
 }
 
+const HEADS = ['Money', 'Spread', 'Total'].map((label, i) => `<div class="g-head" style="grid-area:1/${i + 3}">${label}</div>`).join('');
+
 // A vertical bar beside the team rows: the top part is the away team's win chance, the
-// bottom part the home team's, so each share sits next to the team it belongs to.
-function winBar(game) {
-  const awayPct = awayWinPct(game);
-  if (awayPct === null) return '';
-  const colors = matchupColors(game.away, game.home);
+// bottom part the home team's, so each share sits next to the team it belongs to. A
+// finished game's bar is all the winner's color.
+function winBar(away, home, awayPct) {
+  if (awayPct == null) return '';
+  const colors = matchupColors(away, home);
   return `
-    <div class="win-bar" style="grid-area:2/1/5/2" title="${esc(game.away)} ${awayPct}% · ${esc(game.home)} ${100 - awayPct}%">
-      <span style="flex-basis:${awayPct}%;background:${colors.away}"></span>
-      <span style="flex-basis:${100 - awayPct}%;background:${colors.home}"></span>
+    <div class="win-bar" style="grid-area:2/1/5/2" title="${esc(away)} ${awayPct}% · ${esc(home)} ${100 - awayPct}%">
+      ${awayPct > 0 ? `<span style="flex-basis:${awayPct}%;background:${colors.away}"></span>` : ''}
+      ${awayPct < 100 ? `<span style="flex-basis:${100 - awayPct}%;background:${colors.home}"></span>` : ''}
     </div>`;
+}
+
+// ---------- games that have kicked off ----------
+
+// A started game's team row: the abbreviation under the logo (where the record sits),
+// the score beside it, and while live, timeouts left under the score.
+const scoredTeam = (abbr, row, score, { lost = false, timeouts = null } = {}) => `
+  <button class="g-team scored ${lost ? 'lost' : ''}" style="grid-area:${row}/2" data-action="team" data-id="${esc(abbr)}">
+    ${teamLogo(abbr, 24)}
+    <span class="g-score">${score}</span>
+    <small class="g-abbr-s">${esc(abbr)}</small>
+    ${timeouts == null ? '' : `<span class="tos" title="${timeouts} timeouts left">${[0, 1, 2].map((i) => `<i class="${i < timeouts ? '' : 'used'}"></i>`).join('')}</span>`}
+  </button>`;
+
+// A cell on a started game: not tappable; once final, a ✓ if it won and faded if not.
+// Stickers stay on, so you can see who had what.
+const frozen = (area, main, sub, cls, stickers) => `
+  <div class="cell frozen ${cls}" style="grid-area:${area}">
+    <span class="cell-main">${signSpan(main)}</span>${sub ? `<span class="cell-sub">${signSpan(sub)}</span>` : ''}${stickers}
+  </div>`;
+
+// The spread or total line a started game shows: the one someone here picked (yours
+// first), else the one closest to even.
+function shownLine(list, takers, even) {
+  for (const t of [...takers].sort((a, b) => b.mine - a.mine)) {
+    const hit = list.find((r) => t.pick.optKey.startsWith(`${r.id}:`));
+    if (hit) return hit;
+  }
+  return [...list].sort((a, b) => Math.abs(even(a) - 50) - Math.abs(even(b) - 50))[0] ?? null;
+}
+
+// The six cells of a started game from its lines (live, or at kickoff), with ✓s once
+// it's final (`result`: the final score).
+function startedCells(g, lines, takers, result) {
+  if (!lines) return [2, 4].flatMap((row) => [3, 4, 5].map((col) => `<span class="cell cell-empty" style="grid-area:${row}/${col}">—</span>`)).join('');
+  const stick = (test) => takers.filter((t) => test(t.pick)).map((t) => sticker(t.member, t.pick.optKey)).join('');
+  const mark = (won) => (!result ? '' : won === null ? 'push' : won ? 'won' : 'lost');
+  const margin = result && result.away - result.home; // away's
+  const sp = shownLine(lines.spreads, takers.filter((t) => t.pick.type === 'spread'), (r) => r.away);
+  const to = shownLine(lines.totals, takers.filter((t) => t.pick.type === 'total'), (r) => r.over);
+  const spreadWon = sp && result && (margin + sp.awayLine === 0 ? null : margin + sp.awayLine > 0);
+  const overWon = to && result && (result.away + result.home === to.line ? null : result.away + result.home > to.line);
+  const onSpread = (side) => (p) => sp && p.optKey.startsWith(`${sp.id}:`) && p.team === side;
+  const onTotal = (side) => (p) => to && p.optKey.startsWith(`${to.id}:`) && p.side === side;
+  const ml = (side, row) => (lines.ml[side] == null ? `<span class="cell cell-empty" style="grid-area:${row}/3">—</span>`
+    : frozen(`${row}/3`, fmtOdds(lines.ml[side]), '', `cell-ml ${mark(result && (side === 'away' ? margin > 0 : margin < 0))}`, stick((p) => p.type === 'ml' && p.team === g[side])));
+  return ml('away', 2) + ml('home', 4)
+    + (sp ? frozen('2/4', fmtLine(sp.awayLine), fmtOdds(sp.away), mark(spreadWon), stick(onSpread(g.away)))
+      + frozen('4/4', fmtLine(-sp.awayLine), fmtOdds(sp.home), mark(spreadWon === null ? null : spreadWon === false), stick(onSpread(g.home)))
+      : '<span class="cell cell-empty" style="grid-area:2/4">—</span><span class="cell cell-empty" style="grid-area:4/4">—</span>')
+    + (to ? frozen('2/5', `O ${to.line}`, fmtOdds(to.over), mark(overWon), stick(onTotal('over')))
+      + frozen('4/5', `U ${to.line}`, fmtOdds(to.under), mark(overWon === null ? null : overWon === false), stick(onTotal('under')))
+      : '<span class="cell cell-empty" style="grid-area:2/5">—</span><span class="cell cell-empty" style="grid-area:4/5">—</span>');
+}
+
+// Who here picked a started game (matched by teams, since a finished game is gone
+// from the lobby's list).
+const startedTakers = (g) => Object.entries(picks())
+  .filter(([, p]) => p.matchup === `${g.away} @ ${g.home}`)
+  .map(([uid, p]) => ({ member: memberById(uid), pick: p, mine: uid === state.me }))
+  .filter((t) => t.member);
+
+// The game's research page, if it's still on the board.
+const matchupLink = (g) => {
+  const lobby = state.games.find((x) => x.away === g.away && x.home === g.home);
+  return lobby ? `<button class="meta-research" data-action="matchup" data-id="${esc(lobby.id)}">Matchup ${chevronSmall()}</button>` : '';
+};
+
+// Live: the clock where the kickoff time was, scores and timeouts by the teams, the
+// down and the spot between them (the arrow points at the team with the ball), and the
+// market's live prices.
+function liveCard(g) {
+  const st = g.status;
+  const lines = state.prices.get(g.key);
+  const takers = startedTakers(g);
+  const { ml } = lines ?? { ml: {} };
+  const awayPct = ml.away && ml.home ? Math.round((100 * ml.away) / (ml.away + ml.home)) : null;
+  const ballTop = st.possession === g.away;
+  const drive = st.possession && st.downDistance
+    ? `<div class="drive ${st.redZone ? 'redzone' : ''}" style="grid-area:3/2/4/6"><span class="arrow">${ballTop ? '▲' : '▼'}</span>${esc(st.downDistance)}${st.spot ? ` · ${esc(st.spot)}` : ''}</div>`
+    : '';
+  return `
+  <article class="game live ${takers.some((t) => t.mine) ? 'has-mine' : ''}" data-key="${esc(g.key)}">
+    <div class="g-meta"><span class="live-clock">${esc(st.detail || 'Starting')}</span>${gameExtras(g)}${matchupLink(g)}</div>
+    <div class="g-grid">${HEADS}${winBar(g.away, g.home, awayPct)}
+      ${scoredTeam(g.away, 2, st.awayScore, { timeouts: st.timeouts?.[0] })}${scoredTeam(g.home, 4, st.homeScore, { timeouts: st.timeouts?.[1] })}
+      ${drive}${startedCells(g, lines, takers, null)}</div>
+  </article>`;
+}
+
+// Final: the kickoff time, the winner's color in the bar, each line's price at kickoff
+// with a ✓ on what won, and between the teams the win chance through the game, the
+// final margin, and the total points.
+function finalCard(g) {
+  const st = g.status;
+  const lines = state.prices.get(g.key);
+  const takers = startedTakers(g);
+  const margin = st.awayScore - st.homeScore;
+  const winner = margin > 0 ? g.away : margin < 0 ? g.home : null;
+  const middle = `
+    ${lines?.momentum ? momentum(lines.momentum, matchupColors(g.away, g.home)) : ''}
+    <div class="settle" style="grid-area:3/4">${winner ? `${esc(winner)} −${Math.abs(margin)}` : 'Tie'}</div>
+    <div class="settle" style="grid-area:3/5">${st.awayScore + st.homeScore}</div>`;
+  return `
+  <article class="game final ${takers.some((t) => t.mine) ? 'has-mine' : ''}" data-key="${esc(g.key)}">
+    <div class="g-meta"><span class="meta-time">${esc(dayTimeFmt.format(g.start))}</span>${gameExtras(g, false)}${matchupLink(g)}</div>
+    <div class="g-grid">${HEADS}${winBar(g.away, g.home, winner === g.away ? 100 : winner === g.home ? 0 : 50)}
+      ${scoredTeam(g.away, 2, st.awayScore, { lost: winner === g.home })}${scoredTeam(g.home, 4, st.homeScore, { lost: winner === g.away })}
+      ${middle}${startedCells(g, lines, takers, { away: st.awayScore, home: st.homeScore })}</div>
+  </article>`;
+}
+
+// The away team's win chance through a finished game, as a small line in the Money
+// column: above the middle in the away team's color, below it in the home team's.
+let chartId = 0;
+function momentum(series, colors) {
+  const id = `wc${chartId++}`;
+  const pts = series.map((p, i) => `${((i / (series.length - 1)) * 100).toFixed(1)},${(24 - (p / 100) * 24).toFixed(1)}`).join(' ');
+  const half = (clip, color) => `
+    <polygon points="0,12 ${pts} 100,12" fill="${color}" fill-opacity="0.5" clip-path="url(#${id}${clip})"/>
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke" clip-path="url(#${id}${clip})"/>`;
+  return `<svg class="momentum" style="grid-area:3/3" viewBox="0 0 100 24" preserveAspectRatio="none" aria-label="Win chance through the game">
+    <defs><clipPath id="${id}a"><rect width="100" height="12"/></clipPath><clipPath id="${id}h"><rect y="12" width="100" height="12"/></clipPath></defs>
+    <line x1="0" y1="12" x2="100" y2="12" stroke="#2d3963" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    ${half('a', colors.away)}${half('h', colors.home)}
+  </svg>`;
 }
 
 // Horizontal strip of every line, between the two team rows, with a tick under each

@@ -53,6 +53,9 @@ function toGame(row) {
     tv: m.channel || null,
     dome: stadium === 'dome' || stadium === 'retractable_dome',
     weather: m.forecast_description ? { text: m.forecast_description, temp: m.forecast_temp_high, wind: m.forecast_wind_speed } : null,
+    // The game's prediction events (moneyline, spread, total, ...), still listed here
+    // after the lobby drops a finished game (markets.js).
+    eventIds: String(m.contract_event_ids ?? '').split(',').filter(Boolean),
     status: {
       state,
       detail,
@@ -61,6 +64,8 @@ function toGame(row) {
       possession: m.possession || null,
       redZone: !!m.red_zone,
       downDistance: m.down_and_distance || null,
+      spot: m.yard_line ? `${m.yard_line_territory ?? ''} ${m.yard_line}`.trim() : null, // "DEN 34"
+      timeouts: [m.away_used_timeouts, m.home_used_timeouts].map((used) => Math.max(0, Math.min(3, 3 - Number(used ?? 0)))),
     },
   };
 }
