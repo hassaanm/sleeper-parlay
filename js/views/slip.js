@@ -53,7 +53,9 @@ function parlayLegs() {
       </div>`;
   }
   const tracking = isTracking(legs);
-  return `<ol class="legs ${tracking ? 'tracking' : ''}">${legs.map((l) => {
+  // A test, for comparing: the bottom half of the legs stretch their bars full width.
+  const wideFrom = tracking ? Math.ceil(legs.length / 2) : null;
+  return `<ol class="legs ${tracking ? 'tracking' : ''}">${legs.map((l, i) => {
     const { team, away, home, vs } = pickTeams(l.pick);
     const logo = team
       ? teamLogo(team, 28)
@@ -72,9 +74,12 @@ function parlayLegs() {
       const when = live
         ? `<span class="live-tag">● ${esc(st.detail)}</span>`
         : final ? 'Final' : `${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}`;
-      const down = live && st.possession && st.downDistance
-        ? `<span class="dd ${st.possession === away ? 'left' : 'right'}">${esc(st.downDistance)}${st.spot ? ` · ${esc(st.spot)}` : ''}</span>`
-        : '';
+      // The down and the spot meet at a "·" right over the bar's middle; the arrow on the
+      // ball's side.
+      const hasDown = live && st.possession && st.downDistance;
+      const awayBall = st?.possession === away;
+      const downL = hasDown ? `<span class="dd">${awayBall ? '<i class="tri">◀</i>' : ''}${esc(st.downDistance)}</span>` : '';
+      const downR = hasDown ? `<span class="dd">${esc(st.spot ?? '')}${awayBall ? '' : '<i class="tri">▶</i>'}</span>` : '';
       const now = live && l.livePrice ? l.livePrice : l.price;
       const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
@@ -82,8 +87,12 @@ function parlayLegs() {
           <span class="leg-logo">${logo}${avatar(l.member, 18, `leg-face ${isMine ? 'me' : ''}`)}</span>
           <span class="leg-pick">${esc(pretty(l.pick.label))}</span>
           ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}
-          <div class="leg-line"><span class="ll-when">${when}</span><span class="ll-down">${down}</span><small class="ll-who">${esc(l.member.name)}</small></div>
-          ${live || final ? gameBar(l.pick, st) : ''}
+          <div class="leg-line">
+            <span class="ll-side"><span class="ll-when">${when}</span>${downL}</span>
+            <span class="ll-dot">${hasDown ? '·' : ''}</span>
+            <span class="ll-side right">${downR}<small class="ll-who">${esc(l.member.name)}</small></span>
+          </div>
+          ${live || final ? gameBar(l.pick, st, wideFrom != null && i >= wideFrom) : ''}
         </li>`;
     }
 
@@ -115,7 +124,7 @@ function parlayLegs() {
 const LINE_AT = 88; // a total's line, in % along the bar
 const DOT_MIN = 6;
 const DOT_MAX = 94;
-function gameBar(pick, st) {
+function gameBar(pick, st, wide = false) {
   const [away, home] = pick.matchup.split(' @ ');
   let at, tone, label, from = 50;
   if (pick.type === 'total') {
@@ -135,7 +144,7 @@ function gameBar(pick, st) {
   }
   const lost = (mine, theirs) => (st.state === 'post' && mine < theirs ? 'lost' : '');
   return `
-    <div class="leg-game ${tone}">
+    <div class="leg-game ${tone} ${wide ? 'wide' : ''}">
       ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
       <span class="gbar">
         <i class="gbar-fill" style="left:${Math.min(from, at)}%;width:${Math.abs(at - from)}%"></i>

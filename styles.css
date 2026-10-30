@@ -888,20 +888,21 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg.tracked { grid-template-rows: auto auto; align-items: center; }
 .leg.tracked .leg-logo { grid-row: 1 / 3; }
 .leg.tracked .leg-pick { grid-column: 2; }
-.leg.tracked .leg-pick, .leg.tracked .leg-odds { line-height: 17px; } /* a ✓ mustn't make the top row taller than the pick */
+.leg.tracked { row-gap: 4px; padding-top: 6px; padding-bottom: 4px; }
+.leg.tracked .leg-pick, .leg.tracked .leg-odds { line-height: 16px; } /* a ✓ mustn't make the top row taller than the pick */
 .leg.tracked .leg-odds { grid-column: 3; justify-self: end; }
 .leg-line {
-  grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center;
-  font-size: 11px; line-height: 1.2; color: var(--muted); white-space: nowrap;
+  grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 4px; align-items: center;
+  font-size: 11px; line-height: 13px; color: var(--muted); white-space: nowrap;
 }
+/* Each half: the clock (or name) at its outer edge, the down (or spot) against the "·" in
+   the middle, which sits right over the bar's middle. */
+.ll-side { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
 .ll-when, .ll-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ll-who { justify-self: end; font-size: 11px; }
-/* The down and spot; its arrow hangs outside on the ball's side, so the text itself stays
-   centered over the bar's middle. */
-.ll-down .dd { position: relative; font-size: 10.5px; font-weight: 600; color: #b9c2dd; }
-.dd.left::before, .dd.right::after { position: absolute; top: 50%; transform: translateY(-50%); font-size: 7.5px; color: var(--text); }
-.dd.left::before { content: '◀'; right: 100%; margin-right: 3px; }
-.dd.right::after { content: '▶'; left: 100%; margin-left: 3px; }
+.ll-side.right .ll-who { margin-left: auto; }
+.ll-dot { color: #b9c2dd; font-weight: 700; }
+.leg-line .dd { display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; font-weight: 600; color: #b9c2dd; }
+.leg-line .tri { font-style: normal; font-size: 7.5px; color: var(--text); }
 /* The game as a bar (slip.js gameBar): each score centered in its own slot, so it sits
    as far from its logo as from the bar, whatever its digits. Equal sides, so the bar's
    middle is the row's middle. */
@@ -910,13 +911,15 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg-game b { font-size: 12px; font-weight: 800; line-height: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
 .leg-game b { text-align: center; }
 .leg-game b.lost { color: var(--muted); }
-.gbar { position: relative; height: 25px; }
+.gbar { position: relative; height: 26px; margin: 0 2px; }
+/* A test: the bar stretched full width, from under the leg's logo. */
+.leg-game.wide { grid-column: 1 / -1; }
 .gbar i { position: absolute; display: block; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1.5px solid #c9d1ea; box-sizing: border-box; z-index: 1; }
-.gbar-lbl { position: absolute; top: 16px; transform: translateX(-50%); font-size: 9.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1px solid var(--bg-2); box-sizing: content-box; z-index: 1; transform: translate(-1px, -1px); }
+.gbar-lbl { position: absolute; top: 15px; transform: translateX(-50%); font-size: 10.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .gbar-lbl .num { position: relative; }
 .gbar-lbl .sg { position: absolute; right: 100%; }
 .leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
