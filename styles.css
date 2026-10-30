@@ -921,7 +921,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; z-index: 1; }
+.gbar-dot { top: 2.5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1; }
 /* A thin ring in a darker shade of the dot's own color. */
 .leg-game.win .gbar-dot { box-shadow: 0 0 0 2px #064a3b; }
 .leg-game.lose .gbar-dot { box-shadow: 0 0 0 2px #651c27; }
@@ -933,6 +933,9 @@ h1, h2 { letter-spacing: -0.02em; }
    line down to the bar (text sits inside taller line boxes, so the box gaps differ), and
    as much room under the bar as above the pick. */
 .leg.tracked.leg-final { padding-bottom: 8px; row-gap: 1px; }
+/* The last leg sits right above the tear line, which reads as more room; give it less. */
+.leg.tracked:last-child { padding-bottom: 1px; }
+.leg.tracked.leg-final:last-child { padding-bottom: 4px; }
 .leg-game.final { margin-top: 3px; }
 .ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ll-result.hit { color: var(--accent); }
