@@ -806,14 +806,15 @@ h1, h2 { letter-spacing: -0.02em; }
 
 /* ---------- pick deadline ---------- */
 
-/* Countdown under the day chips: flip-clock tiles, each split by a hinge line; a digit
+/* Deadline row under the day chips: lock time on the left, countdown on the right. Flip-clock tiles, each split by a hinge line; a digit
    flips down when it changes. Turns accent green inside the last hour. */
 .lock-bar {
   display: flex; align-items: center; gap: 8px; padding: 8px max(14px, calc((100vw - 1160px) / 2)) 0;
   font-size: 12px; font-weight: 600; color: var(--muted);
 }
-.lock-when { margin-left: auto; color: var(--text); }
-.flip-clock { display: inline-flex; align-items: flex-start; gap: 7px; perspective: 80px; }
+.lock-label { padding-bottom: 9px; } /* level with the tiles, not the tiles plus unit labels */
+.lock-label b { color: var(--text); font-weight: 700; }
+.flip-clock { margin-left: auto; display: inline-flex; align-items: flex-start; gap: 7px; perspective: 80px; }
 .fc-unit { display: grid; justify-items: center; gap: 2px; }
 .fc-digits { display: inline-flex; gap: 2px; }
 .fc-unit small { font-size: 7.5px; font-weight: 800; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }

@@ -635,9 +635,8 @@ function renderLockBar() {
   const ms = cutoff - Date.now();
   return `
     <div class="lock-bar">
-      <span class="lock-label">Picks lock in</span>
+      <span class="lock-label">Picks lock <b>${esc(`${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}`)}</b></span>
       <span class="flip-clock ${ms < 3_600_000 ? 'soon' : ''}" data-until="${Number(cutoff)}">${clockTiles(ms)}</span>
-      <span class="lock-when">${esc(`${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}`)}</span>
     </div>`;
 }
 
