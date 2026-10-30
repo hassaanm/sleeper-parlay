@@ -276,8 +276,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .sign { font-weight: 400; margin-right: 0.5px; }
 .cell.mine .cell-main, .cell.mine.cell-ml .cell-main { color: var(--accent-ink); }
 .cell.mine { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.cell.mine.just-picked { animation: pick-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
-@keyframes pick-pop { 0% { transform: scale(0.92); } 100% { transform: scale(1); } }
+/* The cell you just picked dips as your sticker lands on it (58% into the 0.8s slap). */
+.cell.mine.just-picked { animation: pick-pop 0.36s ease-out 0.46s; }
+@keyframes pick-pop { 0%, 100% { transform: none; } 30% { transform: scale(0.95); } }
 .cell.mine .cell-sub { color: var(--accent-ink); }
 .cell.taken { border-color: rgba(255, 200, 97, 0.55); background: rgba(255, 200, 97, 0.07); cursor: not-allowed; }
 /* A league mate's pick: their avatar stuck on like a die-cut sticker, placed a little
@@ -294,11 +295,29 @@ h1, h2 { letter-spacing: -0.02em; }
   content: ''; position: absolute; inset: 1.5px; border-radius: 50%; pointer-events: none;
   background: linear-gradient(140deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 42%);
 }
-.sticker.slap { animation: slap 0.5s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+/* A new sticker gets slapped on (0.8s; ui.js STICKER_SLAP_MS must match): it fades in
+   big and lifted, with a soft shadow far below it; drops onto the cell, squashing a
+   little on impact as its shadow tightens; then settles with a small wobble. */
+.sticker.slap { animation: slap 0.8s both; }
 @keyframes slap {
-  0% { transform: rotate(calc(var(--rot) - 30deg)) scale(2); opacity: 0; }
-  55% { opacity: 1; }
-  100% { transform: rotate(var(--rot)) scale(1); }
+  0% {
+    opacity: 0; transform: translate(10px, -26px) rotate(calc(var(--rot) - 24deg)) scale(2.2);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0), 0 24px 28px -6px rgba(0, 0, 0, 0.3);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); /* drifting in, slowing */
+  }
+  30% {
+    opacity: 1; transform: translate(6px, -20px) rotate(calc(var(--rot) - 14deg)) scale(1.9);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0), 0 22px 26px -6px rgba(0, 0, 0, 0.4);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5); /* then dropping, speeding up */
+  }
+  58% {
+    transform: translate(0, 0) rotate(calc(var(--rot) + 3deg)) scale(0.86);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 1px 3px -1px rgba(0, 0, 0, 0.6);
+    animation-timing-function: cubic-bezier(0.3, 0, 0.4, 1);
+  }
+  76% { transform: rotate(calc(var(--rot) - 2deg)) scale(1.06); animation-timing-function: ease-in-out; }
+  90% { transform: rotate(calc(var(--rot) + 1deg)) scale(0.98); animation-timing-function: ease-out; }
+  100% { transform: rotate(var(--rot)) scale(1); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12), 0 5px 12px -2px rgba(0, 0, 0, 0.55); }
 }
 
 .cell.blocked { opacity: 0.32; cursor: not-allowed; }

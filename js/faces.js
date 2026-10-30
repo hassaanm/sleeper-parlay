@@ -7,10 +7,12 @@
 // Everything moves inside the row, so each face keeps its place in the stack: over the
 // face to its left, under the face to its right.
 import { state } from './state.js';
+import { STICKER_SLAP_MS } from './ui.js';
 
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const SLAP_MS = 420; // the sticker's slap (styles.css .sticker.slap), before the copy peels off
+// The copy peels off once the sticker has landed and settled, after a short beat.
+const PEEL_DELAY = STICKER_SLAP_MS + 150;
 const GLIDE_MS = 680;
 const SLIDE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const GRAVITY = 2600; // px/s², for faces falling out of the row
@@ -34,9 +36,9 @@ export function animateFaces(root, before) {
   // The face that sat to the right of `id` before this render and is still in the row.
   const oldOrder = [...before.keys()];
   const rightOf = (id) => oldOrder.slice(oldOrder.indexOf(id) + 1).map((k) => after.get(k)).find(Boolean) ?? null;
-  // On your own pick, the row waits for the sticker's slap, then everything moves at once.
+  // On your own pick, the row waits for the sticker to stick, then everything moves at once.
   const arrival = state.arrival;
-  const delay = arrival ? SLAP_MS : 0;
+  const delay = arrival ? PEEL_DELAY : 0;
 
   for (const [id, el] of after) {
     if (id === arrival?.id) {
@@ -94,7 +96,7 @@ function peelOff(root, el, key, delay) {
     ],
     { duration: GLIDE_MS, delay, fill: 'backwards' },
   );
-  // Hidden while the sticker slaps on; the copy appears as the slap lands.
+  // Hidden while the sticker slaps on; the copy appears as it starts to peel off.
   if (delay) el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: delay });
 }
 

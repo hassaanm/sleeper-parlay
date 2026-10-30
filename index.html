@@ -13,28 +13,52 @@
   <!-- Paths below are relative, so "/<leagueId>/" (trailing slash) would break them.
        Leading slashes collapse to one, so "//other.site/..." can't redirect off this site. -->
   <script>if (/\/\d{6,}\/$/.test(location.pathname)) location.replace(location.pathname.replace(/^\/+/, '/').slice(0, -1) + location.search + location.hash);</script>
-  <link rel="stylesheet" href="styles.css">
-  <!-- Fetch every module up front instead of one import level at a time. Optional:
-       a module missing here still loads, just later. -->
-  <link rel="modulepreload" href="js/state.js">
-  <link rel="modulepreload" href="js/rules.js">
-  <link rel="modulepreload" href="js/ui.js">
-  <link rel="modulepreload" href="js/dom.js">
-  <link rel="modulepreload" href="js/faces.js">
-  <link rel="modulepreload" href="js/api.js">
-  <link rel="modulepreload" href="js/store.js">
-  <link rel="modulepreload" href="js/config.js">
-  <link rel="modulepreload" href="js/lines.js">
-  <link rel="modulepreload" href="js/sports.js">
-  <link rel="modulepreload" href="js/research.js">
-  <link rel="modulepreload" href="js/teams.js">
-  <link rel="modulepreload" href="js/views/board.js">
-  <link rel="modulepreload" href="js/views/slip.js">
-  <link rel="modulepreload" href="js/views/admin.js">
-  <link rel="modulepreload" href="js/views/pages.js">
+  <!-- assets:start (written by scripts/stamp.js) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "./js/api.js": "./js/api.js?v=5bf1104671",
+      "./js/app.js": "./js/app.js?v=ed1e52f2d3",
+      "./js/config.js": "./js/config.js?v=93c5a31f5f",
+      "./js/dom.js": "./js/dom.js?v=ca608e91ea",
+      "./js/faces.js": "./js/faces.js?v=c9df342624",
+      "./js/lines.js": "./js/lines.js?v=0687b4a386",
+      "./js/research.js": "./js/research.js?v=296aff9b41",
+      "./js/rules.js": "./js/rules.js?v=ee52923d00",
+      "./js/sports.js": "./js/sports.js?v=bcd45bf138",
+      "./js/state.js": "./js/state.js?v=3a1f708c21",
+      "./js/store.js": "./js/store.js?v=ff4e3a859d",
+      "./js/teams.js": "./js/teams.js?v=5991f866dd",
+      "./js/ui.js": "./js/ui.js?v=ef65ceae1f",
+      "./js/views/admin.js": "./js/views/admin.js?v=211f8971fe",
+      "./js/views/board.js": "./js/views/board.js?v=9b9d8e8eca",
+      "./js/views/pages.js": "./js/views/pages.js?v=8ff23501d5",
+      "./js/views/slip.js": "./js/views/slip.js?v=7b15e65241"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="styles.css?v=29686865f8">
+  <!-- Every module fetched up front, instead of one import level at a time. -->
+  <link rel="modulepreload" href="js/api.js?v=5bf1104671">
+  <link rel="modulepreload" href="js/config.js?v=93c5a31f5f">
+  <link rel="modulepreload" href="js/dom.js?v=ca608e91ea">
+  <link rel="modulepreload" href="js/faces.js?v=c9df342624">
+  <link rel="modulepreload" href="js/lines.js?v=0687b4a386">
+  <link rel="modulepreload" href="js/research.js?v=296aff9b41">
+  <link rel="modulepreload" href="js/rules.js?v=ee52923d00">
+  <link rel="modulepreload" href="js/sports.js?v=bcd45bf138">
+  <link rel="modulepreload" href="js/state.js?v=3a1f708c21">
+  <link rel="modulepreload" href="js/store.js?v=ff4e3a859d">
+  <link rel="modulepreload" href="js/teams.js?v=5991f866dd">
+  <link rel="modulepreload" href="js/ui.js?v=ef65ceae1f">
+  <link rel="modulepreload" href="js/views/admin.js?v=211f8971fe">
+  <link rel="modulepreload" href="js/views/board.js?v=9b9d8e8eca">
+  <link rel="modulepreload" href="js/views/pages.js?v=8ff23501d5">
+  <link rel="modulepreload" href="js/views/slip.js?v=7b15e65241">
+  <script type="module" src="js/app.js?v=ed1e52f2d3"></script>
+  <!-- assets:end -->
 </head>
 <body>
   <div id="app"></div>
-  <script type="module" src="js/app.js"></script>
 </body>
 </html>

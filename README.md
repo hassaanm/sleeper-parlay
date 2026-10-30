@@ -47,6 +47,8 @@ This runs `node --test` on `tests/`, which covers the rules in `js/rules.js`.
 
 GitHub Pages serves the repository root from the `main` branch. There is no build step, so a push is a deploy.
 
+Before pushing a change to `js/` or `styles.css`, run `npm run stamp`. It stamps each asset URL in `index.html` with a hash of the file (and copies it to `404.html`), so browsers never mix cached old files with new ones after a deploy. `npm test` fails if the stamps are stale.
+
 ## Storage
 
 Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. Saves use ETag compare-and-swap. Open pages get changes pushed over Server-Sent Events, with a 60-second fallback check. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.

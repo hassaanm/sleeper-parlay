@@ -3,7 +3,7 @@
 import { matchupColors } from '../teams.js';
 import { clashFor, gameKey } from '../rules.js';
 import { awayWinPct, beforeCutoff, gameTakers, isLocked, ladderKey, ladderSides, memberById, myLegLocked, picks, rungIndex, state } from '../state.js';
-import { LOCK_ICON, avatar, chevronSmall, dayFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
+import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
 
@@ -262,10 +262,9 @@ export function cell(opt, type, area, cellId) {
 function sticker(member, key) {
   const id = `${member.id}:${key}`;
   const rand = seeded(id);
-  // New stickers slap on, and keep the class for the length of the slap (0.5s) so a
-  // redraw mid-slap doesn't cut it short.
-  if (!state.seenStickers.has(id)) state.seenStickers.set(id, state.stickersPrimed ? Date.now() : 0);
-  const fresh = Date.now() - state.seenStickers.get(id) < 500;
+  // A pick that just appeared slaps its sticker on, keeping the class for the length of
+  // the slap so a redraw mid-slap doesn't cut it short (app.js trackPicks).
+  const fresh = Date.now() - (state.pickSince.get(id) ?? 0) < STICKER_SLAP_MS;
   // Tilt 7–18° either way: never so straight it looks placed by a machine.
   const tilt = (rand() < 0.5 ? -1 : 1) * Math.round(7 + rand() * 11);
   const vars = `--rot:${tilt}deg;--dx:${Math.round(-6 + rand() * 6)}px;--dy:${Math.round(-6 + rand() * 7)}px`;

@@ -26,8 +26,8 @@ export const state = {
   research: { league: null, loading: false, error: null }, // the season plus Sleeper's stats (research.addStats)
   pastMeetings: new Map(), // "<away>@<home>" -> meetings from the last three seasons, or 'loading'
   resetPageScroll: false,
-  seenStickers: new Map(), // sticker id -> when it first showed, so only new ones get slapped on
-  stickersPrimed: false, // false until the first board render; stickers there don't animate
+  pickSince: new Map(), // "<member>:<optKey>" -> when that pick appeared (0 = already there on load); new ones' stickers slap on
+  stickersPrimed: false, // false until the first board render; picks there don't animate
   showStarted: false,
   trackOpened: false, // the slip opened itself once this visit because picks are locked or underway
   demoSeeded: false,

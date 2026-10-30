@@ -254,7 +254,7 @@ async function choose(key) {
     if ((state.slip?.rev ?? 0) <= saved.rev) state.slip = saved;
     navigator.vibrate?.(12);
     state.justPicked = key;
-    setTimeout(() => (state.justPicked = null), 600);
+    setTimeout(() => (state.justPicked = null), 1000); // through the cell's dip as the sticker lands
     picked = true;
   } catch (e) {
     state.slip = (await store.getSlip(state.slipId).catch(() => null)) ?? state.slip;
@@ -372,12 +372,21 @@ function landingGo() {
 
 // ---------- render ----------
 
+// When each current pick appeared, so stickers slap on for new picks only. A pick
+// that goes away is forgotten, so picking a line again slaps its sticker on again.
+function trackPicks() {
+  const active = new Set(Object.entries(picks()).map(([uid, p]) => `${uid}:${p.optKey}`));
+  for (const id of state.pickSince.keys()) if (!active.has(id)) state.pickSince.delete(id);
+  for (const id of active) if (!state.pickSince.has(id)) state.pickSince.set(id, state.stickersPrimed ? Date.now() : 0);
+}
+
 function render() {
   // A background refresh mid-drag would replace the slip under the finger; wait.
   if (slipDrag) {
     slipDrag.pendingRender = true;
     return;
   }
+  trackPicks();
   const faces = captureFaces($app);
   patch($app, (state.slipId ? renderSlipPage() : renderLanding()) + renderToast());
   animateFaces($app, faces);
