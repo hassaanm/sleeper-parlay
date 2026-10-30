@@ -91,7 +91,7 @@ export function animateFaces(root, before) {
     shuffle = { duration, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + Math.max(0, roll.openAtMs - duration) };
   }
 
-  for (const id of removed) rollOff(row, box, before.get(id), oldRightOf(id), offs.get(id));
+  for (const id of removed) rollOff(row, before.get(id), oldRightOf(id), offs.get(id));
   for (const [id, roll] of rolls) rollIn(after.get(id), roll, IMPACT_MS);
   // The faces that sat to the right of `id` before this render, still in the row.
   const oldRightAll = (id) => oldOrder.slice(oldOrder.indexOf(id) + 1).map((k) => after.get(k)).filter(Boolean);
@@ -306,7 +306,7 @@ function rollOffFor(at, rowEnd) {
 // The face (the real element, never a fresh copy, so it can't blink) sits in the row
 // at its old place, before `oldRight`, so it keeps that place in the stack. It's
 // marked transient so a render mid-fall leaves it alone (dom.js).
-function rollOff(row, box, { el, at }, oldRight, off) {
+function rollOff(row, { el, at }, oldRight, off) {
   stop(el);
   el.classList.add('face-drop');
   el.setAttribute('data-transient', '');
@@ -314,7 +314,9 @@ function rollOff(row, box, { el, at }, oldRight, off) {
   row.insertBefore(el, oldRight);
 
   const radius = at.width / 2;
-  const fall = innerHeight - (box.top + at.top) + at.height + 20;
+  // Always a full screen's fall: the row can rise while it drops (the phone's slip opening
+  // right after, as when the demo switches stages), and it must still clear the bottom.
+  const fall = innerHeight + at.height + 20;
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
   const total = off.rollS + airtime;
   play(el,
