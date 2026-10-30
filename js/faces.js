@@ -99,16 +99,21 @@ export function animateFaces(root, before) {
   }
 }
 
-// Starts an animation with its first frame already applied. Without this, WebKit
-// (every iPhone browser) can paint a new animation's element unanimated for a frame
-// before the animation takes over, even with fill: 'backwards': a face would flash at
-// its new spot, then snap back to where its animation starts. The first frame is set
-// inline until the animation ends.
-function play(el, keyframes, options) {
-  const first = Array.isArray(keyframes) ? keyframes[0] : Object.fromEntries(Object.entries(keyframes).map(([k, v]) => [k, v[0]]));
-  const props = Object.keys(first).filter((k) => k !== 'offset' && k !== 'easing');
-  for (const k of props) el.style[k] = first[k];
-  const animation = el.animate(keyframes, options);
+// Starts an animation that's running from the first frame, so nothing depends on how a
+// browser treats a waiting animation. WebKit (every iPhone browser) can paint an element
+// unanimated while its animation waits out a delay, or for a frame as it starts, even
+// with fill: 'backwards': a face would flash at its new spot, then snap back to where
+// its animation starts. So a delay becomes a held first frame inside the animation, and
+// the first frame is also set inline until the animation ends.
+function play(el, keyframes, { delay = 0, easing = 'linear', ...options }) {
+  const last = keyframes.length - 1;
+  const at = (k, i) => k.offset ?? (last ? i / last : 1);
+  const total = delay + options.duration;
+  const timed = keyframes.map((k, i) => ({ ...k, offset: (delay + at(k, i) * options.duration) / total, easing: k.easing ?? easing }));
+  if (delay > 0) timed.unshift({ ...timed[0], offset: 0, easing: 'linear' });
+  const props = Object.keys(keyframes[0]).filter((k) => k !== 'offset' && k !== 'easing');
+  for (const k of props) el.style[k] = keyframes[0][k];
+  const animation = el.animate(timed, { ...options, duration: total });
   const clear = () => { for (const k of props) el.style[k] = ''; };
   animation.addEventListener('finish', clear);
   animation.addEventListener('cancel', clear);
@@ -189,7 +194,10 @@ function jumpTo(box, el, old, oldRight, jump, delay) {
     return { x: dx, ...squash(tall) };
   };
   // Drawn relative to its new spot: it starts dx back, at the old one.
-  play(el, frames((t) => ({ ...pose(t), x: pose(t).x - dx }), 0, 1, 60, JUMP_ORIGIN), { duration: total, delay, fill: 'backwards', easing: 'linear' });
+  play(el, frames((t) => {
+    const { x = 0, ...rest } = pose(t); // no x while it crouches in place
+    return { ...rest, x: x - dx };
+  }, 0, 1, 60, JUMP_ORIGIN), { duration: total, delay, fill: 'backwards', easing: 'linear' });
 
   // Its old place in the stack, held until the top of the jump.
   const untilApex = delay + total * ((crouchEnd + airEnd) / 2);
@@ -242,9 +250,10 @@ function rollIn(el, { left, duration, radius }, delay) {
 // A removed face rolls off to the right and over the edge: after a beat, it picks up
 // speed from rest and rolls at the roll-in speed, behind the faces to its right, until
 // it's fully past the last one (just a short way, if it was last). Then it runs out of
-// ground: its forward speed dies away within a few pixels and it drops nearly
-// straight down, faster and faster, still turning a little.
-const DRIFT_S = 0.04; // how fast its forward speed dies away after the edge
+// ground and falls, still spinning at its rolling rate like a wheel off a ledge. Its
+// forward speed fades as it falls, so it arcs out a little before dropping nearly
+// straight down.
+const DRIFT_S = 0.35; // how fast its forward speed fades after the edge (time constant)
 function rollOffFor(at, rowEnd) {
   const distance = Math.max(ROLL_OFF_PAST + 4, rowEnd - at.left + ROLL_OFF_PAST);
   const accel = ROLL_SPEED ** 2 / (2 * ROLL_OFF_SPEEDUP_PX);
@@ -276,7 +285,7 @@ function rollOff(row, box, { el, at }, oldRight, off) {
       const t = u * total;
       const air = t - off.rollS;
       const x = air < 0 ? off.rolled(t) : off.distance + off.edgeSpeed * DRIFT_S * (1 - Math.exp(-air / DRIFT_S));
-      const turn = degreesRolled(Math.min(x, off.distance), radius) + (air > 0 ? 120 * air : 0);
+      const turn = degreesRolled(air < 0 ? x : off.distance + off.edgeSpeed * air, radius);
       return { x, y: air < 0 ? 0 : 0.5 * GRAVITY * air ** 2, turn };
     }, 0, 1, Math.max(48, Math.round(total * 60))),
     // Holding the last pose (off the bottom) until it's removed, so it can't flash back

@@ -82,7 +82,11 @@ function patchNode(from, to) {
     if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue;
     return;
   }
-  for (const { name } of [...from.attributes]) if (!to.hasAttribute(name)) from.removeAttribute(name);
+  for (const { name } of [...from.attributes]) {
+    // An animating element's inline style holds its pose (faces.js); keep it.
+    if (name === 'style' && from.getAnimations().length) continue;
+    if (!to.hasAttribute(name)) from.removeAttribute(name);
+  }
   for (const { name, value } of to.attributes) if (from.getAttribute(name) !== value) from.setAttribute(name, value);
   patchChildren(from, to);
 }
