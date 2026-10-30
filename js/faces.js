@@ -24,7 +24,7 @@ const GRAVITY = 2600; // px/s², for falls
 const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
 const ROLL_OFF_PX = 10; // rolled before tipping off the edge
 const ROLL_OFF_S = 0.2;
-const ROLL_OFF_DELAY_MS = 250; // a beat in place first, so the roll-off reads
+const ROLL_OFF_DELAY_MS = 190; // a beat in place first, so the roll-off reads
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
@@ -112,13 +112,14 @@ const degreesRolled = (distance, radius) => (distance / radius) * (180 / Math.PI
 // Width moves opposite to height, so a squashed or stretched face keeps its volume.
 const squash = (tall) => ({ scaleX: 1 - 0.8 * (tall - 1), scaleY: tall });
 
-// A jump across `distance` px, as a projectile: the apex grows with distance (but
-// always clears the row), air time follows from gravity, and the crouch, stretch, and
-// landing grow with the jump.
+// A jump across `distance` px, as a projectile. Jumping farther means pushing off
+// harder, and at a similar launch angle the apex rises in step with the distance, so
+// the apex is a base that clears the row plus half the distance. Air time follows
+// from gravity, and the crouch, stretch, and landing grow with the jump.
 function jumpFor(distance) {
-  const height = Math.max(34, 18 + distance * 0.32);
+  const height = 32 + distance * 0.5;
   const airMs = 2 * Math.sqrt((2 * height) / JUMP_GRAVITY) * 1000;
-  const size = Math.min(1, (height - 34) / 50); // 0 for a short hop, 1 for a long leap
+  const size = Math.min(1, (height - 32) / 70); // 0 for a short hop, 1 for a long leap
   return {
     height,
     airMs,
@@ -185,37 +186,42 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
 }
 
 // A face whose pick changed but kept its spot jiggles in place as its sticker lands,
-// like jelly: it wobbles side to side from its base, three swings dying out, with a
-// little springy stretch in step.
+// like a rubber band: the whole face squeezes wide, springs tall, wide, tall, dying
+// out, with its base kept on the ground.
+const JIGGLE = [[0, 1], [0.3, 1.22], [0.42, 0.8], [0.54, 1.12], [0.68, 0.94], [0.8, 1.04], [1, 1]]; // [time, width]
 function jiggle(el, delay) {
   el.animate(
-    frames((t) => {
-      const decay = (1 - t) ** 2;
-      const swing = Math.sin(t * Math.PI * 6);
-      return { turn: 14 * swing * decay, ...squash(1 + 0.07 * Math.cos(t * Math.PI * 6) * decay) };
-    }, 0, 1, 48, JUMP_ORIGIN),
-    { duration: 560, delay, easing: 'linear' },
+    JIGGLE.map(([offset, wide]) => ({ offset, transform: `scale(${wide}, ${2 - wide})`, transformOrigin: JUMP_ORIGIN, easing: 'ease-in-out' })),
+    { duration: 720, delay },
   );
 }
 
-// A new face rolls in from behind the slip's left edge (the row is clipped there),
-// slowing at a steady rate to a stop in its spot. Its turn is worked back from the
-// spot, so it arrives exactly upright. `openAtMs` is when it's one face from its spot:
-// the others have made room by then.
+// A new face rolls in from behind the slip's left edge (the row is clipped there) at
+// one steady speed, wherever its spot is, slowing only over its last few pixels to a
+// stop. Its turn is worked back from the spot, so it arrives exactly upright.
+// `openAtMs` is when it's one face from its spot: the others have made room by then.
+const ROLL_SPEED = 300; // px/s
+const ROLL_BRAKE_PX = 28; // slowing to a stop over the last stretch
 function rollFor(el) {
   const rect = el.getBoundingClientRect();
   const curtain = el.closest('.slip-peek')?.getBoundingClientRect().left ?? 0;
-  const start = -(rect.right - curtain + 2); // just behind the slip's left edge
-  const duration = Math.min(1000, Math.max(560, 280 + Math.abs(start) * 0.9));
-  const openAt = 1 - Math.sqrt(Math.min(1, rect.width / Math.abs(start))); // x = start·(1-t)²
-  return { start, duration, radius: rect.width / 2, openAtMs: duration * openAt };
+  const distance = rect.right - curtain + 2; // from just behind the slip's left edge
+  const brake = Math.min(ROLL_BRAKE_PX, distance);
+  const cruiseMs = ((distance - brake) / ROLL_SPEED) * 1000;
+  const brakeMs = ((2 * brake) / ROLL_SPEED) * 1000; // steady slowdown from speed to 0
+  const duration = cruiseMs + brakeMs;
+  // Distance still to go at time t (ms).
+  const left = (t) => (t < cruiseMs ? distance - (ROLL_SPEED * t) / 1000 : brake * (1 - (t - cruiseMs) / brakeMs) ** 2);
+  let openAtMs = 0;
+  while (openAtMs < duration && left(openAtMs) > rect.width) openAtMs += 10;
+  return { left, duration, radius: rect.width / 2, openAtMs };
 }
-function rollIn(el, { start, duration, radius }, delay) {
+function rollIn(el, { left, duration, radius }, delay) {
   el.animate(
     frames((t) => {
-      const x = start * (1 - t) ** 2;
+      const x = -left(t * duration);
       return { x, turn: degreesRolled(x, radius) };
-    }),
+    }, 0, 1, Math.max(24, Math.round(duration / 16))),
     { duration, delay, fill: 'backwards', easing: 'linear' },
   );
 }
