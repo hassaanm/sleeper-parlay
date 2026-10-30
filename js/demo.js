@@ -17,9 +17,13 @@ const LIVE_SCORES = FINAL_SCORES.filter((n) => n <= 24);
 let plan = null;
 export const resetDemo = () => { plan = null; };
 
-function makePlan(mode, games, picks) {
+function makePlan(mode, games, picks, liveFirst) {
   const byStart = [...games].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  // Picked games, with `liveFirst` (the game of the league mate with the longest name)
+  // moved into a live slot, so the tightest slip row always shows.
   const picked = byStart.filter((g) => picks.some((p) => p.gameId === g.id));
+  const at = picked.findIndex((g) => g.id === liveFirst);
+  if (at >= 0 && picked.length > 1) picked.splice(1, 0, ...picked.splice(at, 1));
   const done = mode === 'won' || mode === 'lost';
   const result = new Map(); // game id -> { phase: 'in' | 'post', grade: 'hit' | 'miss' | null }
   picked.forEach((g, i) => {
@@ -51,11 +55,12 @@ function scoreFor(gamePicks, grade, phase, rand) {
 /**
  * Marks the demo's started games locked and gives them made-up scoreboard states:
  * final, or live with a clock, the ball, the down, and timeouts. Does nothing in 'pre'.
- * `scoreboard` is state.sports.games; `picks` the slip's picks.
+ * `scoreboard` is state.sports.games; `picks` the slip's picks; `members` its members.
  */
-export function fakeWeek(mode, games, scoreboard, picks) {
+export function fakeWeek(mode, games, scoreboard, picks, members = []) {
   if (mode === 'pre' || !games.length) return;
-  plan ??= makePlan(mode, games, Object.values(picks));
+  const longest = [...members].filter((m) => picks[m.id]).sort((a, b) => b.name.length - a.name.length)[0];
+  plan ??= makePlan(mode, games, Object.values(picks), longest && picks[longest.id].gameId);
   for (const game of games) {
     const how = plan.get(game.id);
     const info = scoreboard.get(gameKey(game.away, game.home));

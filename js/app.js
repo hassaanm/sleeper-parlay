@@ -172,7 +172,7 @@ async function switchDemoStage(mode) {
 
 // Past the 'pre' stage, the demo makes up how this week's games are going (demo.js).
 function fakeDemoWeek() {
-  if (DEMO && state.sports) fakeWeek(state.demoMode, state.games, state.sports.games, picks());
+  if (DEMO && state.sports) fakeWeek(state.demoMode, state.games, state.sports.games, picks(), state.slip?.members);
 }
 
 // Prices for games that have kicked off (markets.js): every live game's, on each
