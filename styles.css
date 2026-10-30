@@ -209,13 +209,13 @@ h1, h2 { letter-spacing: -0.02em; }
 
 .day { scroll-margin-top: calc(var(--topbar-h) + var(--subbar-h) + 6px); }
 .day-title {
-  margin: 24px 4px 8px; font-size: 11px; font-weight: 700;
+  margin: 14px 4px 8px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted);
 }
 /* Two gaps on the board, measured to the title's capitals (its line box adds ~4px around
    them): 12px from the bar to the first thing under it and from a date to its first
-   game; ~28px above every date that follows something (a game's margin folds into
-   it), so a new day reads as a break. */
+   game; ~18px above every date that follows something (a game's margin folds into
+   it): a little more, so a new day reads as a small break. */
 .games > .day:first-child > .day-title { margin-top: 8px; }
 
 .game {

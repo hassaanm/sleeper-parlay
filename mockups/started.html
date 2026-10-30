@@ -15,7 +15,7 @@
   /* ---- Spacing: 12px under a band and under a date; ~28px above a date only when a
      game card is right above it; the same 20px above and below a band. ---- */
   .mock .day-title { margin: 8px 4px 8px; }
-  .mock .game + .day-title { margin-top: 24px; }
+  .mock .game + .day-title { margin-top: 14px; }
   .band { margin: 20px -10px 16px; padding: 9px 14px; background: #141b33; border-top: 1px solid #2d3963; border-bottom: 1px solid #2d3963;
     display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--text); }
   .band small { font-weight: 600; letter-spacing: 0.04em; color: var(--muted); }
@@ -41,12 +41,10 @@
   .tos i { width: 5px; height: 5px; border-radius: 50%; background: #c9d1ea; }
   .tos i.used { background: #2b3557; }
   /* Final: abbr under the logo, the score beside both, about as tall as the logo. */
-  .game.final .g-team.scored { column-gap: 7px; }
-  .game.final .g-team.scored .score-line { grid-row: 1 / 3; }
-  .game.final .g-team.scored .g-score { font-size: 30px; letter-spacing: -0.02em; }
   /* What decided the spread and total, in the row between the teams. */
-  .settle { display: flex; align-items: center; gap: 5px; height: 24px; padding-left: 3px; font-size: 11.5px; font-weight: 700; color: #b9c2dd; white-space: nowrap; }
-  .settle b { color: var(--text); }
+  .settle { display: grid; place-items: center; height: 24px; font-size: 12px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .settle .num { position: relative; } .settle .sg { position: absolute; right: 100%; }
+  .momentum { display: block; width: 100%; height: 20px; align-self: center; }
   .g-team.lost { opacity: 0.45; }
 
   /* Where the ball is, in the row between the teams: the arrow points at the team with it. */
@@ -112,6 +110,19 @@ const hang = (x) => x.replace(/^([+−])(.*)$/, '<span class="num"><span class="
 const strip = (items, on, area) => `<div class="dial" style="grid-area:${area}"><div class="strip">${items.map((x, i) => `<div class="strip-item ${i === on ? 'on' : ''}">${hang(x)}</div>`).join('')}</div></div>`;
 const SPREAD = ['−7.5', '−6.5', '−5.5', '−4.5', '−3.5', '−2.5', '−1.5', '+1.5', '+2.5', '+3.5', '+4.5', '+5.5'];
 const TOTAL = ['40.5', '41.5', '42.5', '43.5', '44.5', '45.5', '46.5', '47.5', '48.5', '49.5', '50.5'];
+let chartId = 0;
+const momentum = (series, awayColor, homeColor, area) => {
+  const id = `m${chartId++}`;
+  const pts = series.map((p, i) => `${(i / (series.length - 1)) * 100},${24 - (p / 100) * 24}`).join(' ');
+  return `<svg class="momentum" style="grid-area:${area}" viewBox="0 0 100 24" preserveAspectRatio="none" aria-label="Win chance through the game">
+    <defs><clipPath id="${id}a"><rect x="0" y="0" width="100" height="12"/></clipPath><clipPath id="${id}h"><rect x="0" y="12" width="100" height="12"/></clipPath></defs>
+    <line x1="0" y1="12" x2="100" y2="12" stroke="#2d3963" stroke-width="1" vector-effect="non-scaling-stroke"/>
+    <polygon points="0,12 ${pts} 100,12" fill="${awayColor}" fill-opacity="0.5" clip-path="url(#${id}a)"/>
+    <polygon points="0,12 ${pts} 100,12" fill="${homeColor}" fill-opacity="0.5" clip-path="url(#${id}h)"/>
+    <polyline points="${pts}" fill="none" stroke="${awayColor}" stroke-width="1.5" vector-effect="non-scaling-stroke" clip-path="url(#${id}a)"/>
+    <polyline points="${pts}" fill="none" stroke="${homeColor}" stroke-width="1.5" vector-effect="non-scaling-stroke" clip-path="url(#${id}h)"/>
+  </svg>`;
+};
 const card = (cls, meta, grid) => `<article class="game ${cls}"><div class="g-meta">${meta}</div><div class="g-grid">${heads}${grid}</div></article>`;
 
 const upcoming = (time, a, b, pct, colors) => card('', `<span class="meta-time">${time}</span>${fox}<span>⛅ 61°</span>${matchup}`,
@@ -123,7 +134,7 @@ const upcoming = (time, a, b, pct, colors) => card('', `<span class="meta-time">
 // Live: the clock where the kickoff time was; the ball and timeouts by each score; the
 // down and the spot between the teams (arrow toward the team with the ball).
 const live = (away, home, as, hs, { clock, tvb, ballTop, drive, last, redzone, tos, pct, colors, picks = '' }) => card('live', `<span class="live-clock">${clock}</span>${tvb}${matchup}`,
-  bar(pct, ...colors) + scored(away, 2, as, { hasBall: ballTop, timeouts: tos[0] }) + scored(home, 4, hs, { hasBall: !ballTop, timeouts: tos[1] })
+  bar(pct, ...colors) + scored(away, 2, as, { timeouts: tos[0] }) + scored(home, 4, hs, { timeouts: tos[1] })
   + `<div class="drive ${redzone ? 'redzone' : ''}" style="grid-area:3/2/4/6"><span class="arrow">${ballTop ? '▲' : '▼'}</span>${drive}</div>`
   + cell('2/3', `${pct}%`, '', 'frozen cell-ml') + cell('4/3', `${100 - pct}%`, '', 'frozen cell-ml', picks)
   + cell('2/4', '−1.5', '52%', 'frozen') + cell('4/4', '+1.5', '49%', 'frozen')
@@ -132,7 +143,9 @@ const live = (away, home, as, hs, { clock, tvb, ballTop, drive, last, redzone, t
 // Final, with kickoff prices: what each line was at kickoff and what won.
 const final = card('final', `<span class="meta-time">Thu 8:15 PM</span>${prime}${matchup}`,
   bar(0, '#0085CA', '#203731') + scored('CAR', 2, 19, { lost: true }) + scored('GB', 4, 27)
-  + '<div class="settle" style="grid-area:3/2/4/6">GB by <b>8</b> · <b>46</b> total points</div>'
+  + momentum([37, 50, 42, 46, 41, 40, 33, 34, 38, 47, 49, 45, 55, 49, 42, 37, 35, 36, 23, 22, 19, 17, 13, 14, 15, 16, 16, 16, 15, 9, 6, 7, 5, 6, 4, 3, 3, 5, 6, 3, 5, 5, 6, 9, 6, 13, 14, 2, 1], '#0085CA', '#4b9b5f', '3/3')
+  + '<div class="settle" style="grid-area:3/4">GB −8</div>'
+  + '<div class="settle" style="grid-area:3/5">46</div>'
   + cell('2/3', '37%', '', 'frozen cell-ml lost') + cell('4/3', '65%', '', 'frozen cell-ml won', face(A1, -12))
   + cell('2/4', '+3.5', '49%', 'frozen lost') + cell('4/4', '−3.5', '52%', 'frozen won')
   + cell('2/5', 'O 44.5', '50%', 'frozen won') + cell('4/5', 'U 44.5', '51%', 'frozen lost'));
