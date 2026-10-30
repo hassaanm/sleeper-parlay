@@ -921,14 +921,19 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 0; width: 10px; height: 10px; margin-left: -7px; border-radius: 50%; border: 2px solid #3d4870; box-sizing: content-box; z-index: 1; }
+.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; z-index: 1; }
+/* A soft halo in the dot's own color instead of an outline. */
+.leg-game.win .gbar-dot { box-shadow: 0 0 0 2.5px rgba(0, 214, 168, 0.3); }
+.leg-game.lose .gbar-dot { box-shadow: 0 0 0 2.5px rgba(255, 107, 125, 0.3); }
+.leg-game.tie .gbar-dot { box-shadow: 0 0 0 2.5px rgba(143, 163, 216, 0.3); }
 /* A finished leg's label is on the line above (the result, centered), so no room is
    kept under its bar. */
 .leg-game.final .gbar { height: 14px; }
-/* A finished leg: the bar a little closer to its Final line, and as much room under it
-   as above the pick. */
-.leg.tracked.leg-final { padding-bottom: 8px; }
-.leg-game.final { margin-top: -2px; }
+/* A finished leg: the same visible gap from the pick down to the Final line as from that
+   line down to the bar (text sits inside taller line boxes, so the box gaps differ), and
+   as much room under the bar as above the pick. */
+.leg.tracked.leg-final { padding-bottom: 8px; row-gap: 1px; }
+.leg-game.final { margin-top: 3px; }
 .ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ll-result.hit { color: var(--accent); }
 .ll-result.miss { color: var(--bad); }
