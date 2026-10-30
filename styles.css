@@ -888,6 +888,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg.tracked { grid-template-rows: auto auto; align-items: center; }
 .leg.tracked .leg-logo { grid-row: 1 / 3; }
 .leg.tracked .leg-pick { grid-column: 2; }
+.leg.tracked .leg-pick, .leg.tracked .leg-odds { line-height: 17px; } /* a ✓ mustn't make the top row taller than the pick */
 .leg.tracked .leg-odds { grid-column: 3; justify-self: end; }
 .leg-line {
   grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center;
@@ -901,19 +902,20 @@ h1, h2 { letter-spacing: -0.02em; }
 .dd.left::before, .dd.right::after { position: absolute; top: 50%; transform: translateY(-50%); font-size: 7.5px; color: var(--text); }
 .dd.left::before { content: '◀'; right: 100%; margin-right: 3px; }
 .dd.right::after { content: '▶'; left: 100%; margin-left: 3px; }
-/* The game as a bar (slip.js gameBar): each score hugs its logo; the bar sits between
-   with room on both sides. Equal sides, so the bar's middle is the row's middle. */
-.leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: 14px 18px minmax(0, 1fr) 18px 14px; column-gap: 3px; align-items: start; }
+/* The game as a bar (slip.js gameBar): each score centered in its own slot, so it sits
+   as far from its logo as from the bar, whatever its digits. Equal sides, so the bar's
+   middle is the row's middle. */
+.leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: 14px 18px minmax(0, 1fr) 18px 14px; column-gap: 4px; align-items: start; }
 .leg-game img { display: block; }
 .leg-game b { font-size: 12px; font-weight: 800; line-height: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
-.leg-game .gs-home { text-align: right; }
+.leg-game b { text-align: center; }
 .leg-game b.lost { color: var(--muted); }
-.gbar { position: relative; height: 25px; margin: 0 6px; }
+.gbar { position: relative; height: 25px; }
 .gbar i { position: absolute; display: block; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 1px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; z-index: 1; }
+.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1.5px solid #c9d1ea; box-sizing: border-box; z-index: 1; }
 .gbar-lbl { position: absolute; top: 16px; transform: translateX(-50%); font-size: 9.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .gbar-lbl .num { position: relative; }
 .gbar-lbl .sg { position: absolute; right: 100%; }
