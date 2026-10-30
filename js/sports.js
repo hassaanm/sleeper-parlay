@@ -82,6 +82,12 @@ export async function weekInRange(season, guess, { start, end }) {
   return guess;
 }
 
+// The first kickoff in [start, end) that week, or null: the default pick deadline.
+export async function firstKickoff(season, week, { start, end }) {
+  const starts = (await scores(season, week)).map(toGame).map((g) => g.start).filter((t) => t >= start && t < end);
+  return starts.length ? Math.min(...starts) : null;
+}
+
 /** This week's games keyed "AWAY@HOME". */
 export async function loadWeek(season, week, { fresh = false } = {}) {
   const rows = await scores(season, week, 'regular', { fresh });

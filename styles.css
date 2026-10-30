@@ -209,12 +209,14 @@ h1, h2 { letter-spacing: -0.02em; }
 
 .day { scroll-margin-top: calc(var(--topbar-h) + var(--subbar-h) + 6px); }
 .day-title {
-  margin: 16px 4px 8px; font-size: 11px; font-weight: 700;
+  margin: 24px 4px 8px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted);
 }
-/* Under the countdown card, the gap to the title's capitals (the line box adds ~4px
-   above them) matches the card's 12px gap to the bar above it. */
-.lock-bar + .day > .day-title { margin-top: 8px; }
+/* Two gaps on the board, measured to the title's capitals (its line box adds ~4px around
+   them): 12px from the bar to the first thing under it and from a date to its first
+   game; ~28px above every date that follows something (a game's margin folds into
+   it), so a new day reads as a break. */
+.games > .day:first-child > .day-title { margin-top: 8px; }
 
 .game {
   background: var(--card); border: 1px solid var(--line); border-radius: 14px;
@@ -348,6 +350,7 @@ h1, h2 { letter-spacing: -0.02em; }
   font-size: 11px; font-weight: 700; color: var(--faint); font-variant-numeric: tabular-nums;
 }
 .strip-item.on { color: var(--text); font-size: 12px; }
+.strip-item:not(.on) { cursor: pointer; }
 
 .locked-line { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
 .locked-line .ls { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 0 2px; }
@@ -809,7 +812,6 @@ h1, h2 { letter-spacing: -0.02em; }
 .tally small { font-size: 12px; font-weight: 600; color: var(--muted); }
 .t-hit { color: var(--accent); }
 .t-miss { color: var(--bad); }
-.t-live { color: #ff8f9b; }
 .tally-bust, .tally-cash {
   padding: 2px 8px; border: 2px solid currentColor; border-radius: 5px; transform: rotate(-4deg);
   font-size: 11px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase;

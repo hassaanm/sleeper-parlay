@@ -16,21 +16,21 @@ function fairParlay(legs) {
   return { odds, mult: mult >= 100 ? Math.round(mult).toLocaleString() : mult.toFixed(1) };
 }
 
-// The slip's top row (also the peek when it's closed): who's in, or once tracking, a
-// tally of hits, misses, and live legs; then your leg and the open/close chevron.
+// The slip's top row (also the peek when it's closed): who's in, and once legs finish,
+// how many hit and missed; then your leg and the open/close chevron.
 function slipHeader(withChevron) {
   const legs = legsWithLive();
   const mine = picks()[state.me];
+  const final = (grades) => legs.filter((l) => l.status?.state === 'post' && grades.includes(l.grade)).length;
+  const hit = final(['hit', 'push']);
+  const miss = final(['miss']);
   let left;
-  if (isTracking(legs)) {
-    const count = (grade, live) => legs.filter((l) => (live ? l.status?.state === 'in' : l.status?.state === 'post' && l.grade === grade)).length;
-    const hit = count('hit') + count('push');
-    const miss = count('miss');
-    const live = count(null, true);
+  if (hit || miss) {
+    // Only counts that aren't zero; live legs show their scores in the slip itself.
     left = `
       <span class="tally">
-        ${miss ? '<span class="tally-bust">Busted</span>' : legs.length && hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
-        <span class="t-hit">✓ ${hit}</span><span class="t-miss">✗ ${miss}</span><span class="t-live">● ${live}</span>
+        ${miss ? '<span class="tally-bust">Busted</span>' : hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
+        ${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}
         <small>of ${legs.length}</small>
       </span>`;
   } else {

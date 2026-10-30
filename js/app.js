@@ -202,7 +202,8 @@ function rememberedMe(slip) {
 }
 
 // One slip per league. The first visit creates it; the first visit after the week ends
-// rolls it to the new week, clears picks, and refreshes the member list.
+// rolls it to the new week, clears picks, and refreshes the member list. A new week's
+// picks lock at its first kickoff (Thursday night, most weeks); the admin can move it.
 async function ensureCurrentSlip() {
   const existing = await store.getSlip(state.slipId);
   if (existing && existing.weekEnd > Date.now()) return;
@@ -214,10 +215,12 @@ async function ensureCurrentSlip() {
   ]);
   if (!league) throw new Error('No Sleeper league with that ID.');
   const range = weekWindowAt();
+  const week = await sports.weekInRange(Number(nfl.season), Number(nfl.display_week ?? nfl.week), range);
+  const cutoff = await sports.firstKickoff(Number(nfl.season), week, range).catch(() => null);
   const fresh = {
     league: { id: league.league_id, name: league.name, avatar: api.avatarUrl(league.avatar) },
     season: nfl.season,
-    week: await sports.weekInRange(Number(nfl.season), Number(nfl.display_week ?? nfl.week), range),
+    week,
     weekStart: range.start,
     weekEnd: range.end,
     members: users.map(api.memberFromUser).sort((a, b) => a.name.localeCompare(b.name)),
@@ -225,12 +228,12 @@ async function ensureCurrentSlip() {
   };
 
   if (!existing) {
-    await store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false } });
+    await store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false, cutoff } });
     return;
   }
   await store.updateSlip(state.slipId, (slip) => {
     if (slip.weekEnd > Date.now()) return false; // someone else already rolled it
-    Object.assign(slip, fresh, { settings: { ...slip.settings, locked: false, cutoff: null } });
+    Object.assign(slip, fresh, { settings: { ...slip.settings, locked: false, cutoff } });
   });
 }
 
@@ -591,6 +594,9 @@ $app.addEventListener('pointerdown', (e) => (pressedOn = e.target), true);
 $app.addEventListener('click', (e) => {
   const pressed = pressedOn;
   pressedOn = null; // one press, one click
+  // Tapping a line on a strip slides to it, the same as swiping there.
+  const item = e.target.closest('.strip-item');
+  if (item) return item.parentElement.scrollTo({ left: [...item.parentElement.children].indexOf(item) * STRIP_ITEM, behavior: 'smooth' });
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
   // e.detail is 0 for keyboard and other non-pointer clicks; those have no press.
