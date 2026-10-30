@@ -171,7 +171,8 @@ function gameBar(pick, st) {
 // Receipt-style totals: leg count, fair odds, and what that would pay. Fair means each
 // leg's price with the vig removed, multiplied together. While tracking, the chance is
 // recomputed live: finished legs count as 100% (hit or push) or 0% (miss), live legs use
-// the market's current price, the rest their current price.
+// the market's current price, the rest their current price. The payout then stays at
+// the original one, from each leg's price when it was picked.
 function parlayFoot() {
   const legs = legsWithLive();
   if (!legs.length) return '';
@@ -190,11 +191,14 @@ function parlayFoot() {
   }, 1);
   const busted = legs.some((l) => l.status?.state === 'post' && l.grade === 'miss');
   const hits = legs.filter((l) => l.status?.state === 'post' && l.grade !== 'miss').length;
+  // Once underway, the payout is the one the slip was built at (each leg's fair price when
+  // it was picked), so it holds still while the chance moves.
+  const original = fairParlay(legs.map((l) => ({ ...l, fair: l.pick.fair ?? l.pick.price / 100 })));
   return `
     <dl class="parlay-foot ${busted ? 'busted' : ''}">
       <div><dt>Legs hit</dt><dd>${hits} of ${legs.length}</dd></div>
       <div><dt>Current chance</dt><dd>${fmtChance(liveProb)}</dd></div>
-      <div><dt>Fair payout</dt><dd>${fair.mult}×</dd></div>
+      <div><dt>Original payout</dt><dd>${original.mult}×</dd></div>
     </dl>`;
 }
 
