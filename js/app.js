@@ -579,7 +579,7 @@ async function loadResearch() {
     // The board already built the league from this season's results; add the stats.
     const [league, stats] = await Promise.all([
       state.sports?.league ?? sports.loadSeasonResults(Number(state.slip.season), Number(state.slip.week)).then(buildLeague),
-      api.fetchSeasonStats(state.slip.season),
+      api.fetchSeasonStats(state.slip.season, Number(state.slip.week)),
     ]);
     r.league = addStats(league, stats);
   } catch (e) {

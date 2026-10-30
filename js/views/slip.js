@@ -3,7 +3,7 @@
 import { multiplierToAmerican } from '../lines.js';
 import { pickTeams } from '../rules.js';
 import { isTracking, legsWithLive, myLegLocked, picks, state } from '../state.js';
-import { avatar, chevron, dayTimeFmt, esc, fmtOdds, pretty, seeded, teamLogo } from '../ui.js';
+import { avatar, chevron, dayTimeFmt, esc, fmtOdds, pretty, seeded, signSpan, teamLogo } from '../ui.js';
 
 // Fair (no-vig) parlay: multiply each leg's fair probability. A reference for what
 // the slip should pay, since the real price is set wherever the parlay gets placed.
@@ -88,7 +88,7 @@ function parlayLegs() {
           </div>
           ${stamp}
           <div class="leg-right">
-            <span class="leg-odds">${final ? '' : fmtOdds(now)}</span>
+            <span class="leg-odds">${final ? '' : signSpan(fmtOdds(now))}</span>
             <small class="leg-from ${final ? '' : delta > 0 ? 'up' : delta < 0 ? 'down' : ''}">${final ? esc(l.member.name) : `${delta > 0 ? '▲' : delta < 0 ? '▼' : 'from'} ${fmtOdds(l.pick.price)}`}</small>
           </div>
         </li>`;
@@ -103,7 +103,7 @@ function parlayLegs() {
           <span class="leg-sub">${sub}</span>
         </div>
         <div class="leg-right">
-          <span class="leg-odds">${fmtOdds(l.price)}</span>
+          <span class="leg-odds">${signSpan(fmtOdds(l.price))}</span>
           ${isMine && !myLegLocked()
             ? '<button class="leg-who leg-remove" data-action="remove-mine">Remove</button>'
             : `<span class="leg-who">${isMine ? 'You' : esc(l.member.name)}</span>`}
@@ -124,7 +124,7 @@ function parlayFoot() {
     return `
       <dl class="parlay-foot" title="Each leg's price with the vig removed, multiplied together. Use it to judge the price you get.">
         <div><dt>Legs</dt><dd>${legs.length}</dd></div>
-        <div><dt>${state.oddsFormat === 'pct' ? 'Fair chance' : 'Fair odds'}</dt><dd>${fair.odds}</dd></div>
+        <div><dt>${state.oddsFormat === 'pct' ? 'Fair chance' : 'Fair odds'}</dt><dd>${signSpan(fair.odds)}</dd></div>
         <div><dt>Fair payout</dt><dd>${fair.mult}×</dd></div>
       </dl>`;
   }

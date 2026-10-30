@@ -69,20 +69,28 @@ export function buildLeague(results) {
 /**
  * Adds Sleeper's season stats to a league from buildLeague: per-game numbers, a 1..32
  * league rank on each, and this week's expected starters.
- * stats: { offense: Sleeper player rows, defense: Sleeper DEF rows }
+ * stats: { offense: player rows, defense: DEF rows, games: TEAM rows } (api.fetchSeasonStats)
  */
 export function addStats(league, stats) {
   const { teams } = league;
-  for (const t of teams.values()) Object.assign(t, { passYd: 0, rushYd: 0, players: [], defense: null });
+  const zero = { passYd: 0, rushYd: 0, oppPassYd: 0, oppRushYd: 0 };
+  for (const t of teams.values()) Object.assign(t, zero, { players: [], defense: null });
 
+  // Yards from each team's game rows. Passing yards are net of sacks (the NFL's team
+  // number), so passing plus rushing is total yards. The same row, credited to the
+  // opponent, is what that defense allowed.
+  for (const row of stats?.games ?? []) {
+    const s = row.stats ?? {};
+    const pass = (s.pass_yd ?? 0) - (s.pass_sack_yds ?? 0);
+    const rush = s.rush_yd ?? 0;
+    const offense = teams.get(row.team);
+    const defense = teams.get(row.opponent);
+    if (offense) Object.assign(offense, { passYd: offense.passYd + pass, rushYd: offense.rushYd + rush });
+    if (defense) Object.assign(defense, { oppPassYd: defense.oppPassYd + pass, oppRushYd: defense.oppRushYd + rush });
+  }
+  // Players belong to the team they're on now (trades), so starters reflect this
+  // week's roster.
   for (const row of stats?.offense ?? []) {
-    // Yards count for the team they were gained with; the player belongs to the team
-    // he's on now (trades), so starters reflect this week's roster.
-    if (teams.has(row.team)) {
-      const t = teams.get(row.team);
-      t.passYd += row.stats.pass_yd ?? 0;
-      t.rushYd += row.stats.rush_yd ?? 0;
-    }
     const current = row.player?.team ?? row.team;
     if (teams.has(current)) teams.get(current).players.push(row);
   }
@@ -90,18 +98,20 @@ export function addStats(league, stats) {
     const t = teams.get(row.player_id);
     if (!t) continue;
     const s = row.stats;
-    t.defense = { yardsAllowed: s.yds_allow ?? 0, sacks: s.sack ?? 0, takeaways: (s.int ?? 0) + (s.fum_rec ?? 0) };
+    t.defense = { sacks: s.sack ?? 0, takeaways: (s.int ?? 0) + (s.fum_rec ?? 0) };
   }
 
   for (const t of teams.values()) {
     const gp = t.gp;
     t.per = {
       points: per(t.pointsFor, gp),
-      allowed: per(t.pointsAgainst, gp),
       passYd: per(t.passYd, gp),
       rushYd: per(t.rushYd, gp),
       yards: per(t.passYd + t.rushYd, gp),
-      yardsAllowed: per(t.defense?.yardsAllowed ?? 0, gp),
+      allowed: per(t.pointsAgainst, gp),
+      oppPassYd: per(t.oppPassYd, gp),
+      oppRushYd: per(t.oppRushYd, gp),
+      yardsAllowed: per(t.oppPassYd + t.oppRushYd, gp),
       sacks: t.defense?.sacks ?? 0,
       takeaways: t.defense?.takeaways ?? 0,
     };
@@ -113,14 +123,8 @@ export function addStats(league, stats) {
     const sorted = [...teams.values()].filter((t) => t.gp).sort((a, b) => (higherIsBetter ? b.per[key] - a.per[key] : a.per[key] - b.per[key]));
     sorted.forEach((t, i) => ((t.ranks ??= {})[key] = i + 1));
   };
-  rankOn('points', true);
-  rankOn('allowed', false);
-  rankOn('passYd', true);
-  rankOn('rushYd', true);
-  rankOn('yards', true);
-  rankOn('yardsAllowed', false);
-  rankOn('sacks', true);
-  rankOn('takeaways', true);
+  for (const key of ['points', 'passYd', 'rushYd', 'yards', 'sacks', 'takeaways']) rankOn(key, true);
+  for (const key of ['allowed', 'oppPassYd', 'oppRushYd', 'yardsAllowed']) rankOn(key, false);
 
   league.hasStats = true;
   return league;

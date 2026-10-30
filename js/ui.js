@@ -95,6 +95,23 @@ export function seeded(text) {
 export const fmt1 = (n) => (Number.isFinite(n) ? (Math.round(n * 10) / 10).toFixed(1) : '—');
 export const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
 
+// Rank tiers: top quarter of the league reads green, bottom quarter red.
+export function rankTier(rank, size) {
+  if (!rank) return '';
+  if (rank <= Math.ceil(size / 4)) return 'top';
+  if (rank > size - Math.ceil(size / 4)) return 'bottom';
+  return '';
+}
+
+// A league rank, everywhere it shows: a pill reading "5th", tinted by tier.
+export const rankPill = (rank, size) => `<span class="rk-pill ${rankTier(rank, size)}">${rank ? ordinal(rank) : '—'}</span>`;
+
+// A game result, everywhere it shows: a W, L, or T chip.
+export const resultChip = (result) => `<span class="res-chip ${result}">${result}</span>`;
+
+// Green for a positive number, red for a negative one (point diff, margins).
+export const toneOf = (n) => (n > 0 ? 'good' : n < 0 ? 'bad' : '');
+
 export const chevronSmall = () =>
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 

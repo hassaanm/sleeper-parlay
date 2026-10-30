@@ -5,7 +5,7 @@ import { gameKey } from '../rules.js';
 import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../teams.js';
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
 import { awayWinPct, state } from '../state.js';
-import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, ordinal, shortDayFmt, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
+import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, rankPill, rankTier, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
 // over the hero; once you scroll, the top bar turns solid and shows a title.
@@ -45,21 +45,13 @@ const researchLoading = () => {
   return '<div class="loading-block small"><div class="spinner"></div><p class="muted">Loading the season…</p></div>';
 };
 
-// Rank tiers: top quarter of the league reads green, bottom quarter red.
-function rankTier(rank, size) {
-  if (!rank) return '';
-  if (rank <= Math.ceil(size / 4)) return 'top';
-  if (rank > size - Math.ceil(size / 4)) return 'bottom';
-  return '';
-}
-
 function rankRow(label, value, rank, size) {
   const pct = rank ? ((size - rank + 1) / size) * 100 : 0;
   return `
     <div class="rk-row">
       <span class="rk-label">${label}</span>
       <span class="rk-val">${value}</span>
-      <span class="rk-pill ${rankTier(rank, size)}">${rank ? ordinal(rank) : '—'}</span>
+      ${rankPill(rank, size)}
       <span class="rk-bar"><i class="${rankTier(rank, size)}" style="width:${pct}%"></i></span>
     </div>`;
 }
@@ -91,7 +83,7 @@ function renderTeamPage(abbr) {
   const upNext = state.games.find((g) => (g.away === abbr || g.home === abbr) && !g.locked);
   const opp = upNext && (upNext.home === abbr ? upNext.away : upNext.home);
   const size = league?.size ?? 32;
-  const diff = t ? t.pointsFor - t.pointsAgainst : null;
+  const diff = info?.pointDiff;
   const [divRank, ...divName] = (info?.standing ?? '').split(' in ');
 
   const stat = (label, value, cls = '') => `<div class="info-cell ${cls}"><b>${value ?? '—'}</b><small>${label}</small></div>`;
@@ -113,7 +105,7 @@ function renderTeamPage(abbr) {
       ${stat('Streak', esc(info?.streak ?? '—'))}
       ${stat('Home', esc(info?.homeRecord ?? '—'))}
       ${stat('Road', esc(info?.roadRecord ?? '—'))}
-      ${stat('Point diff', diff === null ? '—' : `${diff > 0 ? '+' : ''}${diff}`, diff > 0 ? 'good' : diff < 0 ? 'bad' : '')}
+      ${stat('Point diff', diff == null ? '—' : `${diff > 0 ? '+' : ''}${diff}`, toneOf(diff))}
     </div>`;
 
   if (!league) return hero + researchLoading();
@@ -121,19 +113,22 @@ function renderTeamPage(abbr) {
 
   // Offense and defense as two wide cards: the header row carries the overall rank
   // (points scored or allowed per game), then that unit's numbers sit side by side.
+  // On the defense card the yards are the ones allowed.
   const unitCard = (label, rank, value, unit, cells) => `
     <div class="cmp unit-card">
-      <div class="card-head"><span>${label}</span><span class="unit-rank"><b>${value}</b><small>${unit}</small><span class="rk-pill ${rankTier(rank, size)}">${ordinal(rank)}</span></span></div>
+      <div class="card-head"><span>${label}</span><span class="unit-rank"><b>${value}</b><small>${unit}</small>${rankPill(rank, size)}</span></div>
       <div class="unit-cells">${cells}</div>
     </div>`;
 
   return `${hero}
     ${unitCard('Offense', t.ranks.points, fmt1(t.per.points), 'pts/g',
-      rankRow('YDS / G', fmt1(t.per.yards), t.ranks.yards, size)
-      + rankRow('PASS YDS / G', fmt1(t.per.passYd), t.ranks.passYd, size)
-      + rankRow('RUSH YDS / G', fmt1(t.per.rushYd), t.ranks.rushYd, size))}
+      rankRow('PASS YDS / G', fmt1(t.per.passYd), t.ranks.passYd, size)
+      + rankRow('RUSH YDS / G', fmt1(t.per.rushYd), t.ranks.rushYd, size)
+      + rankRow('TOTAL YDS / G', fmt1(t.per.yards), t.ranks.yards, size))}
     ${unitCard('Defense', t.ranks.allowed, fmt1(t.per.allowed), 'opp pts/g',
-      rankRow('OPP YDS / G', fmt1(t.per.yardsAllowed), t.ranks.yardsAllowed, size)
+      rankRow('PASS YDS / G', fmt1(t.per.oppPassYd), t.ranks.oppPassYd, size)
+      + rankRow('RUSH YDS / G', fmt1(t.per.oppRushYd), t.ranks.oppRushYd, size)
+      + rankRow('TOTAL YDS / G', fmt1(t.per.yardsAllowed), t.ranks.yardsAllowed, size)
       + rankRow('SACKS', t.per.sacks, t.ranks.sacks, size)
       + rankRow('TAKEAWAYS', t.per.takeaways, t.ranks.takeaways, size))}
 
@@ -144,7 +139,7 @@ function renderTeamPage(abbr) {
           <li class="sched-row">
             <span class="sched-wk">${g.week}</span>
             <button class="sched-opp" data-action="team" data-id="${esc(g.opp)}"><span class="sched-ha">${g.home ? 'vs' : '@'}</span>${teamLogo(g.opp, 22)}<b>${esc(g.opp)}</b></button>
-            <span class="sched-chip ${g.result}">${g.result}</span>
+            ${resultChip(g.result)}
             <span class="sched-score">${g.pf}–${g.pa}</span>
           </li>`).join('')}
       </ol>
@@ -213,14 +208,14 @@ function renderMatchupPage(gameId) {
   const h = league.teams.get(H);
   if (!a || !h) return wrap(head + '<p class="muted center-note">Not enough games yet to compare.</p>');
   const size = league.size;
-  const show = (v) => (Number.isInteger(v) ? String(v) : fmt1(v));
-  const rank = (r) => (r ? `<small class="rk ${rankTier(r, size)}">${ordinal(r)}</small>` : '');
+  const rank = (r) => (r ? rankPill(r, size) : '');
   // Each card's first row names the section, between the two teams' columns.
   const cmpHead = (title) => `<div class="cmp-head"><span>${teamLogo(A, 16)}${esc(A)}</span><span class="cmp-title">${title}</span><span>${esc(H)}${teamLogo(H, 16)}</span></div>`;
 
   // Away value hugs the left edge, home value the right edge; the label and a bar in
   // team colors sit between (the bigger share of the bar is the better number).
-  const compareRow = (label, av, hv, aRank, hRank, higherIsBetter = true, bar = true) => {
+  // Per-game numbers show one decimal; season counts (sacks, takeaways) show whole.
+  const compareRow = (label, av, hv, aRank, hRank, higherIsBetter = true, show = fmt1) => {
     const goodA = higherIsBetter ? av : hv;
     const goodH = higherIsBetter ? hv : av;
     const aShare = goodA + goodH ? Math.round((100 * goodA) / (goodA + goodH)) : 50;
@@ -232,42 +227,40 @@ function renderMatchupPage(gameId) {
         <span class="cmp-val ${aBetter ? 'better' : ''}"><b>${typeof av === 'number' ? show(av) : esc(av)}</b>${rank(aRank)}</span>
         <span class="cmp-mid">
           <span class="cmp-label">${label}</span>
-          ${bar ? `<span class="cmp-bar"><i style="flex-basis:${aShare}%;background:var(--away)"></i><i style="flex-basis:${100 - aShare}%;background:var(--home)"></i></span>` : ''}
+          <span class="cmp-bar"><i style="flex-basis:${aShare}%;background:var(--away)"></i><i style="flex-basis:${100 - aShare}%;background:var(--home)"></i></span>
         </span>
         <span class="cmp-val right ${hBetter ? 'better' : ''}"><b>${typeof hv === 'number' ? show(hv) : esc(hv)}</b>${rank(hRank)}</span>
       </div>`;
   };
 
-  const tape = [
-    ['PTS / G', 'points', true],
-    ['OPP PTS / G', 'allowed', false],
-    ['PASS YDS / G', 'passYd', true],
-    ['RUSH YDS / G', 'rushYd', true],
-    ['OPP YDS / G', 'yardsAllowed', false],
-    ['SACKS', 'sacks', true],
-    ['TAKEAWAYS', 'takeaways', true],
-  ].map(([label, key, higher]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher)).join('');
+  // Season stats: the offense's numbers, then what the defense allows, then sacks and
+  // takeaways. Each row's bar favors the better number.
+  const statRows = (rows) => rows.map(([label, key, higher, show]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher, show)).join('');
+  const seasonStats = `
+    <div class="cmp-group">Offense</div>
+    ${statRows([
+      ['PTS / G', 'points', true],
+      ['PASS YDS / G', 'passYd', true],
+      ['RUSH YDS / G', 'rushYd', true],
+      ['TOTAL YDS / G', 'yards', true],
+    ])}
+    <div class="cmp-group">Defense</div>
+    ${statRows([
+      ['OPP PTS / G', 'allowed', false],
+      ['OPP PASS YDS / G', 'oppPassYd', false],
+      ['OPP RUSH YDS / G', 'oppRushYd', false],
+      ['OPP TOTAL YDS / G', 'yardsAllowed', false],
+      ['SACKS', 'sacks', true, String],
+      ['TAKEAWAYS', 'takeaways', true, String],
+    ])}`;
 
-  // Same layout as compareRow, without a winner or bar: for rows where the two sides
-  // measure different things (an offense's points vs a defense's points allowed).
-  const plainRow = (label, left, right, lRank, rRank) => `
-    <div class="cmp-row">
-      <span class="cmp-val plain"><b>${typeof left === 'number' ? show(left) : esc(left)}</b>${rank(lRank)}</span>
+  // Same layout as compareRow, without a winner or bar: for rows that describe each
+  // team rather than rank them. `tones` colors each side (good or bad).
+  const plainRow = (label, left, right, tones = []) => `
+    <div class="cmp-row plain-row">
+      <span class="cmp-val plain ${tones[0] ?? ''}"><b>${esc(left)}</b></span>
       <span class="cmp-mid"><span class="cmp-label">${label}</span></span>
-      <span class="cmp-val plain right"><b>${typeof right === 'number' ? show(right) : esc(right)}</b>${rank(rRank)}</span>
-    </div>`;
-
-  // Offense vs defense in one card, away team on the left throughout: first the away
-  // offense against the home defense, then the away defense against the home offense.
-  const offDef = `
-    <div class="cmp">
-      ${cmpHead('Offense vs defense')}
-      <div class="cmp-sub"><span>Offense</span><span>Defense</span></div>
-      ${plainRow('PTS / G', a.per.points, h.per.allowed, a.ranks.points, h.ranks.allowed)}
-      ${plainRow('YDS / G', a.per.yards, h.per.yardsAllowed, a.ranks.yards, h.ranks.yardsAllowed)}
-      <div class="cmp-sub"><span>Defense</span><span>Offense</span></div>
-      ${plainRow('PTS / G', a.per.allowed, h.per.points, a.ranks.allowed, h.ranks.points)}
-      ${plainRow('YDS / G', a.per.yardsAllowed, h.per.yards, a.ranks.yardsAllowed, h.ranks.yards)}
+      <span class="cmp-val plain right ${tones[1] ?? ''}"><b>${esc(right)}</b></span>
     </div>`;
 
   const ra = resume(league, A);
@@ -299,7 +292,7 @@ function renderMatchupPage(gameId) {
   const common = commonOpponents(league, A, H)
     .sort((x, y) => Math.min(...x.a.map((g) => g.week), ...x.b.map((g) => g.week)) - Math.min(...y.a.map((g) => g.week), ...y.b.map((g) => g.week)));
   const gameLine = (g, side) => `
-    <span class="gl ${side}"><span class="gl-res ${g.result}">${g.result}</span><b>${g.pf}–${g.pa}</b><small>Wk ${g.week} · ${g.home ? 'home' : 'away'}</small></span>`;
+    <span class="gl ${side}">${resultChip(g.result)}<b>${g.pf}–${g.pa}</b><small>Wk ${g.week} · ${g.home ? 'home' : 'away'}</small></span>`;
 
   // Win chains through two other teams (one-team links already show as common
   // opponents). Drawn away → home; "A > B" means A beat B, and each score is written
@@ -333,16 +326,14 @@ function renderMatchupPage(gameId) {
   const emptyRow = (text) => `<p class="cmp-empty">${text}</p>`;
 
   return wrap(`${head}
-    <div class="cmp">${cmpHead('Season stats')}${tape}</div>
-
-    ${offDef}
+    <div class="cmp">${cmpHead('Season stats')}${seasonStats}</div>
 
     <div class="cmp">
       ${cmpHead('Track record')}
       ${plainRow('VS WINNING TEAMS', ra.vsWinning, rh.vsWinning)}
       ${plainRow('LAST 3', ra.last3, rh.last3)}
       ${plainRow('ROAD · HOME', ra.road, rh.home)}
-      ${plainRow('AVG MARGIN', signedNum(ra.margin), signedNum(rh.margin))}
+      ${plainRow('AVG MARGIN', signedNum(ra.margin), signedNum(rh.margin), [toneOf(ra.margin), toneOf(rh.margin)])}
     </div>
 
     <div class="cmp">
