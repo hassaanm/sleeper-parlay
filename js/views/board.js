@@ -209,7 +209,7 @@ function renderGame(game) {
     html += cell(top, c.type, `2/${c.col}`, `${key}:top`) + cell(bottom, c.type, `4/${c.col}`, `${key}:bottom`);
     // A column nobody here can pick from fades its strip as much as its cells.
     const open = (opt) => opt && (picks()[state.me]?.optKey === opt.key || !pickProblem(opt));
-    html += strip(game, c.type, key, index, `3/${c.col}`, !open(top) && !open(bottom));
+    html += strip(game, c.type, key, index, `3/${c.col}`, !isLocked() && !open(top) && !open(bottom));
   }
 
   return `
@@ -380,12 +380,15 @@ export function cell(opt, type, area, cellId) {
   const holderId = Object.entries(picks()).find(([, p]) => p.optKey === opt.key)?.[0];
   const mine = holderId && holderId === state.me;
   const holder = holderId && !mine ? memberById(holderId) : null;
-  const blocked = !mine && !holder && clashFor(state.slip, state.me, opt);
-  const disabled = !mine && !!pickProblem(opt);
+  // Once picks lock, the board is for looking: full color, nothing tappable, no hover.
+  // (The admin, picking for someone, can still change it.)
+  const frozen = isLocked() && !state.acting;
+  const blocked = !frozen && !mine && !holder && clashFor(state.slip, state.me, opt);
+  const disabled = !frozen && !mine && !!pickProblem(opt);
   const main = signSpan(type === 'ml' ? fmtOdds(opt.price) : type === 'spread' ? fmtLine(opt.line) : `${opt.side === 'over' ? 'O' : 'U'} ${opt.line}`);
-  const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked'].filter(Boolean).join(' ');
+  const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked', frozen && 'frozen'].filter(Boolean).join(' ');
   return `
-    <button class="${cls}" ${style} data-action="choose" data-key="${esc(opt.key)}" ${disabled ? 'aria-disabled="true"' : ''}>
+    <button class="${cls}" ${style} ${frozen ? 'tabindex="-1"' : 'data-action="choose"'} data-key="${esc(opt.key)}" ${disabled ? 'aria-disabled="true"' : ''}>
       <span class="cell-main">${main}</span>
       ${cellSub(type, opt)}
       ${holder || mine ? sticker(holder ?? memberById(state.me), opt.key) : ''}
