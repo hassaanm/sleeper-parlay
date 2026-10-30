@@ -20,9 +20,13 @@ const IMPACT_MS = Math.round(STICKER_SLAP_MS * 0.58); // when a slapped sticker 
 const GRAVITY = 2600; // px/s²
 const ROLL_OFF_PX = 10; // rolled before tipping off the edge
 const ROLL_OFF_S = 0.2;
-const HOP_MS = 720;
-const HOP_HEIGHT = 46;
-const TINY_HOP_MS = 300;
+// Jumps, big and tiny: total time, height, and how much it squashes before takeoff,
+// stretches in the air, and squashes on landing (fractions of its size).
+const BIG_JUMP = { ms: 900, height: 46, crouch: 0.24, stretch: 0.2, thud: 0.24 };
+const TINY_JUMP = { ms: 440, height: 9, crouch: 0.1, stretch: 0.06, thud: 0.1 };
+// How a jump's time splits: crouching, in the air, landing.
+const CROUCH = 0.18;
+const AIR = 0.6;
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
@@ -58,7 +62,7 @@ export function animateFaces(root, before) {
 
   // The others shuffle while an arriving face rolls in or a hopping face is in the
   // air; for a removal alone, once the leaving face is off the edge.
-  const shuffleDelay = added.length || hops.length ? IMPACT_MS + (hops.length ? HOP_MS * 0.15 : 0) : removed.length ? ROLL_OFF_S * 1000 : 0;
+  const shuffleDelay = added.length || hops.length ? IMPACT_MS + (hops.length ? BIG_JUMP.ms * CROUCH : 0) : removed.length ? ROLL_OFF_S * 1000 : 0;
 
   for (const id of removed) rollOff(row, before.get(id), oldRightOf(id));
   for (const id of added) rollIn(after.get(id), IMPACT_MS);
@@ -74,14 +78,48 @@ export function animateFaces(root, before) {
 
 // Builds keyframes by sampling `at(t)` for t from `from` to `to`:
 // { x, y, turn, opacity, scaleX, scaleY }.
-function frames(at, from = 0, to = 1, steps = 48) {
+function frames(at, from = 0, to = 1, steps = 48, origin) {
   return Array.from({ length: steps + 1 }, (_, i) => {
     const { x = 0, y = 0, turn = 0, opacity, scaleX = 1, scaleY = 1 } = at(from + ((to - from) * i) / steps);
     return {
       transform: `translate(${x}px, ${y}px) rotate(${turn}deg) scale(${scaleX}, ${scaleY})`,
       ...(opacity === undefined ? {} : { opacity }),
+      ...(origin ? { transformOrigin: origin } : {}),
     };
   });
+}
+
+// A jump with squash and stretch, at time t (0..1) of `jump` (BIG_JUMP or TINY_JUMP),
+// moving `dx` across: it crouches (squashing down and spreading wide), springs up
+// stretching tall and thin, rounds out at the top, stretches a little again coming
+// down, then lands with a thud: squashes flat, rebounds a touch tall, and settles.
+// Width moves opposite to height, so it seems to keep its volume. Scaled from its
+// bottom edge (JUMP_ORIGIN), so squashing presses it into the ground.
+const JUMP_ORIGIN = '50% 100%';
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOut = (t) => 1 - (1 - t) ** 2;
+function jumpPose(t, jump, dx = 0) {
+  const { height, crouch, stretch, thud } = jump;
+  let x = 0;
+  let y = 0;
+  let tall; // height scale; width follows
+  if (t < CROUCH) {
+    tall = 1 - crouch * easeOut(t / CROUCH);
+  } else if (t < CROUCH + AIR) {
+    const v = (t - CROUCH) / AIR;
+    x = dx * easeInOut(v);
+    y = -height * 4 * v * (1 - v);
+    // Fastest at takeoff and touchdown, so most stretched there; round at the top.
+    const airStretch = v < 0.5 ? stretch * (1 - v * 2) : stretch * 0.6 * (v * 2 - 1);
+    tall = v < 0.12 ? lerp(1 - crouch, 1 + airStretch, easeOut(v / 0.12)) : 1 + airStretch;
+  } else {
+    const w = (t - CROUCH - AIR) / (1 - CROUCH - AIR);
+    x = dx;
+    tall = w < 0.35 ? lerp(1 + stretch * 0.6, 1 - thud, easeOut(w / 0.35))
+      : w < 0.7 ? lerp(1 - thud, 1 + thud * 0.3, easeInOut((w - 0.35) / 0.35))
+        : lerp(1 + thud * 0.3, 1, easeInOut((w - 0.7) / 0.3));
+  }
+  return { x, y, scaleX: 1 - 0.8 * (tall - 1), scaleY: tall };
 }
 
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
@@ -104,12 +142,15 @@ function rollIn(el, delay) {
   );
 }
 
-// A face whose pick changed but kept its spot hops in place (sliding over too, if
-// someone else's change shifted the row).
+// A face whose pick changed but kept its spot does a tiny jump in place (drifting over
+// too, if someone else's change shifted the row).
 function tinyHop(el, dx, delay) {
   el.animate(
-    frames((t) => ({ x: dx * (1 - easeInOut(t)), y: -9 * 4 * t * (1 - t) })),
-    { duration: TINY_HOP_MS, delay, fill: 'backwards', easing: 'linear' },
+    frames((t) => {
+      const pose = jumpPose(t, TINY_JUMP, -dx);
+      return { ...pose, x: dx + pose.x }; // from where it was to its spot
+    }, 0, 1, 48, JUMP_ORIGIN),
+    { duration: TINY_JUMP.ms, delay, fill: 'backwards', easing: 'linear' },
   );
 }
 
@@ -121,13 +162,11 @@ function tinyHop(el, dx, delay) {
 function hop(row, el, old, oldRight, delay) {
   const to = el.getBoundingClientRect();
   const dx = to.left - old.rect.left;
-  // Up and down on a parabola; across mostly while high, so it leaves and lands nearly
-  // straight up and down. A little tilt toward where it's going.
-  const path = (t) => ({
-    x: dx * easeInOut(t),
-    y: -HOP_HEIGHT * 4 * t * (1 - t),
-    turn: Math.sign(dx) * 14 * Math.sin(Math.PI * t),
-  });
+  // Squash, stretch, and a little tilt toward where it's going while in the air.
+  const path = (t) => {
+    const v = Math.min(1, Math.max(0, (t - CROUCH) / AIR));
+    return { ...jumpPose(t, BIG_JUMP, dx), turn: Math.sign(dx) * 14 * Math.sin(Math.PI * v) };
+  };
   const copy = el.cloneNode(true);
   el.replaceWith(copy);
   // The real face, back in its old place in the stack, takes off.
@@ -137,26 +176,15 @@ function hop(row, el, old, oldRight, delay) {
   const box = row.getBoundingClientRect();
   Object.assign(el.style, { left: `${old.rect.left - box.left}px`, top: `${old.rect.top - box.top}px` });
   row.insertBefore(el, oldRight);
-  const apex = 0.5;
+  const apex = CROUCH + AIR / 2;
   const handover = apex + 1 / 48;
-  el.animate(frames(path, 0, handover, 12), { duration: HOP_MS * handover, delay, fill: 'backwards', easing: 'linear' })
+  el.animate(frames(path, 0, handover, 30, JUMP_ORIGIN), { duration: BIG_JUMP.ms * handover, delay, fill: 'backwards', easing: 'linear' })
     .finished.then(() => el.remove());
 
-  // The copy, in its new spot: hidden until the apex, then down into its place with a
-  // small squash on touchdown.
+  // The copy, in its new spot: hidden until the apex, then down into its place.
   copy.animate(
-    frames((t) => {
-      const p = path(t);
-      const landing = t > 0.9 ? Math.sin(((t - 0.9) / 0.1) * Math.PI) : 0;
-      return {
-        ...p,
-        x: p.x - dx,
-        opacity: t >= apex ? 1 : 0,
-        scaleX: 1 + 0.08 * landing,
-        scaleY: 1 - 0.1 * landing,
-      };
-    }),
-    { duration: HOP_MS, delay, fill: 'backwards', easing: 'linear' },
+    frames((t) => ({ ...path(t), x: path(t).x - dx, opacity: t >= apex ? 1 : 0 }), 0, 1, 60, JUMP_ORIGIN),
+    { duration: BIG_JUMP.ms, delay, fill: 'backwards', easing: 'linear' },
   );
 }
 
