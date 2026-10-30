@@ -36,10 +36,13 @@ export function animateFaces(root, before) {
   // The face that sat to the right of `id` before this render and is still in the row.
   const oldOrder = [...before.keys()];
   const rightOf = (id) => oldOrder.slice(oldOrder.indexOf(id) + 1).map((k) => after.get(k)).find(Boolean) ?? null;
-  // On your own pick, the others wait for the sticker to stick, then slide as your copy
-  // peels off.
+  // On your own pick, your copy peels off once the sticker sticks. The others close
+  // up and open your new spot as soon as your old face rolls off the edge, so the
+  // spot is waiting for you; on a first pick there's no old face, and they make room
+  // as the copy peels off.
   const arrival = state.arrival;
   const delay = arrival ? PEEL_DELAY : 0;
+  const slideDelay = !arrival ? 0 : before.has(arrival.id) ? ROLL_S * 1000 : PEEL_DELAY + 80;
 
   for (const [id, el] of after) {
     if (id === arrival?.id) {
@@ -61,7 +64,7 @@ export function animateFaces(root, before) {
     }
     const dx = old.rect.left - el.getBoundingClientRect().left;
     if (Math.abs(dx) > 0.5) {
-      el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...SLIDE, delay: delay && delay + 80, fill: 'backwards' });
+      el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...SLIDE, delay: slideDelay, fill: 'backwards' });
     }
   }
   for (const [id, old] of before) if (!after.has(id)) dropFace(row, old, rightOf(id));
