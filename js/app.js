@@ -702,9 +702,17 @@ function safeBottom() {
 
 // ---------- events ----------
 
+// Where the current press started. A click only counts on the control it was pressed
+// on: tapping or dragging the slip open can make iOS deliver the touch's click to
+// whatever slid under the finger meanwhile, like the Remove button on your leg.
+let pressedOn = null;
+$app.addEventListener('pointerdown', (e) => (pressedOn = e.target), true);
+
 $app.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
+  // e.detail is 0 for keyboard and other non-pointer clicks; those have no press.
+  if (e.detail !== 0 && pressedOn && !el.contains(pressedOn)) return;
   const { action, id, key } = el.dataset;
 
   switch (action) {

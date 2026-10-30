@@ -76,8 +76,9 @@ export function animateFaces(root, before) {
   // A leaving face rolls past the end of the row before it drops.
   const rowEnd = Math.max(...[...before.values()].map(({ at }) => at.left + at.width));
   const offs = new Map(removed.map((id) => [id, rollOffFor(before.get(id).at, rowEnd)]));
-  const edgeMs = Math.max(0, ...[...offs.values()].map((off) => off.rollMs));
-  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + edgeMs : 0 };
+  // The others close up once it has dropped below the row (fallen its own height).
+  const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + Math.sqrt((2 * before.get(id).at.height) / GRAVITY) * 1000));
+  let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
   for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
   for (const roll of rolls.values()) {
     const duration = Math.min(520, Math.max(320, roll.openAtMs));
@@ -93,9 +94,25 @@ export function animateFaces(root, before) {
     if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
     const dx = before.get(id).at.left - spot(el);
-    if (Math.abs(dx) > 0.5) el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...shuffle, fill: 'backwards' });
+    if (Math.abs(dx) > 0.5) play(el, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...shuffle, fill: 'backwards' });
     if (stayers.includes(id)) jiggle(el, IMPACT_MS);
   }
+}
+
+// Starts an animation with its first frame already applied. Without this, WebKit
+// (every iPhone browser) can paint a new animation's element unanimated for a frame
+// before the animation takes over, even with fill: 'backwards': a face would flash at
+// its new spot, then snap back to where its animation starts. The first frame is set
+// inline until the animation ends.
+function play(el, keyframes, options) {
+  const first = Array.isArray(keyframes) ? keyframes[0] : Object.fromEntries(Object.entries(keyframes).map(([k, v]) => [k, v[0]]));
+  const props = Object.keys(first).filter((k) => k !== 'offset' && k !== 'easing');
+  for (const k of props) el.style[k] = first[k];
+  const animation = el.animate(keyframes, options);
+  const clear = () => { for (const k of props) el.style[k] = ''; };
+  animation.addEventListener('finish', clear);
+  animation.addEventListener('cancel', clear);
+  return animation;
 }
 
 // Builds keyframes by sampling `at(t)` for t from `from` to `to`:
@@ -172,11 +189,11 @@ function jumpTo(box, el, old, oldRight, jump, delay) {
     return { x: dx, ...squash(tall) };
   };
   // Drawn relative to its new spot: it starts dx back, at the old one.
-  el.animate(frames((t) => ({ ...pose(t), x: pose(t).x - dx }), 0, 1, 60, JUMP_ORIGIN), { duration: total, delay, fill: 'backwards', easing: 'linear' });
+  play(el, frames((t) => ({ ...pose(t), x: pose(t).x - dx }), 0, 1, 60, JUMP_ORIGIN), { duration: total, delay, fill: 'backwards', easing: 'linear' });
 
   // Its old place in the stack, held until the top of the jump.
   const untilApex = delay + total * ((crouchEnd + airEnd) / 2);
-  const hold = (target, z) => target.animate([{ zIndex: z }, { zIndex: z }], { duration: untilApex });
+  const hold = (target, z) => play(target, [{ zIndex: z }, { zIndex: z }], { duration: untilApex });
   hold(el, 1);
   for (const face of oldRight) if (face !== el) hold(face, 2);
 }
@@ -186,7 +203,7 @@ function jumpTo(box, el, old, oldRight, jump, delay) {
 // out, with its base kept on the ground.
 const JIGGLE = [[0, 1], [0.3, 1.13], [0.42, 0.88], [0.54, 1.07], [0.68, 0.965], [0.8, 1.025], [1, 1]]; // [time, width]
 function jiggle(el, delay) {
-  el.animate(
+  play(el,
     JIGGLE.map(([offset, wide]) => ({ offset, transform: `scale(${wide}, ${2 - wide})`, transformOrigin: JUMP_ORIGIN, easing: 'ease-in-out' })),
     { duration: 500, delay },
   );
@@ -213,7 +230,7 @@ function rollFor(el) {
   return { left, duration, radius: rect.width / 2, openAtMs };
 }
 function rollIn(el, { left, duration, radius }, delay) {
-  el.animate(
+  play(el,
     frames((t) => {
       const x = -left(t * duration);
       return { x, turn: degreesRolled(x, radius) };
@@ -222,12 +239,12 @@ function rollIn(el, { left, duration, radius }, delay) {
   );
 }
 
-// A removed face rolls off to the right like a ball off a cliff: after a beat, it
-// picks up speed from rest and rolls at the roll-in speed, behind the faces to its
-// right, until it's fully past the last one (just a short way, if it was last). Then it
-// leaves the edge and falls: it keeps its rolling speed sideways while gravity pulls it
-// down faster and faster, so the path curves into a steepening drop, spinning at the
-// rate it rolled. The others close up once it's gone over the edge.
+// A removed face rolls off to the right and over the edge: after a beat, it picks up
+// speed from rest and rolls at the roll-in speed, behind the faces to its right, until
+// it's fully past the last one (just a short way, if it was last). Then it runs out of
+// ground: its forward speed dies away within a few pixels and it drops nearly
+// straight down, faster and faster, still turning a little.
+const DRIFT_S = 0.04; // how fast its forward speed dies away after the edge
 function rollOffFor(at, rowEnd) {
   const distance = Math.max(ROLL_OFF_PAST + 4, rowEnd - at.left + ROLL_OFF_PAST);
   const accel = ROLL_SPEED ** 2 / (2 * ROLL_OFF_SPEEDUP_PX);
@@ -254,12 +271,13 @@ function rollOff(row, box, { el, at }, oldRight, off) {
   const fall = innerHeight - (box.top + at.top) + at.height + 20;
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
   const total = off.rollS + airtime;
-  el.animate(
+  play(el,
     frames((u) => {
       const t = u * total;
       const air = t - off.rollS;
-      const x = air < 0 ? off.rolled(t) : off.distance + off.edgeSpeed * air;
-      return { x, y: air < 0 ? 0 : 0.5 * GRAVITY * air ** 2, turn: degreesRolled(x, radius) };
+      const x = air < 0 ? off.rolled(t) : off.distance + off.edgeSpeed * DRIFT_S * (1 - Math.exp(-air / DRIFT_S));
+      const turn = degreesRolled(Math.min(x, off.distance), radius) + (air > 0 ? 120 * air : 0);
+      return { x, y: air < 0 ? 0 : 0.5 * GRAVITY * air ** 2, turn };
     }, 0, 1, Math.max(48, Math.round(total * 60))),
     // Holding the last pose (off the bottom) until it's removed, so it can't flash back
     // at its old spot for a frame.
