@@ -10,6 +10,8 @@ const pathParts = location.pathname.replace(/\/index\.html$/, '').split('/').fil
 const routeLeagueId = /^\d{6,}$/.test(pathParts.at(-1) ?? '') ? pathParts.pop() : null;
 export const basePath = `/${pathParts.join('/')}${pathParts.length ? '/' : ''}`;
 export const DEMO = new URLSearchParams(location.search).has('demo');
+// "?demo=live": the demo, partway through the week (app.js fakeLiveWeek).
+export const DEMO_LIVE = DEMO && new URLSearchParams(location.search).get('demo') === 'live';
 
 export const state = {
   slipId: routeLeagueId,

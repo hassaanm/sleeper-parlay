@@ -4,13 +4,13 @@ import * as store from './store.js';
 import * as sports from './sports.js';
 import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
-import { clashFor, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
+import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
 import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, state } from './state.js';
-import { dayTimeFmt, pretty } from './ui.js';
+import { DEMO, DEMO_LIVE, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, state } from './state.js';
+import { dayTimeFmt, pretty, seeded } from './ui.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 
@@ -97,11 +97,13 @@ async function loadLines() {
       state.demoSeeded = true;
       await seedDemoPicks();
     }
+    fakeLiveWeek();
   } catch (e) {
     if (request !== linesRequest) return;
     state.gamesError = e.message;
   }
   render();
+  openIfTracking();
 }
 
 // "?demo" gives about half your league mates a random leg, following the same
@@ -131,6 +133,28 @@ async function seedDemoPicks() {
     }
   }));
   if (added) toast(`Demo: added ${added} league-mate picks`, 'good');
+}
+
+// "?demo=live" previews a week underway. Games with picks start first, alternating final
+// and live, so the slip shows hits, misses, and live legs; then more games fill in until
+// about a third are final and a quarter live. Scores are made up, the same every time.
+function fakeLiveWeek() {
+  if (!DEMO_LIVE || !state.sports) return;
+  const picked = new Set(Object.values(picks()).map((p) => p.gameId));
+  const byStart = [...state.games].sort((a, b) => a.start - b.start);
+  const status = new Map(byStart.filter((g) => picked.has(g.id)).map((g, i) => [g, i % 2 ? 'in' : 'post']));
+  const target = (s, share) => [...status.values()].filter((v) => v === s).length < Math.ceil(state.games.length * share);
+  for (const g of byStart) if (!status.has(g) && target('post', 0.35)) status.set(g, 'post');
+  for (const g of byStart) if (!status.has(g) && target('in', 0.25)) status.set(g, 'in');
+  for (const [game, st] of status) {
+    game.locked = true;
+    const info = state.sports.games.get(gameKey(game.away, game.home));
+    if (!info) continue;
+    const rand = seeded(game.id);
+    const score = () => [0, 3, 7, 10, 13, 14, 17, 20, 21, 24, 27, 28, 31, 35][Math.floor(rand() * 14)];
+    const clock = `Q${1 + Math.floor(rand() * 4)} ${Math.floor(rand() * 15)}:${String(Math.floor(rand() * 60)).padStart(2, '0')}`;
+    info.status = { ...info.status, state: st, detail: st === 'post' ? 'Final' : clock, awayScore: score(), homeScore: score() };
+  }
 }
 
 async function startSlip() {
@@ -176,6 +200,7 @@ async function loadSports() {
     if (request !== sportsRequest) return;
     const league = buildLeague(results);
     state.sports = { games, league, teams: league.teams };
+    fakeLiveWeek();
     render();
     openIfTracking();
   } catch {
@@ -203,7 +228,7 @@ function rememberedMe(slip) {
 
 // One slip per league. The first visit creates it; the first visit after the week ends
 // rolls it to the new week, clears picks, and refreshes the member list. A new week's
-// picks lock at its first kickoff (Thursday night, most weeks); the admin can move it.
+// picks lock 30 minutes before its first kickoff still ahead; the admin can move it.
 async function ensureCurrentSlip() {
   const existing = await store.getSlip(state.slipId);
   if (existing && existing.weekEnd > Date.now()) return;
@@ -216,7 +241,7 @@ async function ensureCurrentSlip() {
   if (!league) throw new Error('No Sleeper league with that ID.');
   const range = weekWindowAt();
   const week = await sports.weekInRange(Number(nfl.season), Number(nfl.display_week ?? nfl.week), range);
-  const cutoff = await sports.firstKickoff(Number(nfl.season), week, range).catch(() => null);
+  const cutoff = defaultCutoff(await sports.kickoffs(Number(nfl.season), week, range).catch(() => []));
   const fresh = {
     league: { id: league.league_id, name: league.name, avatar: api.avatarUrl(league.avatar) },
     season: nfl.season,

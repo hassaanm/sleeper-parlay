@@ -1,7 +1,7 @@
 // Run with: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clashFor, gradePick, legLockedReason, pickBlockedReason, pickFrom, pickTeams, slipLocked } from '../js/rules.js';
+import { LOCK_LEAD_MS, clashFor, defaultCutoff, gradePick, legLockedReason, pickBlockedReason, pickFrom, pickTeams, slipLocked } from '../js/rules.js';
 
 const HOUR = 3_600_000;
 const now = Date.UTC(2026, 10, 1, 17); // Sun 12:00 PM CT
@@ -69,4 +69,11 @@ test('pickFrom saves the team, line, and side from the option', () => {
   const over = pickFrom({ key: 'm3:yes', gameId: 'g1', type: 'total', label: 'Over 44.5', line: 44.5, side: 'over', price: 50 }, game, now);
   assert.deepEqual([over.team, over.line, over.side], [undefined, 44.5, 'over']);
   assert.equal(gradePick(over, 24, 21), 'hit');
+});
+
+test('default deadline is 30 minutes before the next kickoff still far enough off', () => {
+  const thu = Date.UTC(2026, 9, 30, 0, 15), sun = Date.UTC(2026, 10, 1, 17), mon = Date.UTC(2026, 10, 3, 1, 15);
+  assert.equal(defaultCutoff([thu, sun, mon], thu - 2 * 864e5), thu - LOCK_LEAD_MS); // Tuesday rollover: Thursday night
+  assert.equal(defaultCutoff([thu, sun, mon], thu + 3600e3), sun - LOCK_LEAD_MS); // started Friday: Sunday
+  assert.equal(defaultCutoff([thu, sun], sun - 10 * 60e3), null); // too late for any
 });

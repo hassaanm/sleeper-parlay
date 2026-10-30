@@ -1,4 +1,5 @@
 // The admin page and the bar shown while the admin picks for someone else.
+import { LOCK_LEAD_MS } from '../rules.js';
 import { basePath, isLocked, memberById, picks, state } from '../state.js';
 import { avatar, dayTimeFmt, esc, pretty } from '../ui.js';
 
@@ -22,15 +23,18 @@ export function renderAdmin() {
     : isLocked() ? `🔒 Locked since ${when(cutoff)}.`
       : cutoff ? `Picks lock ${when(cutoff)}. Games before then can’t be picked.`
         : 'No deadline. Each game closes at its own kickoff.';
-  // Deadline choices: every kickoff time still ahead this week.
+  // Deadline choices: 30 minutes before every kickoff time still far enough ahead.
   const kickoffs = new Map();
-  for (const g of state.games.filter((game) => game.start > Date.now()).sort((a, b) => a.start - b.start)) {
+  for (const g of state.games.filter((game) => game.start - LOCK_LEAD_MS > Date.now()).sort((a, b) => a.start - b.start)) {
     if (!kickoffs.has(g.start)) kickoffs.set(g.start, []);
     kickoffs.get(g.start).push(g);
   }
   const option = (id, label, sub, on) => `
     <button class="adm-opt ${on ? 'on' : ''}" data-action="admin-cutoff" data-id="${id}">${esc(label)}<small>${esc(sub)}</small></button>`;
-  const options = [...kickoffs].map(([start, games]) => option(start, `Before ${when(start)}`, games.length === 1 ? games[0].matchup : `${games.length} games`, cutoff === start)).join('')
+  const options = [...kickoffs].map(([start, games]) => {
+    const lock = start - LOCK_LEAD_MS;
+    return option(lock, when(lock), `30 min before ${games.length === 1 ? games[0].matchup : `${games.length} games`}`, cutoff === lock);
+  }).join('')
     + option('none', 'No deadline', 'Each game at kickoff', !cutoff);
 
   const rows = state.slip.members.map((m) => {

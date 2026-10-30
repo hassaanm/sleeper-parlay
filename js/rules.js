@@ -9,6 +9,17 @@ export const slipLocked = (slip, now = Date.now()) =>
   !!slip?.settings?.locked || (!!slip?.settings?.cutoff && now >= slip.settings.cutoff);
 export const startsBeforeCutoff = (slip, start) => !!slip?.settings?.cutoff && start < slip.settings.cutoff;
 
+// Deadlines sit this long before a kickoff, so there's time to get everyone's leg in.
+export const LOCK_LEAD_MS = 30 * 60_000;
+
+// A new week's deadline: 30 minutes before its first kickoff that's still far enough
+// off (Thursday night after a Tuesday rollover; later for a slip started mid-week).
+// `kickoffs` is sorted, earliest first. Null when no kickoff is left.
+export function defaultCutoff(kickoffs, now = Date.now()) {
+  const next = kickoffs.find((t) => t - LOCK_LEAD_MS > now);
+  return next == null ? null : next - LOCK_LEAD_MS;
+}
+
 // Why a member can't change or remove their leg right now, or null if they can. Once a
 // leg's game kicks off it's locked in, so nobody swaps out of a leg that's losing.
 export function legLockedReason(slip, userId, now = Date.now()) {
