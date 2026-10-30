@@ -744,7 +744,7 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Your leg: your name in white with a white squiggle under it. White isn't a win, loss,
    or live color, so it stands out without saying anything about how the leg's doing.
    (Before picks lock, your row has the green Remove instead.) */
-.ll-who.me { color: var(--text); text-decoration: underline wavy rgba(255, 255, 255, 0.75); text-decoration-thickness: 1px; text-underline-offset: 3px; padding-bottom: 3px; }
+.ll-who.me { color: var(--text); text-decoration: underline wavy var(--text); text-decoration-thickness: 1px; text-underline-offset: 3px; padding-bottom: 3px; }
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
 .logo-pair { position: relative; width: 30px; height: 30px; }
@@ -925,6 +925,10 @@ h1, h2 { letter-spacing: -0.02em; }
 /* A finished leg's label is on the line above (the result, centered), so no room is
    kept under its bar. */
 .leg-game.final .gbar { height: 14px; }
+/* A finished leg: the bar a little closer to its Final line, and as much room under it
+   as above the pick. */
+.leg.tracked.leg-final { padding-bottom: 8px; }
+.leg-game.final { margin-top: -2px; }
 .ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ll-result.hit { color: var(--accent); }
 .ll-result.miss { color: var(--bad); }
