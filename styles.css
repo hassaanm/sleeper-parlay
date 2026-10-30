@@ -947,6 +947,19 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar-lbl { position: absolute; top: 15px; transform: translateX(-50%); font-size: 10.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .gbar-lbl .num { position: relative; }
 .gbar-lbl .sg { position: absolute; right: 100%; }
+.gbar { --clear: 6px; } /* a total's labels keep this far from the middle tick */
+/* A total's cushion: centered under the dot in a box that spans from the tick's clear
+   edge to twice the dot's distance, so it's centered on the dot when it fits and slides
+   out against the clear edge when the dot is close ("safe" keeps the overflow on the far
+   side). The sign sits inline here so it never crosses the tick. */
+.gbar-near { position: absolute; top: 15px; display: flex; justify-content: safe center; }
+.gbar-near.r { left: calc(50% + var(--clear)); }
+.gbar-near.l { right: calc(50% + var(--clear)); direction: rtl; }
+.gbar-near .gbar-lbl { position: static; transform: none; direction: ltr; }
+.gbar-near .sg { position: static; }
+.gbar-tot { position: absolute; top: 15px; left: 50%; font-size: 10.5px; font-weight: 700; line-height: 1; white-space: nowrap; color: #b9c2dd; font-variant-numeric: tabular-nums; }
+.gbar-tot.l { transform: translateX(calc(-100% - var(--clear))); }
+.gbar-tot.r { transform: translateX(var(--clear)); }
 .leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
 .leg-game.lose .gbar-fill, .leg-game.lose .gbar-dot { background: var(--bad); }
 .leg-game.tie .gbar-dot { background: #8fa3d8; }
