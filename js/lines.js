@@ -15,8 +15,6 @@ export function americanOdds(price) {
   return price >= 50 ? `-${Math.round((100 * price) / (100 - price))}` : `+${Math.round((100 * (100 - price)) / price)}`;
 }
 
-export const parlayMultiplier = (prices) => prices.reduce((acc, p) => acc * (100 / p), 1);
-
 export function multiplierToAmerican(mult) {
   if (!(mult > 1)) return '—';
   return mult >= 2 ? `+${Math.round((mult - 1) * 100)}` : `-${Math.round(100 / (mult - 1))}`;
@@ -81,8 +79,6 @@ export function buildGames(lobby, details, window, now = Date.now()) {
       start,
       away: dd.away_id,
       home: dd.home_id,
-      awayName: dd.away_name,
-      homeName: dd.home_name,
       matchup: `${dd.away_id} @ ${dd.home_id}`,
       locked: now >= start || (dd.game_status && dd.game_status !== 'pre_game'),
       relatedIds: [],

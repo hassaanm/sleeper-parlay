@@ -1,43 +1,39 @@
 // NFL schedule, scores, and records from Sleeper's own public endpoints (the ones the
 // Sleeper app uses). One request per week of scores; everything else is derived.
+import { getJson } from './api.js';
+import { gameKey } from './rules.js';
+import { DIVISIONS, divisionOf } from './teams.js';
+
 const BASE = 'https://api.sleeper.com';
 
-async function getJson(path) {
-  const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`Sleeper request failed (${res.status})`);
-  return res.json();
-}
-
-export const TEAM_NAMES = {
-  ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills',
-  CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns',
-  DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GB: 'Green Bay Packers',
-  HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAX: 'Jacksonville Jaguars', KC: 'Kansas City Chiefs',
-  LV: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins',
-  MIN: 'Minnesota Vikings', NE: 'New England Patriots', NO: 'New Orleans Saints', NYG: 'New York Giants',
-  NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SF: 'San Francisco 49ers',
-  SEA: 'Seattle Seahawks', TB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders',
-};
-
-export const DIVISIONS = {
-  'AFC East': ['BUF', 'MIA', 'NE', 'NYJ'], 'AFC North': ['BAL', 'CIN', 'CLE', 'PIT'],
-  'AFC South': ['HOU', 'IND', 'JAX', 'TEN'], 'AFC West': ['DEN', 'KC', 'LV', 'LAC'],
-  'NFC East': ['DAL', 'NYG', 'PHI', 'WAS'], 'NFC North': ['CHI', 'DET', 'GB', 'MIN'],
-  'NFC South': ['ATL', 'CAR', 'NO', 'TB'], 'NFC West': ['ARI', 'LAR', 'SF', 'SEA'],
-};
-const divisionOf = (abbr) => Object.keys(DIVISIONS).find((d) => DIVISIONS[d].includes(abbr));
 
 // Sleeper's score rows, cached per season/type/week (finished weeks never change).
+// `fresh` refetches, unless the cached copy is under 30 seconds old.
 const weekCache = new Map();
 function scores(season, week, type = 'regular', { fresh = false } = {}) {
   const key = `${type}:${season}:${week}`;
-  if (fresh || !weekCache.has(key)) {
-    weekCache.set(key, getJson(`/scores/nfl/${type}/${season}/${week}`).catch((e) => {
+  const cached = weekCache.get(key);
+  if (!cached || (fresh && Date.now() - cached.at > 30_000)) {
+    const request = getJson(`${BASE}/scores/nfl/${type}/${season}/${week}`).catch((e) => {
       weekCache.delete(key);
       throw e;
+    });
+    weekCache.set(key, { request, at: Date.now() });
+  }
+  return weekCache.get(key).request;
+}
+
+// Season schedules, cached: used to find past meetings between two teams.
+const scheduleCache = new Map();
+function schedule(year, type) {
+  const key = `${type}:${year}`;
+  if (!scheduleCache.has(key)) {
+    scheduleCache.set(key, getJson(`${BASE}/schedule/nfl/${type}/${year}`).catch(() => {
+      scheduleCache.delete(key); // try again next time
+      return [];
     }));
   }
-  return weekCache.get(key);
+  return scheduleCache.get(key);
 }
 
 // One game, normalized: who, when, where it's watched, and where it stands.
@@ -50,10 +46,10 @@ function toGame(row) {
     : '';
   const stadium = m.stadium_details?.type ?? '';
   return {
-    key: `${m.away_team}@${m.home_team}`,
+    key: gameKey(m.away_team, m.home_team),
     away: m.away_team,
     home: m.home_team,
-    week: row.week,
+    week: Number(row.week),
     season: Number(row.season),
     start: row.start_time ?? Date.parse(m.date_time),
     tv: m.channel || null,
@@ -69,6 +65,18 @@ function toGame(row) {
       downDistance: m.down_and_distance || null,
     },
   };
+}
+
+// The regular-season week whose games fall inside [start, end). Sleeper's current-week
+// number can lag (or lead) the Tuesday rollover, so `guess` is checked against the
+// schedule, then the weeks either side of it.
+export async function weekInRange(season, guess, { start, end }) {
+  for (const week of [guess, guess + 1, guess - 1]) {
+    if (week < 1) continue;
+    const rows = await scores(season, week).catch(() => []);
+    if (rows.map(toGame).some((g) => g.start >= start && g.start < end)) return week;
+  }
+  return guess;
 }
 
 /** This week's games keyed "AWAY@HOME". */
@@ -97,7 +105,7 @@ export async function loadSeasonResults(season, week) {
 export function summarizeTeams(results) {
   const teams = new Map();
   const team = (abbr) => {
-    if (!teams.has(abbr)) teams.set(abbr, { abbr, name: TEAM_NAMES[abbr] ?? abbr, games: [] });
+    if (!teams.has(abbr)) teams.set(abbr, { abbr, games: [] });
     return teams.get(abbr);
   };
   for (const g of results) {
@@ -150,18 +158,16 @@ export async function loadPastMeetings(a, b, season, seasons = 3) {
   const lookups = [];
   for (let year = season - 1; year >= season - seasons; year--) {
     for (const type of ['regular', 'post']) {
-      lookups.push(getJson(`/schedule/nfl/${type}/${year}`).then((rows) => ({ year, type, rows })).catch(() => null));
+      lookups.push(schedule(year, type).then((rows) => ({ year, type, rows })));
     }
   }
-  const schedules = (await Promise.all(lookups)).filter(Boolean);
-  const games = [];
-  for (const { year, type, rows } of schedules) {
-    for (const row of rows) {
-      if (!((row.home === a && row.away === b) || (row.home === b && row.away === a))) continue;
-      const weekRows = await scores(year, row.week, type).catch(() => []);
-      const g = weekRows.map(toGame).find((x) => x.home === row.home && x.away === row.away);
-      if (g?.status.state === 'post') games.push({ ...g, playoff: type === 'post' });
-    }
-  }
-  return games.sort((x, y) => y.start - x.start);
+  const meetings = (await Promise.all(lookups)).flatMap(({ year, type, rows }) => rows
+    .filter((row) => (row.home === a && row.away === b) || (row.home === b && row.away === a))
+    .map((row) => ({ year, type, row })));
+  const games = await Promise.all(meetings.map(async ({ year, type, row }) => {
+    const weekRows = await scores(year, row.week, type).catch(() => []);
+    const g = weekRows.map(toGame).find((x) => x.home === row.home && x.away === row.away);
+    return g?.status.state === 'post' ? { ...g, playoff: type === 'post' } : null;
+  }));
+  return games.filter(Boolean).sort((x, y) => y.start - x.start);
 }

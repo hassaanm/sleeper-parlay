@@ -20,9 +20,28 @@ Slips are shared through Firebase, so everyone in the league sees the same picks
 - **Weeks:** the first visit creates the slip. The first visit after the week ends (Tuesday 10:00 UTC) clears picks and reloads members.
 - **Lines:** `GET https://api.sleeper.app/predictions/events/lobby` gives each NFL game (moneyline) plus its main spread and total. `GET /predictions/events?ids=...` gives every alternate line. Prices are cents; the UI shows American odds.
 - **Conflicts:** one leg per game and bet type (moneyline, spread, total).
+- **Kickoff:** a game can't be picked once it starts, and a leg is locked in once its game starts.
 - **Saving:** every save reads the latest slip, re-checks conflicts, then writes.
 - **Admin:** open `/<leagueId>?admin` and enter the password (its SHA-256 is `ADMIN_PASSWORD_SHA256` in `js/config.js`). Set a pick deadline at any kickoff time, lock or unlock picks, remove picks, or pick for someone. Games that kick off before the deadline can't be picked, and moving the deadline later removes picks on those games. Picks lock on their own when the deadline passes. This keeps casual visitors out; it is not real security.
 - **Demo:** add `?demo` to a league URL to fill in picks for half the league, so you can try different states.
+
+## Code layout
+
+- `js/app.js`: the entry point. Loads data, handles actions and events, and renders.
+- `js/views/`: HTML for each screen: `board.js`, `slip.js`, `pages.js` (research), `admin.js`.
+- `js/state.js`: the one mutable `state` object and questions about it. `js/rules.js`: the pool's rules as pure functions.
+- `js/ui.js`: shared markup helpers. `js/dom.js`: `patch()`, which updates the page in place on each render.
+- Data: `api.js` and `lines.js` (Sleeper lines), `sports.js` and `research.js` (scores and stats), `teams.js` (team names and colors), `store.js` (the shared slip).
+
+On each render, `patch()` changes only what differs, so elements keep their identity. Give list items a `data-key` so a list that changes moves its items instead of rewriting them.
+
+## Tests
+
+```bash
+npm test
+```
+
+This runs `node --test` on `tests/`, which covers the rules in `js/rules.js`.
 
 ## Hosting
 

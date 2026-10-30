@@ -1,3 +1,5 @@
+// The 32 teams: names, divisions, and colors.
+
 // Hand-picked team colors, tuned to read well on the app's dark background: every
 // color sits in a similar brightness band so no team looks faded next to another.
 // Dark official colors (navy, midnight green) are brightened; the hue stays true.
@@ -36,6 +38,32 @@ export const TEAM_COLORS = {
   TEN: ['#4B9BE6', '#D6283F'],
   WAS: ['#B52C45', '#FFB612'],
 };
+
+export const TEAM_NAMES = {
+  ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills',
+  CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns',
+  DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GB: 'Green Bay Packers',
+  HOU: 'Houston Texans', IND: 'Indianapolis Colts', JAX: 'Jacksonville Jaguars', KC: 'Kansas City Chiefs',
+  LV: 'Las Vegas Raiders', LAC: 'Los Angeles Chargers', LAR: 'Los Angeles Rams', MIA: 'Miami Dolphins',
+  MIN: 'Minnesota Vikings', NE: 'New England Patriots', NO: 'New Orleans Saints', NYG: 'New York Giants',
+  NYJ: 'New York Jets', PHI: 'Philadelphia Eagles', PIT: 'Pittsburgh Steelers', SF: 'San Francisco 49ers',
+  SEA: 'Seattle Seahawks', TB: 'Tampa Bay Buccaneers', TEN: 'Tennessee Titans', WAS: 'Washington Commanders',
+};
+
+export const DIVISIONS = {
+  'AFC East': ['BUF', 'MIA', 'NE', 'NYJ'], 'AFC North': ['BAL', 'CIN', 'CLE', 'PIT'],
+  'AFC South': ['HOU', 'IND', 'JAX', 'TEN'], 'AFC West': ['DEN', 'KC', 'LV', 'LAC'],
+  'NFC East': ['DAL', 'NYG', 'PHI', 'WAS'], 'NFC North': ['CHI', 'DET', 'GB', 'MIN'],
+  'NFC South': ['ATL', 'CAR', 'NO', 'TB'], 'NFC West': ['ARI', 'LAR', 'SF', 'SEA'],
+};
+export const divisionOf = (abbr) => Object.keys(DIVISIONS).find((d) => DIVISIONS[d].includes(abbr));
+export const conferenceOf = (abbr) => divisionOf(abbr)?.slice(0, 3);
+
+export const teamName = (abbr) => TEAM_NAMES[abbr] ?? abbr;
+// "Kansas City Chiefs" -> "Chiefs".
+export const nickname = (abbr) => teamName(abbr).split(' ').at(-1);
+// A team's primary color, for its page's hero and top bar.
+export const teamColor = (abbr) => TEAM_COLORS[abbr]?.[0] ?? '#4b5a85';
 
 const FALLBACK = ['#8a96b8', '#5d6a90'];
 
