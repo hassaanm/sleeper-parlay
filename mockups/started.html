@@ -40,14 +40,16 @@
   .g-team.scored .tos { grid-column: 2; grid-row: 2; display: flex; gap: 3px; padding-left: 3px; }
   .tos i { width: 5px; height: 5px; border-radius: 50%; background: #c9d1ea; }
   .tos i.used { background: #2b3557; }
-  .game.final .g-team.scored { grid-template-columns: 32px 1fr; column-gap: 8px; }
-  .game.final .g-team.scored .logo { width: 32px !important; height: 32px !important; }
-  .game.final .g-team.scored .score-line { grid-row: 1 / 3; }
-  .game.final .g-team.scored .g-score { font-size: 25px; }
+  /* Final: logo and score side by side at the same height; the logo names the team. */
+  .game.final .g-team.scored { grid-template-columns: 30px 1fr; grid-template-rows: auto; column-gap: 8px; }
+  .game.final .g-team.scored .logo { width: 30px !important; height: 30px !important; grid-row: 1; }
+  .game.final .g-team.scored .score-line { grid-row: 1; }
+  .game.final .g-team.scored .g-score { font-size: 30px; letter-spacing: -0.02em; }
+  .game.final .g-team.scored .g-abbr-s { display: none; }
   .g-team.lost { opacity: 0.45; }
 
   /* Where the ball is, in the row between the teams: the arrow points at the team with it. */
-  .drive { display: flex; align-items: center; gap: 7px; height: 24px; min-width: 0; padding-left: 9px;
+  .drive { display: flex; align-items: center; gap: 5px; height: 24px; min-width: 0; padding-left: 3px;
     font-size: 11.5px; font-weight: 700; color: #b9c2dd; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .drive .last { flex: 1; min-width: 0; overflow: hidden; font-weight: 500; color: var(--muted);
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 8px, #000 85%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8px, #000 85%, transparent); }
@@ -77,6 +79,8 @@
   .dial .strip-item { position: relative; place-items: start center; padding-top: 3px; line-height: 13px; }
   .dial .strip-item::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 1.5px; height: 3px; margin-left: -0.75px; border-radius: 1px; background: #4a5683; }
   .dial .strip-item.on::after { height: 4px; background: var(--accent); }
+  .strip-item .num { position: relative; }
+  .strip-item .sg { position: absolute; right: 100%; }
 </style>
 </head>
 <body>
@@ -103,7 +107,8 @@ const scored = (t, row, score, { lost, hasBall, timeouts } = {}) => `
     <small class="g-abbr-s">${t}</small>
     ${timeouts != null ? `<span class="tos" title="${timeouts} timeouts left">${[0, 1, 2].map((i) => `<i class="${i < timeouts ? '' : 'used'}"></i>`).join('')}</span>` : ''}
   </button>`;
-const strip = (items, on, area) => `<div class="dial" style="grid-area:${area}"><div class="strip">${items.map((x, i) => `<div class="strip-item ${i === on ? 'on' : ''}">${x}</div>`).join('')}</div></div>`;
+const hang = (x) => x.replace(/^([+−])(.*)$/, '<span class="num"><span class="sg">$1</span>$2</span>');
+const strip = (items, on, area) => `<div class="dial" style="grid-area:${area}"><div class="strip">${items.map((x, i) => `<div class="strip-item ${i === on ? 'on' : ''}">${hang(x)}</div>`).join('')}</div></div>`;
 const SPREAD = ['−7.5', '−6.5', '−5.5', '−4.5', '−3.5', '−2.5', '−1.5', '+1.5', '+2.5', '+3.5', '+4.5', '+5.5'];
 const TOTAL = ['40.5', '41.5', '42.5', '43.5', '44.5', '45.5', '46.5', '47.5', '48.5', '49.5', '50.5'];
 const card = (cls, meta, grid) => `<article class="game ${cls}"><div class="g-meta">${meta}</div><div class="g-grid">${heads}${grid}</div></article>`;
@@ -118,7 +123,7 @@ const upcoming = (time, a, b, pct, colors) => card('', `<span class="meta-time">
 // down and the spot between the teams (arrow toward the team with the ball).
 const live = (away, home, as, hs, { clock, tvb, ballTop, drive, last, redzone, tos, pct, colors, picks = '' }) => card('live', `<span class="live-clock">${clock}</span>${tvb}${matchup}`,
   bar(pct, ...colors) + scored(away, 2, as, { hasBall: ballTop, timeouts: tos[0] }) + scored(home, 4, hs, { hasBall: !ballTop, timeouts: tos[1] })
-  + `<div class="drive ${redzone ? 'redzone' : ''}" style="grid-area:3/2/4/6"><span class="arrow">${ballTop ? '▲' : '▼'}</span>${drive}<i class="sep"></i><span class="last"><span>${last}</span></span></div>`
+  + `<div class="drive ${redzone ? 'redzone' : ''}" style="grid-area:3/2/4/6"><span class="arrow">${ballTop ? '▲' : '▼'}</span>${drive}</div>`
   + cell('2/3', `${pct}%`, '', 'frozen cell-ml') + cell('4/3', `${100 - pct}%`, '', 'frozen cell-ml', picks)
   + cell('2/4', '−1.5', '52%', 'frozen') + cell('4/4', '+1.5', '49%', 'frozen')
   + cell('2/5', 'O 44.5', '58%', 'frozen') + cell('4/5', 'U 44.5', '43%', 'frozen'));
