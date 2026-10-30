@@ -671,10 +671,11 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
 .leg-mine .leg-face { box-shadow: 0 0 0 2px #0f2b30; }
 .logo-pair { position: relative; width: 30px; height: 30px; }
-/* Away low-left, home high-right: the picker's face takes the bottom-right corner,
-   so neither logo hides under it. */
-.logo-pair img:first-child { position: absolute; left: 0; bottom: 1px; }
-.logo-pair img:last-child { position: absolute; right: 0; top: 0; }
+/* Away and home side by side along the top, so the picker's face in the
+   bottom-right corner doesn't hide either one. */
+.logo-pair img { position: absolute; top: 1px; }
+.logo-pair img:first-child { left: 0; }
+.logo-pair img:last-child { right: 0; }
 .leg-body { display: grid; min-width: 0; line-height: 1.2; }
 .leg-pick { font-weight: 800; font-size: 14.5px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .leg-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
