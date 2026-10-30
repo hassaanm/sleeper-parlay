@@ -529,6 +529,28 @@ function landingGo() {
 
 // ---------- render ----------
 
+// Builds the new markup, but moves the current page's <img> elements into it wherever
+// the same src appears again. A fresh <img> paints blank until it decodes, even from
+// cache, so without this every re-render (an odds toggle, a pick) blinks every logo.
+function keepImages(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const old = new Map();
+  for (const img of $app.querySelectorAll('img')) {
+    const src = img.getAttribute('src');
+    if (!old.has(src)) old.set(src, []);
+    old.get(src).push(img);
+  }
+  for (const img of tpl.content.querySelectorAll('img')) {
+    const keep = old.get(img.getAttribute('src'))?.shift();
+    if (!keep) continue;
+    for (const { name } of [...keep.attributes]) if (!img.hasAttribute(name)) keep.removeAttribute(name);
+    for (const { name, value } of img.attributes) if (keep.getAttribute(name) !== value) keep.setAttribute(name, value);
+    img.replaceWith(keep);
+  }
+  return tpl.content;
+}
+
 function render() {
   // A background refresh mid-drag would replace the slip under the finger; wait.
   if (slipDrag) {
@@ -542,7 +564,7 @@ function render() {
   const teamScroll = state.resetPageScroll ? 0 : $app.querySelector('.tsheet-body')?.scrollTop;
   state.resetPageScroll = false;
 
-  $app.innerHTML = (state.slipId ? renderSlipPage() : renderLanding()) + renderToast();
+  $app.replaceChildren(keepImages((state.slipId ? renderSlipPage() : renderLanding()) + renderToast()));
   document.body.classList.toggle('no-scroll', state.sheetOpen || state.pages.length > 0);
 
   syncStrips();
