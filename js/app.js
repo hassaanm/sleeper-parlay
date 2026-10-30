@@ -598,9 +598,8 @@ function renderSlipPage() {
     ${renderActingBar()}
     ${renderTopbar(me)}
     ${renderSubbar()}
-    ${renderLockBar()}
     <div class="layout">
-      <main class="games">${renderGames()}</main>
+      <main class="games">${renderLockBar()}${renderGames()}</main>
       <aside class="parlay-side">${renderParlayCard()}</aside>
     </div>
     ${renderSlip()}
@@ -634,9 +633,12 @@ function renderLockBar() {
   if (!cutoff || isLocked()) return '';
   const ms = cutoff - Date.now();
   return `
-    <div class="lock-bar">
-      <span class="lock-label">Picks lock <b>${esc(`${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}`)}</b></span>
-      <span class="flip-clock ${ms < 3_600_000 ? 'soon' : ''}" data-until="${Number(cutoff)}">${clockTiles(ms)}</span>
+    <div class="lock-bar ${ms < 3_600_000 ? 'soon' : ''}">
+      <div class="lock-when">
+        <span class="lock-kicker">${LOCK_ICON}Picks lock at</span>
+        <strong>${esc(`${shortDayFmt.format(cutoff)} · ${timeFmt.format(cutoff)}`)}</strong>
+      </div>
+      <span class="flip-clock" data-until="${Number(cutoff)}">${clockTiles(ms)}</span>
     </div>`;
 }
 
@@ -652,9 +654,11 @@ function clockParts(ms) {
   const first = parts.findIndex(([v], i) => v > 0 || i >= 2);
   return parts.slice(first).map(([v, label]) => [String(v).padStart(2, '0'), label]);
 }
-// Each unit is a pair of flip tiles with its label underneath.
+// Each unit is a pair of flip tiles with its label underneath, with colons between units.
 const clockTiles = (ms) => clockParts(ms).map(([digits, label]) => `
-  <span class="fc-unit"><span class="fc-digits">${[...digits].map((d) => `<i>${d}</i>`).join('')}</span><small>${label}</small></span>`).join('');
+  <span class="fc-unit"><span class="fc-digits">${[...digits].map((d) => `<i>${d}</i>`).join('')}</span><small>${label}</small></span>`).join('<span class="fc-sep">:</span>');
+const LOCK_ICON =
+  '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
 function tickClocks() {
   for (const el of $app.querySelectorAll('.flip-clock')) {
@@ -664,7 +668,7 @@ function tickClocks() {
       openIfTracking();
       return;
     }
-    el.classList.toggle('soon', ms < 3_600_000);
+    el.closest('.lock-bar')?.classList.toggle('soon', ms < 3_600_000);
     const tiles = el.querySelectorAll('i');
     const digits = clockParts(ms).map(([d]) => d).join('');
     if (tiles.length !== digits.length) {
