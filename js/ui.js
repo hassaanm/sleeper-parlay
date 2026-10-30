@@ -50,21 +50,22 @@ export function weatherIcon(text = '') {
 }
 
 // TV networks (Sleeper's channel codes: CBS, FOX, NBC/Peacock, ESPN, ABC, AMZN, NFLN).
-// Real logos where a free source has them: NBC's color peacock from
-// Wikimedia Commons; CBS, FOX (in gold), Netflix, YouTube from Simple Icons. ESPN,
-// ABC, and Prime Video get badges in their brand colors. Unknown networks are text.
-const WIKI = 'https://upload.wikimedia.org/wikipedia/commons';
+// Real logos where a free source has them: NBC's color peacock, ESPN's red wordmark,
+// ABC's black circle, and the NFL Network shield from Wikimedia; CBS, FOX (in gold),
+// Netflix, YouTube from Simple Icons. Prime Video gets a badge in its brand color.
+// Unknown networks are text.
+const WIKI = 'https://upload.wikimedia.org/wikipedia';
 const NETWORKS = [
   [/^cbs/, 'CBS', { src: 'https://cdn.simpleicons.org/cbs/ffffff', label: 'CBS' }],
   // The NBC file has black "NBC" letters under the peacock; show only the peacock.
-  [/^nbc/, 'NBC', { src: `${WIKI}/3/3f/NBC_logo.svg`, label: 'NBC', crop: 'nbc' }],
+  [/^nbc/, 'NBC', { src: `${WIKI}/commons/3/3f/NBC_logo.svg`, label: 'NBC', crop: 'nbc' }],
   [/^fox/, 'FOX', { src: 'https://cdn.simpleicons.org/fox/f5c542', crop: 'fox' }],
   [/netflix/, 'Netflix', { src: 'https://cdn.simpleicons.org/netflix' }],
-  [/youtube/, 'YouTube', { src: 'https://cdn.simpleicons.org/youtube', label: 'YouTube' }],
-  [/^espn/, 'ESPN', { badge: 'espn' }],
-  [/^abc/, 'abc', { badge: 'abc' }],
+  [/youtube/, 'YouTube', { src: 'https://cdn.simpleicons.org/youtube', label: 'YT' }],
+  [/^espn/, 'ESPN', { src: `${WIKI}/commons/2/2f/ESPN_wordmark.svg`, crop: 'espn' }],
+  [/^abc/, 'ABC', { src: `${WIKI}/commons/2/2f/ABC-2021-LOGO.svg`, crop: 'abc' }],
   [/prime|amzn|amazon/, 'prime video', { badge: 'prime' }],
-  [/^nfl ?n/, 'NFL Network', { badge: 'nfln' }],
+  [/^nfl ?n/, 'NFL Network', { src: `${WIKI}/en/8/8f/NFL_Network_logo.svg`, crop: 'nfln' }],
   [/peacock/, 'Peacock', { badge: 'peacock' }],
 ];
 

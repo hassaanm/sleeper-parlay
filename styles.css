@@ -244,10 +244,14 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Simple Icons' FOX glyph sits in a square with lots of padding; scale it up and crop. */
 .tv-crop-fox .tv-img { height: 11px; display: flex; align-items: center; }
 .tv-crop-fox .tv-img img { height: 24px; }
-.tv-espn { background: #d50a0a; border-color: #d50a0a; font-style: italic; }
-.tv-abc { background: #000; border-color: #fff; border-radius: 99px; font-weight: 700; letter-spacing: 0; }
+/* Real ESPN wordmark and ABC circle (a faint ring, so the black circle shows on the dark
+   card). The NFL Network file puts "NETWORK" under the shield; show only the shield. */
+.tv-crop-espn .tv-img img { height: 10px; }
+.tv-crop-abc .tv-img img { height: 16px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45); }
+.tv-crop-abc .tv-img { overflow: visible; }
+.tv-crop-nfln .tv-img { width: 12px; height: 16px; }
+.tv-crop-nfln .tv-img img { height: 24.5px; max-width: none; margin-left: -25.2px; }
 .tv-prime { background: #1399ff; border-color: #1399ff; font-weight: 700; letter-spacing: 0; text-transform: lowercase; }
-.tv-nfln { background: #013369; border-color: #d50a0a; font-size: 9px; }
 .tv-peacock { background: #000; border-color: #fff3; }
 
 /* Sportsbook grid: team | money | spread | total */
@@ -853,17 +857,11 @@ h1, h2 { letter-spacing: -0.02em; }
 .slip-wrap:not(.open) .slip .sheet-body, .slip-wrap:not(.open) .slip > .parlay-foot { opacity: 0.3; }
 .slip > .parlay-foot { margin: 0; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: transparent; }
 .slip .leg + .leg, .ticket .leg + .leg { border-top-color: #2d3963; }
-/* Tracking (parlay underway): tally in the header, score line under each pick, chance
-   now vs where it started, tinted rows once a leg is decided. */
+/* Tracking (parlay underway): hit and miss counts in the header, the clock and score
+   under each pick, the chance now on the right, tinted rows once a leg is decided. */
 .tally { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .t-hit { color: var(--accent); }
 .t-miss { color: var(--bad); }
-.tally-bust, .tally-cash {
-  padding: 2px 8px; border: 2px solid currentColor; border-radius: 5px; transform: rotate(-4deg);
-  font-size: 11px; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase;
-}
-.tally-bust { color: var(--bad); }
-.tally-cash { color: var(--accent); }
 .legs.tracking .leg-sub { display: flex; gap: 8px; align-items: center; }
 /* "KC 35 – 24 DEN": the scores stand out, the teams step back. */
 .leg-score { display: inline-flex; align-items: baseline; gap: 4px; color: var(--text); font-variant-numeric: tabular-nums; }

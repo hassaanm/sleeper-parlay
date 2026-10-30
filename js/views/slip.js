@@ -16,35 +16,28 @@ function fairParlay(legs) {
   return { odds, mult: mult >= 100 ? Math.round(mult).toLocaleString() : mult.toFixed(1) };
 }
 
-// The slip's top row (also the peek when it's closed): who's in, and once legs finish,
-// how many hit and missed; then your leg and the open/close chevron.
+// The slip's top row (also the peek when it's closed): everyone who's in on the left;
+// on the right, your leg, or once legs finish, how many hit (✓) and missed (✗); then
+// the open/close chevron.
 function slipHeader(withChevron) {
   const legs = legsWithLive();
   const mine = picks()[state.me];
   const final = (grades) => legs.filter((l) => l.status?.state === 'post' && grades.includes(l.grade)).length;
   const hit = final(['hit', 'push']);
   const miss = final(['miss']);
-  let left;
-  if (hit || miss) {
-    // Only counts that aren't zero; live legs show their scores in the slip itself.
-    left = `
-      <span class="tally">
-        ${miss ? '<span class="tally-bust">Busted</span>' : hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
-        ${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}
-      </span>`;
-  } else {
-    // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
-    // league still fits.
-    const overlap = legs.length > 12 ? -14 : legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
-    // data-pick lets faces.js tell a changed pick (a hop) from a shuffle.
-    const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id, ` data-pick="${esc(l.pick.optKey)}"`)).join('');
-    left = `<span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>`;
-  }
+  // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
+  // league still fits. data-pick lets faces.js tell a changed pick (a hop) from a shuffle.
+  const overlap = legs.length > 12 ? -14 : legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
+  const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id, ` data-pick="${esc(l.pick.optKey)}"`)).join('');
+  // Only counts that aren't zero; live legs show their scores in the slip itself.
+  const right = hit || miss
+    ? `<span class="tally">${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}</span>`
+    : mine ? myLegChip(mine) : myLegLocked() || isTracking(legs) ? '' : '<span class="my-leg empty">Add your leg</span>';
   return `
     <div class="slip-peek">
-      ${left}
+      <span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>
       <span class="peek-right">
-        ${mine ? myLegChip(mine) : myLegLocked() || isTracking(legs) ? '' : '<span class="my-leg empty">Add your leg</span>'}
+        ${right}
         ${withChevron ? `<span class="slip-chev round-btn">${chevron('up')}</span>` : ''}
       </span>
     </div>`;
