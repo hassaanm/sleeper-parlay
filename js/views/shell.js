@@ -37,7 +37,7 @@ function renderLanding() {
 function renderSlipPage() {
   if (state.slip === undefined) return `<main class="center"><div class="spinner"></div></main>`;
   if (state.slip === null) {
-    return `<main class="center"><div class="card narrow"><h2>Couldn’t open this league</h2><p class="muted">${esc(state.loadError ?? 'Something went wrong.')}</p><a class="btn btn-primary" href="${basePath}">Try another league</a></div></main>`;
+    return `<main class="center"><div class="card narrow"><h2>Couldn’t open this league</h2><p class="muted">${esc(state.loadError ?? 'Something went wrong.')}</p><button class="btn btn-primary" data-action="reload-page">Try again</button> <a class="btn" href="${basePath}">Try another league</a></div></main>`;
   }
   if (state.admin.route && !state.acting) return renderTopbar(null) + renderAdmin();
   const me = memberById(state.me);

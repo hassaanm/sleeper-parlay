@@ -5,7 +5,6 @@ import { gameKey } from './rules.js';
 
 const BASE = 'https://api.sleeper.com';
 
-
 // Sleeper's score rows, cached per season/type/week (finished weeks never change).
 // `fresh` refetches, unless the cached copy is under 30 seconds old.
 const weekCache = new Map();
@@ -13,7 +12,7 @@ function scores(season, week, type = 'regular', { fresh = false } = {}) {
   const key = `${type}:${season}:${week}`;
   const cached = weekCache.get(key);
   if (!cached || (fresh && Date.now() - cached.at > 30_000)) {
-    const request = getJson(`${BASE}/scores/nfl/${type}/${season}/${week}`).catch((e) => {
+    const request = getJson(`${BASE}/scores/nfl/${type}/${season}/${week}`).then((rows) => (Array.isArray(rows) ? rows : [])).catch((e) => {
       weekCache.delete(key);
       throw e;
     });
@@ -68,13 +67,18 @@ function toGame(row) {
 
 // The regular-season week whose games fall inside [start, end). Sleeper's current-week
 // number can lag (or lead) the Tuesday rollover, so `guess` is checked against the
-// schedule, then the weeks either side of it.
+// schedule, then the weeks either side of it. If none of them could be read, this
+// throws rather than save an unchecked week for the whole league; the rollover retries.
 export async function weekInRange(season, guess, { start, end }) {
+  let read = false;
   for (const week of [guess, guess + 1, guess - 1]) {
     if (week < 1) continue;
-    const rows = await scores(season, week).catch(() => []);
+    const rows = await scores(season, week).catch(() => null);
+    if (!rows) continue;
+    read = true;
     if (rows.map(toGame).some((g) => g.start >= start && g.start < end)) return week;
   }
+  if (!read) throw new Error('Couldn’t load the NFL schedule. Try again in a minute.');
   return guess;
 }
 

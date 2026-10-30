@@ -21,7 +21,7 @@ export const state = {
   gamesError: null,
   me: null,
   switchingUser: false,
-  rungs: new Map(), // "<gameId>:<spread|total>" -> selected line index
+  rungs: new Map(), // "<gameId>:<spread|total>" -> the line swiped to, by its top side's option key
   sports: null, // { games, league, teams }: this week's games (sports.loadWeek) and the season so far (research.buildLeague)
   pages: [], // research pages, a stack: { kind: 'team', abbr } or { kind: 'matchup', gameId }
   research: { league: null, loading: false, error: null }, // the season plus Sleeper's stats (research.addStats)
@@ -32,7 +32,7 @@ export const state = {
   showStarted: false,
   trackOpened: false, // the slip opened itself once this visit because picks are locked or underway
   demoSeeded: false,
-  busyKey: null,
+  pending: null, // your leg while its save is in flight: { userId, pick } (pick null = removed); see picks()
   justPicked: null, // the cell you just picked, for its pop animation
   // Admin page ("?admin"): unlocked for this tab once the password matches. While the
   // admin picks on someone's behalf, `acting` holds who, and who to switch back to.
@@ -70,7 +70,17 @@ export const memberById = (id) => state.slip?.members.find((m) => m.id === id);
 // A member's name for messages, from `slip` (default: the one on screen).
 export const memberName = (id, slip = state.slip) => slip?.members.find((m) => m.id === id)?.name ?? 'Someone';
 export const gameById = (id) => state.games.find((g) => g.id === id);
-export const picks = () => state.slip?.picks ?? {};
+// Everyone's picks. A change to your own leg shows as soon as you tap (state.pending),
+// before its save comes back.
+export function picks() {
+  const saved = state.slip?.picks ?? {};
+  const p = state.pending;
+  if (!p) return saved;
+  const all = { ...saved };
+  if (p.pick) all[p.userId] = p.pick;
+  else delete all[p.userId];
+  return all;
+}
 
 // Why the current member can't take `opt` right now, in words, or null if they can. The
 // board greys out a cell with a problem, and tapping it shows this (app.js choose).
@@ -113,13 +123,15 @@ const TYPE_ORDER = ['ml', 'spread', 'total'];
 
 const rungHas = (rung, key) => [rung.away, rung.home, rung.over, rung.under].some((o) => o?.key === key);
 
-// Which line a spread/total column shows: what the user stepped to, else whoever
-// already picked this game + type (so the pick is visible), else the main line. A line
-// stepped to can disappear when a market closes; then the column falls back.
+// Which line a spread/total column shows: what the user swiped to, else whoever
+// already picked this game + type (so the pick is visible), else the main line. The
+// swiped line is kept by market, so lines opening or closing around it don't move the
+// column; if its own market closes, the column falls back.
 export function rungIndex(game, type) {
   const ladder = game[type];
-  const stepped = state.rungs.get(ladderKey(game, type));
-  if (stepped < ladder.rungs.length) return stepped;
+  const swiped = state.rungs.get(ladderKey(game, type));
+  const at = swiped ? ladder.rungs.findIndex((r) => rungHas(r, swiped)) : -1;
+  if (at >= 0) return at;
   const ordered = Object.entries(picks()).sort(([uid]) => (uid === state.me ? -1 : 1));
   for (const [, pick] of ordered) {
     if (pick.gameId !== game.id || pick.type !== type) continue;

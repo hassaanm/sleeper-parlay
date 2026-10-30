@@ -99,6 +99,10 @@ export function animateFaces(root, before) {
     if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
     if (stayers.includes(id)) jiggle(el, IMPACT_MS);
+    // A face still sliding from the last render: drop that slide first, so it's measured
+    // at its row spot. Its on-screen pose is already in `before`, so it carries on from there.
+    const sliding = inlineHeld.get(el)?.translate;
+    if (sliding) sliding.cancel();
     const dx = before.get(id).at.left - spot(el);
     // The slide runs on `translate`, apart from `transform`, so a face that's already
     // moving (rolling in, mid-jump, jiggling) keeps that motion and slides as well.

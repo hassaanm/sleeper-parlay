@@ -77,6 +77,9 @@ test('winChains follows wins only, shortest first, up to maxHops links', () => {
   assert.deepEqual(winChains(league, 'BUF', 'DEN').map((c) => c.length), [2]); // BUF>NE>BAL>KC>DEN is 4 links
   assert.deepEqual(winChains(league, 'BUF', 'DEN', 4).map((c) => c.length), [2, 4]);
   assert.deepEqual(winChains(league, 'KC', 'BUF'), []);
+  // A second win over NE (week 6) doesn't make the NE chain twice; it uses the latest.
+  const twice = buildLeague([r(1, 'NE', 10, 'BUF', 20), r(2, 'NE', 17, 'BAL', 14), r(3, 'KC', 20, 'BAL', 27), r(6, 'BUF', 24, 'NE', 3)]);
+  assert.deepEqual(winChains(twice, 'BUF', 'KC').map((c) => c.map((l) => `${l.winner}>${l.loser}@${l.week}`).join(' ')), ['BUF>NE@6 NE>BAL@2 BAL>KC@3']);
 });
 
 test('commonOpponents lists shared opponents with each side\'s games against them', () => {
@@ -91,12 +94,12 @@ test('commonOpponents lists shared opponents with each side\'s games against the
 // Three teams, one round robin. Each TEAM row is one offense's game.
 const statsLeague = () => addStats(buildLeague([r(1, 'MIA', 10, 'BUF', 24), r(2, 'NE', 13, 'MIA', 20), r(3, 'BUF', 17, 'NE', 21)]), {
   games: [
-    { team: 'BUF', opponent: 'MIA', stats: { pass_yd: 300, pass_sack_yds: 20, rush_yd: 120, pass_sack: 2 } }, // 400 net yards
-    { team: 'MIA', opponent: 'BUF', stats: { pass_yd: 200, rush_yd: 80 } }, // 280
-    { team: 'MIA', opponent: 'NE', stats: { pass_yd: 100, rush_yd: 50 } }, // 150
-    { team: 'NE', opponent: 'MIA', stats: { pass_yd: 150, rush_yd: 50 } }, // 200
-    { team: 'NE', opponent: 'BUF', stats: { pass_yd: 180, rush_yd: 70 } }, // 250
-    { team: 'BUF', opponent: 'NE', stats: { pass_yd: 200, rush_yd: 50 } }, // 250
+    { week: 1, team: 'BUF', opponent: 'MIA', stats: { pass_yd: 300, pass_sack_yds: 20, rush_yd: 120, pass_sack: 2 } }, // 400 net yards
+    { week: 1, team: 'MIA', opponent: 'BUF', stats: { pass_yd: 200, rush_yd: 80 } }, // 280
+    { week: 2, team: 'MIA', opponent: 'NE', stats: { pass_yd: 100, rush_yd: 50 } }, // 150
+    { week: 2, team: 'NE', opponent: 'MIA', stats: { pass_yd: 150, rush_yd: 50 } }, // 200
+    { week: 3, team: 'NE', opponent: 'BUF', stats: { pass_yd: 180, rush_yd: 70 } }, // 250
+    { week: 3, team: 'BUF', opponent: 'NE', stats: { pass_yd: 200, rush_yd: 50 } }, // 250
   ],
 });
 
@@ -109,6 +112,25 @@ test('addStats ranks offense high-to-low and defense low-to-high', () => {
   assert.deepEqual([ne.ranks.yardsAllowed, buf.ranks.yardsAllowed, mia.ranks.yardsAllowed], [1, 2, 3]); // fewest allowed ranks 1
   assert.equal(mia.per.sacks, 2); // BUF was sacked twice against MIA
   assert.equal(mia.ranks.sacks, 1);
+});
+
+test('addStats leaves out games the league has no result for yet, and ties share a rank', () => {
+  // Stats arrive with week 4 already played (or live); the league only knows weeks 1-3.
+  const league = buildLeague([r(1, 'MIA', 10, 'BUF', 24), r(2, 'NE', 13, 'MIA', 20), r(3, 'BUF', 17, 'NE', 21)]);
+  addStats(league, {
+    games: [
+      { week: 1, team: 'BUF', opponent: 'MIA', stats: { pass_yd: 300, pass_int: 1 } },
+      { week: 3, team: 'BUF', opponent: 'NE', stats: { pass_yd: 100, pass_int: 1 } },
+      { week: 4, team: 'BUF', opponent: 'MIA', stats: { pass_yd: 900 } },
+      { week: 2, team: 'NE', opponent: 'MIA', stats: { pass_yd: 200 } },
+    ],
+    players: [],
+  });
+  const { teams } = league;
+  assert.equal(teams.get('BUF').per.passYd, 200); // (300 + 100) / 2, not counting week 4
+  assert.equal(teams.get('MIA').per.oppPassYd, 250); // BUF's 300 + NE's 200
+  // MIA and NE each took the ball away once in two games: tied, so both rank 1st.
+  assert.deepEqual(['MIA', 'NE', 'BUF'].map((a) => teams.get(a).ranks.takeaways), [1, 1, 3]);
 });
 
 test('starters skip unavailable players and follow trades', () => {
@@ -127,6 +149,7 @@ test('starters skip unavailable players and follow trades', () => {
       p('wr4', 'WR', { rec_tgt: 20 }),
       p('traded', 'WR', { rec_tgt: 90 }, { team: 'MIA' }), // his BUF stats, but he plays for MIA now
       p('te', 'TE', { rec_tgt: 25 }),
+      p('cut', 'WR', { rec_tgt: 99 }, { team: null }), // released: on nobody's roster now
     ],
   });
   assert.deepEqual(league.teams.get('BUF').starters.map((s) => s.player_id), ['qb', 'rb', 'wr1', 'wr2', 'wr3', 'te']);

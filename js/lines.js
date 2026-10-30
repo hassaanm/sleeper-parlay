@@ -24,8 +24,10 @@ const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
 function option(game, type, market, side, label, extra = {}) {
   const price = side === 'yes' ? market.yes_ask : market.no_ask;
-  // No-vig probability: the two asks add up to a bit over 100, so normalize them.
-  const book = market.yes_ask + market.no_ask;
+  // No-vig probability: the two asks add up to a bit over 100, so normalize them. With
+  // one side missing there's nothing to normalize against; use the price as is.
+  const quoted = (p) => p > 0 && p < 100;
+  const book = quoted(market.yes_ask) && quoted(market.no_ask) ? market.yes_ask + market.no_ask : 100;
   return {
     key: `${market.market_id}:${side}`,
     gameId: game.id,
@@ -107,8 +109,9 @@ export function buildGames(lobby, details, window, now = Date.now()) {
           const pair = spreadOptions(game, m);
           const home = pair.find((o) => o.team === game.home);
           const away = pair.find((o) => o.team === game.away);
-          return { away, home, homeLine: home.line, main: m.market_id === mainId };
+          return { away, home, homeLine: home?.line, main: m.market_id === mainId };
         })
+        .filter((r) => r.away && r.home) // a market naming neither team is skipped
         .sort((a, b) => b.homeLine - a.homeLine);
       game.spread = { rungs, mainIndex: Math.max(0, rungs.findIndex((r) => r.main)) };
     }
@@ -148,9 +151,9 @@ export function ladderSides(game, type, index) {
   return type === 'spread' ? [rung.away, rung.home] : [rung.over, rung.under];
 }
 
-// No-vig win chance for the away team, from the two moneylines.
+// No-vig win chance for the away team, from the two moneylines' fair chances.
 export function awayWinPct(game) {
   const [away, home] = game.ml;
-  if (!away?.price || !home?.price) return null;
-  return Math.round((100 * away.price) / (away.price + home.price));
+  if (!away?.fair || !home?.fair) return null;
+  return Math.round((100 * away.fair) / (away.fair + home.fair));
 }

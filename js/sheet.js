@@ -8,12 +8,14 @@ let drag = null; // the drag in progress: where it started, where it is, how fas
 
 // Phone widths, where the slip is a sheet over the page. At 960px and up it's a
 // sidebar ticket instead (styles.css).
-const PHONE = matchMedia('(max-width: 959px)');
+const PHONE = matchMedia('not all and (min-width: 960px)');
 
 // The page behind an open slip or a research page doesn't scroll. On desktop the slip
-// is a sidebar, so only a research page locks it.
+// is a sidebar, and screens without the slip (like "Who's picking?") don't have one, so
+// only a research page locks those.
 export function syncScrollLock() {
-  document.body.classList.toggle('no-scroll', (state.sheetOpen && PHONE.matches) || state.pages.length > 0);
+  const slipOver = state.sheetOpen && PHONE.matches && !!$root?.querySelector('.slip-wrap');
+  document.body.classList.toggle('no-scroll', slipOver || state.pages.length > 0);
 }
 
 // Open/close without a full re-render, so the slide animates from where it is.
@@ -67,16 +69,17 @@ function safeBottom() {
 // based on where it's let go and how fast it was moving. A tap toggles it.
 function startDrag(e) {
   const handle = e.target.closest('.slip-handle');
-  if (!handle) return;
+  // One finger (or the main mouse button) at a time.
+  if (!handle || drag || !e.isPrimary || e.button !== 0) return;
   const slip = handle.closest('.slip');
   const closedY = slip.offsetHeight - handle.offsetHeight - safeBottom();
-  drag = { slip, startY: e.clientY, lastY: e.clientY, lastT: e.timeStamp, velocity: 0, base: state.sheetOpen ? 0 : closedY, closedY, moved: false };
+  drag = { id: e.pointerId, slip, startY: e.clientY, lastY: e.clientY, lastT: e.timeStamp, velocity: 0, base: state.sheetOpen ? 0 : closedY, closedY, moved: false };
   slip.style.transition = 'none';
   handle.setPointerCapture(e.pointerId);
 }
 
 function moveDrag(e) {
-  if (!drag) return;
+  if (drag?.id !== e.pointerId) return;
   const d = drag;
   const dy = e.clientY - d.startY;
   if (Math.abs(dy) > 5) d.moved = true;
@@ -89,15 +92,16 @@ function moveDrag(e) {
   $root.querySelector('.slip-backdrop').style.opacity = String(1 - d.y / d.closedY);
 }
 
-function endDrag() {
-  if (!drag) return;
+function endDrag(e) {
+  if (drag?.id !== e.pointerId) return;
   const d = drag;
   drag = null;
   if (d.pendingRender) setTimeout(rerender, 400);
   d.slip.style.transition = '';
   d.slip.style.transform = '';
   $root.querySelector('.slip-backdrop').style.opacity = '';
-  if (!d.moved) return setSlipOpen(!state.sheetOpen);
+  // A tap toggles; a cancelled touch (the browser took it, like a long-press menu) doesn't.
+  if (!d.moved) return e.type === 'pointerup' && setSlipOpen(!state.sheetOpen);
   const flungUp = d.velocity < -0.4;
   const flungDown = d.velocity > 0.4;
   setSlipOpen(flungUp || (!flungDown && d.y < d.closedY / 2));
@@ -116,6 +120,9 @@ export function initSheet(root, render) {
       setSlipOpen(!state.sheetOpen);
     }
   });
-  window.addEventListener('resize', () => requestAnimationFrame(syncTearLine));
+  window.addEventListener('resize', () => {
+    safeArea = null; // the safe area changes when the phone rotates
+    requestAnimationFrame(syncTearLine);
+  });
   PHONE.addEventListener('change', syncScrollLock);
 }

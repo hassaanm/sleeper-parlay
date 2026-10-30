@@ -24,10 +24,40 @@ const saveError = (e) => (e?.name === 'TimeoutError' || (e instanceof TypeError 
   ? 'Couldn’t reach the server. Check your connection and try again.'
   : e.message);
 
-// Takes a slip returned by a save or read, unless a push already brought a newer one.
-function acceptSlip(slip) {
-  if (slip && (slip.rev ?? 0) >= (state.slip?.rev ?? 0)) state.slip = slip;
+// Takes a slip from a push, a save, or a read, if it's newer than the one on screen
+// (not the echo of our own save, or a slow read). A slip for a new week also drops last
+// week's lines, alt-line choices, scores, and season numbers, and loads the new ones.
+// True if it was taken.
+function setSlip(slip) {
+  const current = state.slip;
+  if (current && slip && (slip.rev ?? 0) <= (current.rev ?? 0)) return false;
+  const firstLoad = current === undefined;
+  const weekChanged = current && slip && current.weekStart !== slip.weekStart;
+  // A new or changed pick shows on its line, even in a column you'd swiped elsewhere.
+  for (const [uid, pick] of Object.entries(slip?.picks ?? {})) {
+    if (current?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`); // see ladderKey
+  }
+  state.slip = slip;
+  if (firstLoad) state.me = rememberedMe(slip);
+  if (weekChanged) {
+    state.lobby = null;
+    state.games = [];
+    state.options = new Map();
+    state.gamesError = null;
+    state.rungs.clear();
+    state.sports = null;
+    state.research = { league: null, loading: false, error: null };
+    state.trackOpened = false;
+  }
+  if (firstLoad || weekChanged) {
+    loadLines();
+    loadSports();
+  }
+  return true;
 }
+
+// A slip returned by a save or read (null when a read failed).
+const acceptSlip = (slip) => slip && setSlip(slip);
 
 // This slip's season and week, as numbers for the scores and stats endpoints.
 const slipWeek = () => ({ season: Number(state.slip.season), week: Number(state.slip.week) });
@@ -112,33 +142,7 @@ async function startSlip() {
     return render();
   }
   store.watchSlip(state.slipId, (slip) => {
-    const firstLoad = state.slip === undefined;
-    // The echo of our own save, or a push older than what a save already gave us.
-    if (!firstLoad && slip && state.slip && slip.rev <= state.slip.rev) return;
-    const weekChanged = state.slip && slip && state.slip.weekStart !== slip.weekStart;
-    // A new or changed pick shows on its line, even in a column you'd swiped elsewhere.
-    for (const [uid, pick] of Object.entries(slip?.picks ?? {})) {
-      if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`); // see ladderKey
-    }
-    state.slip = slip;
-    if (firstLoad) state.me = rememberedMe(slip);
-
-    if (weekChanged) {
-      // New week: drop last week's lines, alt-line choices, scores, and season numbers.
-      state.lobby = null;
-      state.rungs.clear();
-      state.sports = null;
-      state.research = { league: null, loading: false, error: null };
-      state.trackOpened = false;
-    }
-    if (firstLoad || weekChanged) {
-      loadLines();
-      loadSports();
-    }
-    // While your pick is saving, the push of that same save can beat the save's own
-    // reply. Redrawing now would move your face early and spoil the pick animation;
-    // choose() renders as soon as the save returns.
-    if (state.busyKey) return;
+    if (!setSlip(slip)) return;
     render();
     openIfTracking();
   });
@@ -162,10 +166,14 @@ async function startSlip() {
 
 // This week's games (TV, weather, live scores) and every team's record, streak, and
 // last five, from Sleeper's scores endpoints.
+let sportsRequest = 0;
 async function loadSports() {
+  // A slow load from before a week change must not overwrite the new week's.
+  const request = ++sportsRequest;
   try {
     const { season, week } = slipWeek();
     const [games, results] = await Promise.all([sports.loadWeek(season, week), sports.loadSeasonResults(season, week)]);
+    if (request !== sportsRequest) return;
     const league = buildLeague(results);
     state.sports = { games, league, teams: league.teams };
     render();
@@ -228,11 +236,31 @@ async function ensureCurrentSlip() {
 
 // ---------- actions ----------
 
+// Saves a change to your own leg, and shows it right away instead of after the save
+// (state.pending): the cell turns yours, the stickers swap, and your face moves in the
+// slip's row (faces.js). If the save fails, it all goes back. True if it saved.
+async function saveMyLeg(userId, pick, mutate) {
+  state.pending = { userId, pick };
+  let error = null;
+  try {
+    render();
+    acceptSlip(await store.updateSlip(state.slipId, mutate));
+  } catch (e) {
+    error = e;
+    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
+  } finally {
+    state.pending = null;
+  }
+  render();
+  if (error) toast(saveError(error), 'bad');
+  return !error;
+}
+
 async function choose(key) {
   const opt = state.options.get(key);
   // Who's picking is fixed at the tap, so a save that retries can't land on someone else.
   const { me, acting } = state;
-  if (!opt || !me || state.busyKey) return;
+  if (!opt || !me || state.pending) return;
   const previous = picks()[me];
   if (previous?.optKey === key) return;
   const game = gameById(opt.gameId);
@@ -240,50 +268,30 @@ async function choose(key) {
   const problem = pickProblem(opt);
   if (problem) return toast(problem, 'bad');
 
-  let picked = false;
-  state.busyKey = key;
-  try {
-    render();
-    const saved = await store.updateSlip(state.slipId, (slip) => {
-      const reason = pickBlockedReason(slip, me, game.start, { admin: !!acting });
-      if (reason) throw new Error(reason);
-      const clash = clashFor(slip, me, opt);
-      if (clash) throw new Error(`${memberName(clash.userId, slip)} just took ${clash.pick.label}. Pick another leg.`);
-      slip.picks[me] = pickFrom(opt, game);
-    });
-    acceptSlip(saved);
-    navigator.vibrate?.(12);
-    state.justPicked = key;
-    setTimeout(() => (state.justPicked = null), 1000); // through the cell's dip as the sticker lands
-    picked = true;
-  } catch (e) {
-    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
-    toast(saveError(e), 'bad');
-  } finally {
-    state.busyKey = null;
-    // Your sticker slaps onto the cell, and your face moves in the slip's row (faces.js).
-    render();
-    // After that render, so the toast's own redraw can't move the row first.
-    if (picked && matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
-  }
+  navigator.vibrate?.(12);
+  state.justPicked = key;
+  setTimeout(() => (state.justPicked = null), 1000); // through the cell's dip as the sticker lands
+  const saved = await saveMyLeg(me, pickFrom(opt, game), (slip) => {
+    const reason = pickBlockedReason(slip, me, game.start, { admin: !!acting });
+    if (reason) throw new Error(reason);
+    const clash = clashFor(slip, me, opt);
+    if (clash) throw new Error(`${memberName(clash.userId, slip)} just took ${clash.pick.label}. Pick another leg.`);
+    slip.picks[me] = pickFrom(opt, game);
+  });
+  if (saved && matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
 }
 
 async function removeMine() {
   const { me, acting } = state;
   // The leg on screen. If a new pick saves first, the retry leaves that one alone.
   const optKey = picks()[me]?.optKey;
-  if (!optKey) return;
-  try {
-    acceptSlip(await store.updateSlip(state.slipId, (slip) => {
-      const reason = acting ? null : legLockedReason(slip, me);
-      if (reason) throw new Error(reason);
-      if (slip.picks[me]?.optKey !== optKey) return false;
-      delete slip.picks[me];
-    }));
-  } catch (e) {
-    return toast(saveError(e), 'bad');
-  }
-  render();
+  if (!optKey || state.pending) return;
+  await saveMyLeg(me, null, (slip) => {
+    const reason = acting ? null : legLockedReason(slip, me);
+    if (reason) throw new Error(reason);
+    if (slip.picks[me]?.optKey !== optKey) return false;
+    delete slip.picks[me];
+  });
 }
 
 // Live scores: every minute, while any game this week has kicked off and isn't final,
@@ -292,8 +300,7 @@ async function refreshLive() {
   if (!state.slip || document.visibilityState !== 'visible') return;
   if (!state.sports) return loadSports(); // the first load failed; try again
   const now = Date.now();
-  const pending = state.games.some((g) => g.start <= now && state.sports.games.get(gameKey(g.away, g.home))?.status?.state !== 'post');
-  if (!pending) return;
+  if (![...state.sports.games.values()].some((g) => g.start <= now && g.status.state !== 'post')) return;
   try {
     const { season, week } = slipWeek();
     const live = await sports.loadWeek(season, week, { fresh: true });
@@ -316,12 +323,12 @@ async function refreshLive() {
 // Scrolling a strip updates just that column's two cells, so the scroll isn't
 // interrupted by a full re-render.
 function setRung(key, index) {
-  if (state.rungs.get(key) === index) return;
-  state.rungs.set(key, index);
   const [gameId, type] = key.split(':');
   const game = gameById(gameId);
   if (!game) return;
   const [top, bottom] = ladderSides(game, type, index);
+  if (state.rungs.get(key) === top.key) return;
+  state.rungs.set(key, top.key);
   for (const [pos, opt] of [['top', top], ['bottom', bottom]]) {
     const el = $app.querySelector(`[data-cell="${CSS.escape(`${key}:${pos}`)}"]`);
     if (el) el.outerHTML = cell(opt, type, el.style.gridArea, `${key}:${pos}`);
@@ -470,12 +477,16 @@ async function adminUpdate(mutate, message) {
 // A new deadline reopens picks and drops picks on games that kick off before it
 // (for example, Thursday picks when the deadline moves to Sunday).
 async function setCutoff(cutoff) {
-  const doomed = Object.entries(picks()).filter(([, p]) => cutoff && p.start < cutoff);
+  const doomedIn = (all) => Object.entries(all).filter(([, p]) => cutoff && p.start < cutoff);
+  const doomed = doomedIn(picks());
   if (doomed.length) {
     const list = doomed.map(([id, p]) => `${memberName(id)}: ${p.label}`).join('\n');
     if (!confirm(`This removes ${doomed.length} ${doomed.length === 1 ? 'pick' : 'picks'} on games before then:\n${list}`)) return;
   }
+  // Only the picks the admin was shown get removed; if that list changed, ask again.
+  const shown = doomed.map(([id, p]) => `${id}:${p.optKey}`).join();
   await adminUpdate((slip) => {
+    if (doomedIn(slip.picks).map(([id, p]) => `${id}:${p.optKey}`).join() !== shown) throw new Error('Picks changed meanwhile. Try again.');
     slip.settings.cutoff = cutoff;
     slip.settings.locked = false;
     for (const [id, p] of Object.entries(slip.picks)) if (cutoff && p.start < cutoff) delete slip.picks[id];
@@ -606,7 +617,8 @@ $app.addEventListener('click', (e) => {
       safeSet(`parlay:me:${state.slipId}`, id);
       safeSet('parlay:me', id);
       window.scrollTo(0, 0);
-      return render();
+      render();
+      return openIfTracking();
     case 'switch-user':
       state.switchingUser = true;
       window.scrollTo(0, 0);
@@ -634,7 +646,7 @@ $app.addEventListener('click', (e) => {
       const pick = picks()[id];
       if (!pick || !confirm(`Remove ${memberName(id)}’s pick (${pick.label})?`)) return;
       return adminUpdate((slip) => {
-        if (slip.picks[id]?.optKey !== pick.optKey) return false; // they changed it meanwhile
+        if (slip.picks[id]?.optKey !== pick.optKey) throw new Error(`${memberName(id)} changed their pick meanwhile, so nothing was removed.`);
         delete slip.picks[id];
       }, 'Pick removed');
     }
@@ -652,6 +664,8 @@ $app.addEventListener('click', (e) => {
     case 'reload-lines':
       state.lobby = null;
       return loadLines();
+    case 'reload-page':
+      return location.reload();
   }
 });
 

@@ -230,7 +230,7 @@ function winBar(game) {
 function strip(game, type, key, index, area) {
   const ladder = game[type];
   return `
-    <div class="strip" data-ladder="${esc(key)}" style="grid-area:${area}">
+    <div class="strip" data-ladder="${esc(key)}" data-key="${esc(key)}" style="grid-area:${area}">
       ${ladder.rungs.map((r, i) => {
         const cls = ['strip-item', i === index && 'on'].filter(Boolean).join(' ');
         return `<div class="${cls}">${type === 'spread' ? fmtLine(r.away.line) : r.line}</div>`;
@@ -246,8 +246,8 @@ export function cell(opt, type, area, cellId) {
   const holder = holderId && !mine ? memberById(holderId) : null;
   const blocked = !mine && !holder && clashFor(state.slip, state.me, opt);
   const disabled = !mine && !!pickProblem(opt);
-  const main = signSpan(type === 'ml' ? fmtOdds(opt.price) : type === 'spread' ? fmtLine(opt.line) : `${opt.key.endsWith(':yes') ? 'O' : 'U'} ${opt.line}`);
-  const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked', state.busyKey === opt.key && 'busy'].filter(Boolean).join(' ');
+  const main = signSpan(type === 'ml' ? fmtOdds(opt.price) : type === 'spread' ? fmtLine(opt.line) : `${opt.side === 'over' ? 'O' : 'U'} ${opt.line}`);
+  const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked'].filter(Boolean).join(' ');
   return `
     <button class="${cls}" ${style} data-action="choose" data-key="${esc(opt.key)}" ${disabled ? 'aria-disabled="true"' : ''}>
       <span class="cell-main">${main}</span>

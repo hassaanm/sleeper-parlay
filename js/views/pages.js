@@ -217,7 +217,6 @@ function renderMatchupPage(gameId) {
   const a = league.teams.get(A);
   const h = league.teams.get(H);
   if (!a || !h) return wrap(head + '<p class="muted center-note">Not enough games yet to compare.</p>');
-  const size = league.size;
   const rank = (r) => (r ? rankText(r) : '');
   // Each card's first row names the section, between the two teams' columns.
   const cmpHead = (title) => `<div class="cmp-head"><span>${teamLogo(A, 16)}${esc(A)}</span><span class="cmp-title">${title}</span><span>${esc(H)}${teamLogo(H, 16)}</span></div>`;

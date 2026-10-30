@@ -56,7 +56,7 @@ export const DIVISIONS = {
   'NFC East': ['DAL', 'NYG', 'PHI', 'WAS'], 'NFC North': ['CHI', 'DET', 'GB', 'MIN'],
   'NFC South': ['ATL', 'CAR', 'NO', 'TB'], 'NFC West': ['ARI', 'LAR', 'SF', 'SEA'],
 };
-export const divisionOf = (abbr) => Object.keys(DIVISIONS).find((d) => DIVISIONS[d].includes(abbr));
+const divisionOf = (abbr) => Object.keys(DIVISIONS).find((d) => DIVISIONS[d].includes(abbr));
 export const conferenceOf = (abbr) => divisionOf(abbr)?.slice(0, 3);
 
 export const teamName = (abbr) => TEAM_NAMES[abbr] ?? abbr;

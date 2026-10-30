@@ -32,7 +32,7 @@ export function teamLogo(abbr, size = 32) {
 export const LOCK_ICON =
   '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 
-export const fmtLine = (n) => (n > 0 ? `+${n}` : `−${Math.abs(n)}`);
+export const fmtLine = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
 
 // Leading +/− drawn lighter and slimmer than the digits, so numbers scan by size.
 export const signSpan = (text) => String(text).replace(/^([+−-])/, '<span class="sign">$1</span>');

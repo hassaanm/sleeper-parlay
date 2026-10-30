@@ -1,8 +1,9 @@
 // Public Sleeper endpoints (no auth, CORS open).
 const BASE = 'https://api.sleeper.app';
 
+// Gives up after 15 seconds, so a hung request can't leave a spinner up forever.
 export async function getJson(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout?.(15_000) });
   if (!res.ok) throw new Error(`Sleeper request failed (${res.status})`);
   return res.json();
 }
@@ -32,7 +33,8 @@ export async function fetchSeasonStats(season, week) {
     getJson(`${STATS}/${season}?${query(['QB', 'RB', 'WR', 'TE'])}`),
     ...Array.from({ length: week }, (_, i) => getJson(`${STATS}/${season}/${i + 1}?${query(['TEAM'])}`).catch(() => [])),
   ]);
-  return { players, games: games.flat() };
+  const rows = (body) => (Array.isArray(body) ? body : []);
+  return { players: rows(players), games: games.flatMap((week, i) => rows(week).map((row) => ({ ...row, week: i + 1 }))) };
 }
 
 export const playerHeadshot = (playerId) => `https://sleepercdn.com/content/nfl/players/thumb/${playerId}.jpg`;
@@ -46,7 +48,7 @@ export function memberFromUser(user) {
   const teamAvatar = meta.avatar && !meta.avatar.includes('avatar_default') ? meta.avatar : null;
   return {
     id: user.user_id,
-    name: user.display_name,
+    name: user.display_name ?? 'Unknown',
     teamName: meta.team_name || null,
     avatar: teamAvatar ?? avatarUrl(user.avatar),
   };

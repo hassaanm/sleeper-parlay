@@ -212,6 +212,9 @@ h1, h2 { letter-spacing: -0.02em; }
   margin: 16px 4px 8px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted);
 }
+/* Under the countdown card, the gap to the title's capitals (the line box adds ~4px
+   above them) matches the card's 12px gap to the bar above it. */
+.lock-bar + .day > .day-title { margin-top: 8px; }
 
 .game {
   background: var(--card); border: 1px solid var(--line); border-radius: 14px;
@@ -264,7 +267,8 @@ h1, h2 { letter-spacing: -0.02em; }
   position: relative; display: grid; place-content: center; min-height: 42px; min-width: 0;
   background: #0e1428; border: 1px solid var(--line); border-radius: 9px;
   padding: 3px 2px; cursor: pointer; text-align: center; line-height: 1.2;
-  transition: border-color 0.12s, background 0.12s, transform 0.08s;
+  /* Colors swap at once on a pick: a fade would leave the text unreadable mid-way. */
+  transition: transform 0.08s;
 }
 .cell > span { position: relative; }
 .cell:active:not([aria-disabled]) { transform: scale(0.96); }
@@ -322,9 +326,7 @@ h1, h2 { letter-spacing: -0.02em; }
 
 .cell.blocked { opacity: 0.32; cursor: not-allowed; }
 .cell[aria-disabled]:not(.taken):not(.blocked) { opacity: 0.35; cursor: not-allowed; }
-.cell.busy { animation: pulse 0.9s ease-in-out infinite; }
 .cell-empty { color: var(--faint); border-style: dashed; cursor: default; }
-@keyframes pulse { 50% { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); } }
 @media (hover: hover) {
   .cell:hover:not([aria-disabled]):not(.mine) { border-color: var(--accent); }
 }
@@ -655,6 +657,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .parlay-card.ticket .slip-peek { height: 50px; }
 .parlay-card.ticket .sheet-body { border-top: 1px dashed var(--line); padding: 0 0 6px; --notch-y: calc(100% + 6px); }
 .parlay-card.ticket .parlay-foot { margin: 6px 0 0; padding: 12px 16px 0; }
+/* A long slip on a short screen: the legs scroll, so the totals stay in view. */
+.parlay-card.ticket { display: flex; flex-direction: column; max-height: calc(100dvh - var(--topbar-h) - var(--subbar-h) - 48px); }
+.parlay-card.ticket .sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 .legs { list-style: none; margin: 0; padding: 0; }
 .leg {
@@ -740,6 +745,9 @@ h1, h2 { letter-spacing: -0.02em; }
 @keyframes slip-nudge { 0%, 100% { translate: 0 0; } 25% { translate: 0 -14px; } 50% { translate: 0 0; } 65% { translate: 0 -5px; } }
 
 .slip-handle { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; outline: none; }
+.slip-handle:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+/* Faces in the peek are part of the handle: no long-press image menu or image drag. */
+.slip-handle img { -webkit-touch-callout: none; -webkit-user-drag: none; }
 .slip-handle:active { cursor: grabbing; }
 .slip-peek {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -755,7 +763,7 @@ h1, h2 { letter-spacing: -0.02em; }
    them all keeps that order while one is animating (a transform would otherwise lift
    it above every still face). */
 .faces .stacked { position: relative; margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
-/* A face falling out of the row (app.js dropFace): placed over its old spot, in the
+/* A face falling out of the row (faces.js rollOff): placed over its old spot, in the
    row's stacking order. */
 .faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
 /* A sticker leaving its cell (app.js), kept in place while it dissolves. */

@@ -78,12 +78,14 @@ const GAME_TOTALS = {
   rzAtt: (s) => s.rz_att ?? 0,
   sacked: (s) => s.pass_sack ?? 0,
   giveaways: (s) => (s.pass_int ?? 0) + (s.fum_lost ?? 0),
+  games: () => 1, // rows counted, so per-game numbers divide by games that have stats
 };
 
 /**
  * Adds Sleeper's season stats to a league from buildLeague: per-game and rate numbers,
  * a 1..32 league rank on each, and this week's expected starters.
- * stats: { players: player rows, games: TEAM rows, one per team per game } (api.fetchSeasonStats)
+ * stats: { players: player rows, games: TEAM rows, one per team per game, with its week }
+ * (api.fetchSeasonStats)
  */
 export function addStats(league, stats) {
   const { teams } = league;
@@ -94,9 +96,12 @@ export function addStats(league, stats) {
     t.def = { ...t.off };
     t.players = [];
   }
+  // The league can be older than the stats (built when the page loaded), so only games
+  // it already counts are added: a game finished since, or still live, is left out.
+  const counted = (team, week) => team?.games.some((g) => g.week === week);
   for (const row of stats?.games ?? []) {
-    const offense = teams.get(row.team);
-    const defense = teams.get(row.opponent);
+    const offense = counted(teams.get(row.team), row.week) ? teams.get(row.team) : null;
+    const defense = counted(teams.get(row.opponent), row.week) ? teams.get(row.opponent) : null;
     for (const [key, read] of Object.entries(GAME_TOTALS)) {
       const value = read(row.stats ?? {});
       if (offense) offense.off[key] += value;
@@ -104,9 +109,9 @@ export function addStats(league, stats) {
     }
   }
   // Players belong to the team they're on now (trades), so starters reflect this
-  // week's roster.
+  // week's roster. A released player (no team now) is on nobody's.
   for (const row of stats?.players ?? []) {
-    const current = row.player?.team ?? row.team;
+    const current = row.player ? row.player.team : row.team;
     if (teams.has(current)) teams.get(current).players.push(row);
   }
 
@@ -115,16 +120,16 @@ export function addStats(league, stats) {
     const { off, def, gp } = t;
     t.per = {
       points: per(t.pointsFor, gp),
-      passYd: per(off.passYd, gp),
-      rushYd: per(off.rushYd, gp),
-      yards: per(off.passYd + off.rushYd, gp),
+      passYd: per(off.passYd, off.games),
+      rushYd: per(off.rushYd, off.games),
+      yards: per(off.passYd + off.rushYd, off.games),
       yardsPerPlay: per(off.passYd + off.rushYd, off.plays),
       thirdPct: pct(off.thirdConv, off.thirdAtt),
       redZonePct: pct(off.rzConv, off.rzAtt),
       allowed: per(t.pointsAgainst, gp),
-      oppPassYd: per(def.passYd, gp),
-      oppRushYd: per(def.rushYd, gp),
-      yardsAllowed: per(def.passYd + def.rushYd, gp),
+      oppPassYd: per(def.passYd, def.games),
+      oppRushYd: per(def.rushYd, def.games),
+      yardsAllowed: per(def.passYd + def.rushYd, def.games),
       oppYardsPerPlay: per(def.passYd + def.rushYd, def.plays),
       oppThirdPct: pct(def.thirdConv, def.thirdAtt),
       oppRedZonePct: pct(def.rzConv, def.rzAtt),
@@ -137,10 +142,14 @@ export function addStats(league, stats) {
     t.starters = pickStarters(t.players);
   }
 
-  // Rank every team 1..32 on each number (1 = best for that team).
+  // Rank every team 1..32 on each number (1 = best for that team). Tied teams share a
+  // rank: 1 + how many are strictly better. Season counts (sacks, turnovers) rank per
+  // game, so a team that's had its bye isn't marked down.
+  const COUNTS = new Set(['sacks', 'takeaways', 'giveaways', 'turnoverMargin']);
   const rankOn = (key, higherIsBetter) => {
-    const sorted = [...teams.values()].filter((t) => t.gp).sort((a, b) => (higherIsBetter ? b.per[key] - a.per[key] : a.per[key] - b.per[key]));
-    sorted.forEach((t, i) => ((t.ranks ??= {})[key] = i + 1));
+    const ranked = [...teams.values()].filter((t) => t.gp);
+    const score = (t) => (COUNTS.has(key) ? t.per[key] / t.gp : t.per[key]) * (higherIsBetter ? 1 : -1);
+    for (const t of ranked) (t.ranks ??= {})[key] = 1 + ranked.filter((o) => score(o) > score(t) + 1e-9).length;
   };
   for (const key of ['points', 'passYd', 'rushYd', 'yards', 'yardsPerPlay', 'thirdPct', 'redZonePct', 'sacks', 'takeaways', 'turnoverMargin']) rankOn(key, true);
   for (const key of ['allowed', 'oppPassYd', 'oppRushYd', 'yardsAllowed', 'oppYardsPerPlay', 'oppThirdPct', 'oppRedZonePct', 'giveaways']) rankOn(key, false);
@@ -188,7 +197,9 @@ export function headToHead(league, a, b) {
  * "BUF beat NE, NE beat BAL". Shortest chains first.
  */
 export function winChains(league, from, to, maxHops = 3) {
-  const beat = (x) => (league.teams.get(x)?.games ?? []).filter((g) => g.result === 'W');
+  // One link per beaten team (the latest win), so two wins over a division rival don't
+  // make the same chain twice.
+  const beat = (x) => [...new Map((league.teams.get(x)?.games ?? []).filter((g) => g.result === 'W').map((g) => [g.opp, g])).values()];
   const chains = [];
   const walk = (path, links) => {
     const last = path.at(-1);
