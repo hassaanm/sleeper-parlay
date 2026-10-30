@@ -1,7 +1,8 @@
 // App state and everything derived from it: the route, the one mutable `state`
 // object, and read-only questions about it (who picked what, is it locked, how each
 // leg is doing). No DOM and no network here; the rules themselves are in rules.js.
-import { gameKey, gradePick, legLockedReason, slipLocked, startsBeforeCutoff } from './rules.js';
+import { ladderKey } from './lines.js';
+import { clashFor, gameKey, gradePick, legLockedReason, pickBlockedReason, slipLocked, startsBeforeCutoff } from './rules.js';
 
 // Routes: "<base>/" is the landing page, "<base>/<leagueId>" is that league's slip.
 // <base> is "/" locally and "/<repo>/" on GitHub Pages.
@@ -39,7 +40,7 @@ export const state = {
   acting: null, // { id, prevMe }
   oddsFormat: safeGet('parlay:odds') === 'pct' ? 'pct' : 'american',
   sheetOpen: false,
-  // Nudge the closed slip once per visit so people notice it pulls up.
+  // Nudge the closed slip once per browser so people notice it pulls up.
   slipNudge: safeGet('parlay:nudged') !== '1',
   nudging: false,
   tear: {}, // where each slip's tear line sits, in px from the bottom: { slip, ticket }
@@ -66,7 +67,21 @@ export function safeSet(key, value) {
 }
 
 export const memberById = (id) => state.slip?.members.find((m) => m.id === id);
+// A member's name for messages, from `slip` (default: the one on screen).
+export const memberName = (id, slip = state.slip) => slip?.members.find((m) => m.id === id)?.name ?? 'Someone';
+export const gameById = (id) => state.games.find((g) => g.id === id);
 export const picks = () => state.slip?.picks ?? {};
+
+// Why the current member can't take `opt` right now, in words, or null if they can. The
+// board greys out a cell with a problem, and tapping it shows this (app.js choose).
+export function pickProblem(opt) {
+  const game = gameById(opt.gameId);
+  if (!game) return 'That line is closed.';
+  const clash = clashFor(state.slip, state.me, opt);
+  if (clash) return `${memberName(clash.userId)} already has ${clash.pick.label}.`;
+  return pickBlockedReason(state.slip, state.me, game.start, { admin: !!state.acting })
+    ?? (game.locked || !opt.available ? 'That line is closed.' : null);
+}
 
 export function legsWithLive() {
   if (!state.slip) return [];
@@ -75,14 +90,14 @@ export function legsWithLive() {
     .map((m) => {
       const pick = picks()[m.id];
       const live = state.options.get(pick.optKey);
-      const game = state.games.find((g) => g.id === pick.gameId);
+      const game = gameById(pick.gameId);
       const useLive = live && !game?.locked && live.available;
       const price = useLive ? live.price : pick.price;
       const fair = (useLive ? live.fair : pick.fair) ?? price / 100;
       const status = state.sports?.games.get(gameKey(...pick.matchup.split(' @ ')))?.status;
       const started = status && status.state !== 'pre';
       return {
-        member: m, pick, price, fair, moved: price !== pick.price, locked: !!game?.locked, status,
+        member: m, pick, price, fair, status,
         // While live: is it covering right now? After the final: hit, miss, or push.
         grade: started ? gradePick(pick, status.awayScore, status.homeScore) : null,
         // The market keeps trading during the game, so its price is a live chance.
@@ -96,15 +111,15 @@ export function legsWithLive() {
 }
 const TYPE_ORDER = ['ml', 'spread', 'total'];
 
-export const ladderKey = (game, type) => `${game.id}:${type}`;
 const rungHas = (rung, key) => [rung.away, rung.home, rung.over, rung.under].some((o) => o?.key === key);
 
 // Which line a spread/total column shows: what the user stepped to, else whoever
-// already picked this game + type (so the pick is visible), else the main line.
+// already picked this game + type (so the pick is visible), else the main line. A line
+// stepped to can disappear when a market closes; then the column falls back.
 export function rungIndex(game, type) {
-  const key = ladderKey(game, type);
-  if (state.rungs.has(key)) return state.rungs.get(key);
   const ladder = game[type];
+  const stepped = state.rungs.get(ladderKey(game, type));
+  if (stepped < ladder.rungs.length) return stepped;
   const ordered = Object.entries(picks()).sort(([uid]) => (uid === state.me ? -1 : 1));
   for (const [, pick] of ordered) {
     if (pick.gameId !== game.id || pick.type !== type) continue;
@@ -118,19 +133,6 @@ export function gameTakers(game) {
   return Object.entries(picks())
     .filter(([, p]) => p.gameId === game.id)
     .map(([uid, p]) => ({ member: memberById(uid), pick: p, mine: uid === state.me }));
-}
-
-// Spread: away team on top. Total: over on top (sportsbook convention).
-export function ladderSides(game, type, index) {
-  const rung = game[type].rungs[index];
-  return type === 'spread' ? [rung.away, rung.home] : [rung.over, rung.under];
-}
-
-// No-vig win chance for the away team, from the two moneylines.
-export function awayWinPct(game) {
-  const [away, home] = game.ml;
-  if (!away?.price || !home?.price) return null;
-  return Math.round((100 * away.price) / (away.price + home.price));
 }
 
 // Once the first leg's game kicks off (or the slip is locked), the slip switches to

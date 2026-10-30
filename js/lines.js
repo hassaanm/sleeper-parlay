@@ -107,7 +107,7 @@ export function buildGames(lobby, details, window, now = Date.now()) {
           const pair = spreadOptions(game, m);
           const home = pair.find((o) => o.team === game.home);
           const away = pair.find((o) => o.team === game.away);
-          return { away, home, fav: m.subject_id, size: Math.abs(Number(m.line)), homeLine: home.line, main: m.market_id === mainId };
+          return { away, home, homeLine: home.line, main: m.market_id === mainId };
         })
         .sort((a, b) => b.homeLine - a.homeLine);
       game.spread = { rungs, mainIndex: Math.max(0, rungs.findIndex((r) => r.main)) };
@@ -137,4 +137,20 @@ export function indexOptions(games) {
     g.total?.rungs.forEach((r) => (add(r.over), add(r.under)));
   }
   return index;
+}
+
+// A spread/total column's key, for the line it shows (state.rungs).
+export const ladderKey = (game, type) => `${game.id}:${type}`;
+
+// Spread: away team on top. Total: over on top (sportsbook convention).
+export function ladderSides(game, type, index) {
+  const rung = game[type].rungs[index];
+  return type === 'spread' ? [rung.away, rung.home] : [rung.over, rung.under];
+}
+
+// No-vig win chance for the away team, from the two moneylines.
+export function awayWinPct(game) {
+  const [away, home] = game.ml;
+  if (!away?.price || !home?.price) return null;
+  return Math.round((100 * away.price) / (away.price + home.price));
 }

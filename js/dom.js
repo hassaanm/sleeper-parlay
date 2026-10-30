@@ -64,9 +64,16 @@ function patchChildren(from, to) {
     }
   }
   // Put the children in order (stepping around transient ones), then drop whatever
-  // wasn't reused.
+  // wasn't reused. Dropped nodes go as they're reached, so the nodes after one stay put
+  // instead of being moved (which would restart their CSS animations).
+  const keep = new Set(result);
   let ref = settled(from.firstChild);
   for (const node of result) {
+    while (ref && !keep.has(ref)) {
+      const next = settled(ref.nextSibling);
+      ref.remove();
+      ref = next;
+    }
     if (node === ref) ref = settled(ref.nextSibling);
     else from.insertBefore(node, ref);
   }
@@ -82,11 +89,14 @@ function patchNode(from, to) {
     if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue;
     return;
   }
+  // An animating element's inline style holds its pose (faces.js); leave it be. Asked
+  // only when the style differs, since getAnimations() is costly on every element.
+  const keepStyle = from.getAttribute('style') !== to.getAttribute('style') && from.getAnimations().length > 0;
   for (const { name } of [...from.attributes]) {
-    // An animating element's inline style holds its pose (faces.js); keep it.
-    if (name === 'style' && from.getAnimations().length) continue;
-    if (!to.hasAttribute(name)) from.removeAttribute(name);
+    if (!to.hasAttribute(name) && !(name === 'style' && keepStyle)) from.removeAttribute(name);
   }
-  for (const { name, value } of to.attributes) if (from.getAttribute(name) !== value) from.setAttribute(name, value);
+  for (const { name, value } of to.attributes) {
+    if (from.getAttribute(name) !== value && !(name === 'style' && keepStyle)) from.setAttribute(name, value);
+  }
   patchChildren(from, to);
 }

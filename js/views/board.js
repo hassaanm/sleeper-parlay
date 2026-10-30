@@ -1,8 +1,9 @@
 // The board: top bar, day chips, deadline countdown, and the game cards with their
 // pickable cells. Also the "Who's picking?" screen.
 import { matchupColors } from '../teams.js';
+import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
-import { awayWinPct, beforeCutoff, gameTakers, isLocked, ladderKey, ladderSides, memberById, myLegLocked, picks, rungIndex, state } from '../state.js';
+import { beforeCutoff, gameTakers, isLocked, memberById, pickProblem, picks, rungIndex, state } from '../state.js';
 import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
@@ -100,7 +101,8 @@ export function renderWhoAreYou(current) {
 }
 
 export function renderGames() {
-  if (state.gamesError) return `<div class="card"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`;
+  // A failed refresh keeps the last lines on screen; only a first load shows the error.
+  if (state.gamesError && !state.games.length) return `<div class="card"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`;
   if (!state.games.length && !state.lobby) return `<div class="loading-block"><div class="spinner"></div><p class="muted">Loading this week’s lines…</p></div>`;
   if (!state.games.length) return `<div class="card"><p>No NFL games found for this week yet.</p></div>`;
 
@@ -129,13 +131,13 @@ export function renderGames() {
 }
 
 // Kickoff time (the day is already in the section header), then TV and weather.
-function gameMeta(game, { research = true } = {}) {
+function gameMeta(game) {
   const info = state.sports?.games.get(gameKey(game.away, game.home));
   const items = [`<span class="meta-time">${esc(timeFmt.format(game.start))}</span>`];
   if (info?.tv) items.push(`<span class="tv-list">${tvBadges(info.tv)}</span>`);
   if (info?.dome) items.push('<span>🏟️ Dome</span>');
   else if (info?.weather) items.push(`<span title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)} ${esc(info.weather.temp)}°</span>`);
-  if (research) items.push(`<button class="meta-research" data-action="matchup" data-id="${esc(game.id)}">Matchup ${chevronSmall()}</button>`);
+  items.push(`<button class="meta-research" data-action="matchup" data-id="${esc(game.id)}">Matchup ${chevronSmall()}</button>`);
   return items.join('');
 }
 
@@ -225,7 +227,7 @@ function winBar(game) {
 
 // Horizontal strip of every line, between the two team rows. Scroll it and the
 // buttons above and below follow. Spread values read from the away (top) team's side.
-export function strip(game, type, key, index, area) {
+function strip(game, type, key, index, area) {
   const ladder = game[type];
   return `
     <div class="strip" data-ladder="${esc(key)}" style="grid-area:${area}">
@@ -243,9 +245,7 @@ export function cell(opt, type, area, cellId) {
   const mine = holderId && holderId === state.me;
   const holder = holderId && !mine ? memberById(holderId) : null;
   const blocked = !mine && !holder && clashFor(state.slip, state.me, opt);
-  const game = state.games.find((g) => g.id === opt.gameId);
-  const closed = !game || beforeCutoff(game) || game.start <= Date.now();
-  const disabled = !mine && (!!holder || !!blocked || !opt.available || closed || myLegLocked());
+  const disabled = !mine && !!pickProblem(opt);
   const main = signSpan(type === 'ml' ? fmtOdds(opt.price) : type === 'spread' ? fmtLine(opt.line) : `${opt.key.endsWith(':yes') ? 'O' : 'U'} ${opt.line}`);
   const cls = ['cell', type === 'ml' && 'cell-ml', mine && 'mine', mine && state.justPicked === opt.key && 'just-picked', holder && 'taken', blocked && 'blocked', state.busyKey === opt.key && 'busy'].filter(Boolean).join(' ');
   return `

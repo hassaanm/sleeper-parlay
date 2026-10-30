@@ -4,14 +4,15 @@ import * as api from '../api.js';
 import { gameKey } from '../rules.js';
 import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../teams.js';
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
-import { awayWinPct, state } from '../state.js';
+import { awayWinPct } from '../lines.js';
+import { gameById, state } from '../state.js';
 import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
 // over the hero; once you scroll, the top bar turns solid and shows a title.
 export function renderPage() {
   const current = state.pages.at(-1);
-  const game = current.kind === 'matchup' ? state.games.find((g) => g.id === current.gameId) : null;
+  const game = current.kind === 'matchup' ? gameById(current.gameId) : null;
   const title = current.kind === 'team'
     ? `<span class="ts-side">${teamLogo(current.abbr, 20)}<b>${esc(teamName(current.abbr))}</b></span>`
     : game ? `<span class="ts-side">${teamLogo(game.away, 20)}<b>${esc(game.away)}</b></span><span class="ts-side"><b>${esc(game.home)}</b>${teamLogo(game.home, 20)}</span>` : '';
@@ -112,7 +113,7 @@ function renderTeamPage(abbr) {
       ${stat('Streak', esc(info?.streak ?? '—'))}
       ${stat('Home', esc(info?.homeRecord ?? '—'))}
       ${stat('Road', esc(info?.roadRecord ?? '—'))}
-      ${stat('Point diff', diff == null ? '—' : `${diff > 0 ? '+' : ''}${diff}`, toneOf(diff))}
+      ${stat('Point diff', diff == null ? '—' : fmtSigned(diff), toneOf(diff))}
     </div>`;
 
   if (!league) return hero + researchLoading();
@@ -173,7 +174,7 @@ function renderTeamPage(abbr) {
 }
 
 function renderMatchupPage(gameId) {
-  const game = state.games.find((g) => g.id === gameId);
+  const game = gameById(gameId);
   if (!game) return '<p class="muted center-note">This game isn’t on the board anymore.</p>';
   const { away: A, home: H } = game;
   const league = state.research.league;
@@ -287,7 +288,7 @@ function renderMatchupPage(gameId) {
 
   const ra = resume(league, A);
   const rh = resume(league, H);
-  const signedNum = (n) => `${n > 0 ? '+' : ''}${fmt1(n)}`;
+  const signedNum = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt1(Math.abs(n))}`;
 
   const meetingsThisSeason = headToHead(league, A, H);
   const past = state.pastMeetings.get(gameKey(A, H));

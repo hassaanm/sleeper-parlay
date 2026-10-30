@@ -2,7 +2,7 @@
 // then adds Sleeper's season stats (per-game numbers, league ranks, starters) when a
 // research page needs them. Also finds common opponents and who-beat-whom chains
 // between two teams.
-import { DIVISIONS, divisionOf } from './teams.js';
+import { DIVISIONS } from './teams.js';
 
 const per = (total, games) => (games ? total / games : 0);
 const resultOf = (pf, pa) => (pf > pa ? 'W' : pf < pa ? 'L' : 'T');
@@ -53,17 +53,17 @@ export function buildLeague(results) {
     t.pointsFor = t.games.reduce((sum, g) => sum + g.pf, 0);
     t.pointsAgainst = t.games.reduce((sum, g) => sum + g.pa, 0);
     t.pointDiff = t.pointsFor - t.pointsAgainst;
-    t.division = divisionOf(t.abbr);
   }
 
-  // Division rank: win percentage, then point differential.
+  // Division rank: win percentage (a tie counts as half a win, as the NFL counts it),
+  // then point differential.
   for (const [division, members] of Object.entries(DIVISIONS)) {
-    const pct = (t) => t.wins / Math.max(1, t.wins + t.losses);
+    const pct = (t) => (t.wins + t.ties / 2) / Math.max(1, t.wins + t.losses + t.ties);
     const ranked = members.map((a) => teams.get(a)).filter(Boolean).sort((a, b) => pct(b) - pct(a) || b.pointDiff - a.pointDiff);
     ranked.forEach((t, i) => (t.standing = `${['1st', '2nd', '3rd', '4th'][i]} in ${division}`));
   }
 
-  return { teams, size: [...teams.values()].filter((t) => t.gp).length, hasStats: false };
+  return { teams, size: [...teams.values()].filter((t) => t.gp).length };
 }
 
 // Offense totals read from a team's own game row. Passing yards are net of sacks (the
@@ -145,7 +145,6 @@ export function addStats(league, stats) {
   for (const key of ['points', 'passYd', 'rushYd', 'yards', 'yardsPerPlay', 'thirdPct', 'redZonePct', 'sacks', 'takeaways', 'turnoverMargin']) rankOn(key, true);
   for (const key of ['allowed', 'oppPassYd', 'oppRushYd', 'yardsAllowed', 'oppYardsPerPlay', 'oppThirdPct', 'oppRedZonePct', 'giveaways']) rankOn(key, false);
 
-  league.hasStats = true;
   return league;
 }
 
@@ -219,9 +218,7 @@ export function resume(league, abbr) {
   const last3 = t.games.slice(-3);
   return {
     vsWinning: recordOf(vsWinning),
-    vsWinningGames: vsWinning.length,
     last3: recordOf(last3),
-    last3Points: last3.length ? last3.reduce((sum, g) => sum + g.pf, 0) / last3.length : 0,
     home: t.homeRecord,
     road: t.roadRecord,
     margin: t.gp ? t.pointDiff / t.gp : 0,

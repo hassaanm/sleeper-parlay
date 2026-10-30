@@ -69,6 +69,9 @@ export function animateFaces(root, before) {
   const changed = [...kept].filter((id) => before.get(id).pick !== after.get(id).dataset.pick);
   const jumpers = changed.filter((id) => rank(oldOrder, id) !== rank(newOrder, id));
   const stayers = changed.filter((id) => !jumpers.includes(id));
+  // A face picked again mid-move (a quick change of mind) drops its old move first, so
+  // its new one starts from where it is (before.at) and the two don't fight.
+  for (const id of changed) stop(after.get(id));
 
   // How the others shuffle: during the jump's flight; or parting just ahead of a face
   // rolling in; or, for a removal alone, once the leaving face is off the edge.
@@ -95,9 +98,11 @@ export function animateFaces(root, before) {
   for (const id of newOrder) {
     if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
-    const dx = before.get(id).at.left - spot(el);
-    if (Math.abs(dx) > 0.5) play(el, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...shuffle, fill: 'backwards' });
     if (stayers.includes(id)) jiggle(el, IMPACT_MS);
+    const dx = before.get(id).at.left - spot(el);
+    // The slide runs on `translate`, apart from `transform`, so a face that's already
+    // moving (rolling in, mid-jump, jiggling) keeps that motion and slides as well.
+    if (Math.abs(dx) > 0.5) play(el, [{ translate: `${dx}px 0` }, { translate: '0 0' }], { ...shuffle, fill: 'backwards' });
   }
 }
 
@@ -113,13 +118,35 @@ function play(el, keyframes, { delay = 0, easing = 'linear', ...options }) {
   const total = delay + options.duration;
   const timed = keyframes.map((k, i) => ({ ...k, offset: (delay + at(k, i) * options.duration) / total, easing: k.easing ?? easing }));
   if (delay > 0) timed.unshift({ ...timed[0], offset: 0, easing: 'linear' });
-  const props = Object.keys(keyframes[0]).filter((k) => k !== 'offset' && k !== 'easing');
-  for (const k of props) el.style[k] = keyframes[0][k];
   const animation = el.animate(timed, { ...options, duration: total });
-  const clear = () => { for (const k of props) el.style[k] = ''; };
+  const props = Object.keys(keyframes[0]).filter((k) => k !== 'offset' && k !== 'easing');
+  const held = inlineHeld.get(el) ?? {};
+  inlineHeld.set(el, held);
+  for (const k of props) {
+    el.style[k] = keyframes[0][k];
+    held[k] = animation;
+  }
+  // Once it's over, its inline frame goes, unless a newer animation's has replaced it.
+  const clear = () => {
+    const now = inlineHeld.get(el);
+    for (const k of props) {
+      if (now?.[k] !== animation) continue;
+      el.style[k] = '';
+      delete now[k];
+    }
+  };
   animation.addEventListener('finish', clear);
   animation.addEventListener('cancel', clear);
   return animation;
+}
+// Element -> { property: the animation whose first frame the inline style holds }.
+const inlineHeld = new WeakMap();
+
+// Ends whatever a face is doing, at once: its animations and their inline frames.
+function stop(el) {
+  for (const animation of el.getAnimations()) animation.cancel();
+  for (const k of Object.keys(inlineHeld.get(el) ?? {})) el.style[k] = '';
+  inlineHeld.delete(el);
 }
 
 // Builds keyframes by sampling `at(t)` for t from `from` to `to`:
@@ -272,7 +299,7 @@ function rollOffFor(at, rowEnd) {
 // at its old place, before `oldRight`, so it keeps that place in the stack. It's
 // marked transient so a render mid-fall leaves it alone (dom.js).
 function rollOff(row, box, { el, at }, oldRight, off) {
-  for (const animation of el.getAnimations()) animation.cancel();
+  stop(el);
   el.classList.add('face-drop');
   el.setAttribute('data-transient', '');
   Object.assign(el.style, { left: `${at.left}px`, top: `${at.top}px` });

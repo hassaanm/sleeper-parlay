@@ -4,7 +4,7 @@
 // color sits in a similar brightness band so no team looks faded next to another.
 // Dark official colors (navy, midnight green) are brightened; the hue stays true.
 // [primary, alternate]
-export const TEAM_COLORS = {
+const TEAM_COLORS = {
   ARI: ['#D2223E', '#FFB612'],
   ATL: ['#E0283F', '#B5BCC2'],
   BAL: ['#7A4FD6', '#D4A82C'],
@@ -39,7 +39,7 @@ export const TEAM_COLORS = {
   WAS: ['#B52C45', '#FFB612'],
 };
 
-export const TEAM_NAMES = {
+const TEAM_NAMES = {
   ARI: 'Arizona Cardinals', ATL: 'Atlanta Falcons', BAL: 'Baltimore Ravens', BUF: 'Buffalo Bills',
   CAR: 'Carolina Panthers', CHI: 'Chicago Bears', CIN: 'Cincinnati Bengals', CLE: 'Cleveland Browns',
   DAL: 'Dallas Cowboys', DEN: 'Denver Broncos', DET: 'Detroit Lions', GB: 'Green Bay Packers',

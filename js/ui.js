@@ -96,7 +96,7 @@ export function seeded(text) {
 }
 
 export const fmt1 = (n) => (Number.isFinite(n) ? (Math.round(n * 10) / 10).toFixed(1) : '—');
-export const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
+const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
 
 // Rank tiers: top quarter of the league reads green, bottom quarter red.
 export function rankTier(rank, size) {
@@ -106,8 +106,7 @@ export function rankTier(rank, size) {
   return '';
 }
 
-// How long a new sticker's slap takes (styles.css .sticker.slap must match). Your pick's
-// copy peels off only after it.
+// How long a new sticker's slap takes (styles.css .sticker.slap must match).
 export const STICKER_SLAP_MS = 800;
 
 // A league rank, everywhere it shows: quiet text reading "5th", beside its number.
@@ -122,6 +121,9 @@ export const toneOf = (n) => (n > 0 ? 'good' : n < 0 ? 'bad' : '');
 // Stat formats: whole percents ("41%") and signed counts ("+3", "−2").
 export const fmtPct = (n) => (Number.isFinite(n) ? `${Math.round(n)}%` : '—');
 export const fmtSigned = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0');
+
+// A chance as a percent, with more decimals as it gets small: "41%", "4.2%", "0.38%".
+export const fmtChance = (p) => (p >= 0.1 ? `${(p * 100).toFixed(0)}%` : p >= 0.01 ? `${(p * 100).toFixed(1)}%` : p > 0 ? `${(p * 100).toFixed(2)}%` : '0%');
 
 export const chevronSmall = () =>
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';

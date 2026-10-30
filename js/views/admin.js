@@ -1,6 +1,6 @@
 // The admin page and the bar shown while the admin picks for someone else.
 import { basePath, isLocked, memberById, picks, state } from '../state.js';
-import { avatar, esc, pretty, shortDayFmt, timeFmt } from '../ui.js';
+import { avatar, dayTimeFmt, esc, pretty } from '../ui.js';
 
 // "<league URL>?admin": set the pick deadline, lock or unlock picks, and fix anyone's
 // pick. The password only keeps casual visitors out.
@@ -17,7 +17,7 @@ export function renderAdmin() {
     </main>`;
   }
   const { cutoff, locked } = state.slip.settings;
-  const when = (t) => `${shortDayFmt.format(t)} ${timeFmt.format(t)}`;
+  const when = (t) => dayTimeFmt.format(t);
   const status = locked ? '🔒 Locked by you. Nobody can change picks.'
     : isLocked() ? `🔒 Locked since ${when(cutoff)}.`
       : cutoff ? `Picks lock ${when(cutoff)}. Games before then can’t be picked.`

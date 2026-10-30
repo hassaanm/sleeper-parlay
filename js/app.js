@@ -3,17 +3,16 @@ import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
 import { addStats, buildLeague } from './research.js';
-import { buildGames, indexOptions, weekWindowAt } from './lines.js';
+import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
 import { clashFor, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
 import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
-import { DEMO, basePath, isTracking, ladderSides, legsWithLive, memberById, picks, rungIndex, safeGet, safeSet, state } from './state.js';
-import { esc, pretty, shortDayFmt, timeFmt } from './ui.js';
-import { STRIP_ITEM, cell, clockParts, clockTiles, renderGames, renderLockBar, renderSubbar, renderTopbar, renderWhoAreYou } from './views/board.js';
-import { renderParlayCard, renderSlip } from './views/slip.js';
-import { renderActingBar, renderAdmin } from './views/admin.js';
-import { renderPage } from './views/pages.js';
+import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
+import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, state } from './state.js';
+import { dayTimeFmt, pretty } from './ui.js';
+import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
+import { renderApp } from './views/shell.js';
 
 const $app = document.getElementById('app');
 
@@ -24,6 +23,14 @@ const $app = document.getElementById('app');
 const saveError = (e) => (e?.name === 'TimeoutError' || (e instanceof TypeError && /fetch|load|network/i.test(e.message))
   ? 'Couldn’t reach the server. Check your connection and try again.'
   : e.message);
+
+// Takes a slip returned by a save or read, unless a push already brought a newer one.
+function acceptSlip(slip) {
+  if (slip && (slip.rev ?? 0) >= (state.slip?.rev ?? 0)) state.slip = slip;
+}
+
+// This slip's season and week, as numbers for the scores and stats endpoints.
+const slipWeek = () => ({ season: Number(state.slip.season), week: Number(state.slip.week) });
 
 function toast(message, tone = 'info') {
   state.toast = { message, tone, id: Date.now() };
@@ -81,7 +88,7 @@ async function seedDemoPicks() {
     })
     .filter((o) => o?.available);
   let added = 0;
-  state.slip = await store.updateSlip(state.slipId, (slip) => {
+  acceptSlip(await store.updateSlip(state.slipId, (slip) => {
     // Half of your league mates (not counting you) end up with a pick.
     const mates = slip.members.filter((m) => m.id !== state.me);
     const target = Math.floor(mates.length / 2) - mates.filter((m) => slip.picks[m.id]).length;
@@ -89,11 +96,10 @@ async function seedDemoPicks() {
     for (const member of pickers) {
       const opt = shuffle(open).find((o) => !clashFor(slip, member.id, o));
       if (!opt) break;
-      const game = state.games.find((g) => g.id === opt.gameId);
-      slip.picks[member.id] = pickFrom(opt, game);
+      slip.picks[member.id] = pickFrom(opt, gameById(opt.gameId));
       added++;
     }
-  });
+  }));
   if (added) toast(`Demo: added ${added} league-mate picks`, 'good');
 }
 
@@ -107,19 +113,21 @@ async function startSlip() {
   }
   store.watchSlip(state.slipId, (slip) => {
     const firstLoad = state.slip === undefined;
-    if (!firstLoad && slip && slip.rev === state.slip?.rev) return; // the echo of our own save
+    // The echo of our own save, or a push older than what a save already gave us.
+    if (!firstLoad && slip && state.slip && slip.rev <= state.slip.rev) return;
     const weekChanged = state.slip && slip && state.slip.weekStart !== slip.weekStart;
     // A new or changed pick shows on its line, even in a column you'd swiped elsewhere.
     for (const [uid, pick] of Object.entries(slip?.picks ?? {})) {
-      if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`);
+      if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`); // see ladderKey
     }
     state.slip = slip;
     if (firstLoad) state.me = rememberedMe(slip);
 
     if (weekChanged) {
-      // New week: drop last week's lines, alt-line choices, and season numbers.
+      // New week: drop last week's lines, alt-line choices, scores, and season numbers.
       state.lobby = null;
       state.rungs.clear();
+      state.sports = null;
       state.research = { league: null, loading: false, error: null };
       state.trackOpened = false;
     }
@@ -156,8 +164,7 @@ async function startSlip() {
 // last five, from Sleeper's scores endpoints.
 async function loadSports() {
   try {
-    const season = Number(state.slip.season);
-    const week = Number(state.slip.week);
+    const { season, week } = slipWeek();
     const [games, results] = await Promise.all([sports.loadWeek(season, week), sports.loadSeasonResults(season, week)]);
     const league = buildLeague(results);
     state.sports = { games, league, teams: league.teams };
@@ -173,7 +180,7 @@ async function loadSports() {
 function openIfTracking() {
   if (state.trackOpened || !state.sports || state.admin.route || !isTracking(legsWithLive())) return;
   state.trackOpened = true;
-  setSlip(true);
+  setSlipOpen(true);
 }
 
 // Your Sleeper user ID is the same in every league, so one remembered choice
@@ -228,36 +235,29 @@ async function choose(key) {
   if (!opt || !me || state.busyKey) return;
   const previous = picks()[me];
   if (previous?.optKey === key) return;
-  const game = state.games.find((g) => g.id === opt.gameId);
+  const game = gameById(opt.gameId);
   if (!game) return;
-  const known = clashFor(state.slip, me, opt);
-  if (known) return toast(`${memberById(known.userId)?.name ?? 'Someone'} already has ${known.pick.label}.`, 'bad');
-  const blocked = pickBlockedReason(state.slip, me, game.start, { admin: !!acting });
-  if (blocked) return toast(blocked, 'bad');
-  if (game.locked || !opt.available) return toast('That line is closed.', 'bad');
+  const problem = pickProblem(opt);
+  if (problem) return toast(problem, 'bad');
 
   let picked = false;
   state.busyKey = key;
-  render();
   try {
+    render();
     const saved = await store.updateSlip(state.slipId, (slip) => {
       const reason = pickBlockedReason(slip, me, game.start, { admin: !!acting });
       if (reason) throw new Error(reason);
       const clash = clashFor(slip, me, opt);
-      if (clash) {
-        const who = slip.members.find((m) => m.id === clash.userId)?.name ?? 'Someone';
-        throw new Error(`${who} just took ${clash.pick.label}. Pick another leg.`);
-      }
+      if (clash) throw new Error(`${memberName(clash.userId, slip)} just took ${clash.pick.label}. Pick another leg.`);
       slip.picks[me] = pickFrom(opt, game);
     });
-    // A push that arrived during the save may already be newer.
-    if ((state.slip?.rev ?? 0) <= saved.rev) state.slip = saved;
+    acceptSlip(saved);
     navigator.vibrate?.(12);
     state.justPicked = key;
     setTimeout(() => (state.justPicked = null), 1000); // through the cell's dip as the sticker lands
     picked = true;
   } catch (e) {
-    state.slip = (await store.getSlip(state.slipId).catch(() => null)) ?? state.slip;
+    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
     toast(saveError(e), 'bad');
   } finally {
     state.busyKey = null;
@@ -270,15 +270,18 @@ async function choose(key) {
 
 async function removeMine() {
   const { me, acting } = state;
+  // The leg on screen. If a new pick saves first, the retry leaves that one alone.
+  const optKey = picks()[me]?.optKey;
+  if (!optKey) return;
   try {
-    state.slip = await store.updateSlip(state.slipId, (slip) => {
+    acceptSlip(await store.updateSlip(state.slipId, (slip) => {
       const reason = acting ? null : legLockedReason(slip, me);
       if (reason) throw new Error(reason);
-      if (!slip.picks[me]) return false;
+      if (slip.picks[me]?.optKey !== optKey) return false;
       delete slip.picks[me];
-    });
+    }));
   } catch (e) {
-    toast(saveError(e), 'bad');
+    return toast(saveError(e), 'bad');
   }
   render();
 }
@@ -292,7 +295,8 @@ async function refreshLive() {
   const pending = state.games.some((g) => g.start <= now && state.sports.games.get(gameKey(g.away, g.home))?.status?.state !== 'post');
   if (!pending) return;
   try {
-    const live = await sports.loadWeek(Number(state.slip.season), Number(state.slip.week), { fresh: true });
+    const { season, week } = slipWeek();
+    const live = await sports.loadWeek(season, week, { fresh: true });
     let changed = false;
     for (const [key, fresh] of live) {
       const game = state.sports.games.get(key);
@@ -315,7 +319,7 @@ function setRung(key, index) {
   if (state.rungs.get(key) === index) return;
   state.rungs.set(key, index);
   const [gameId, type] = key.split(':');
-  const game = state.games.find((g) => g.id === gameId);
+  const game = gameById(gameId);
   if (!game) return;
   const [top, bottom] = ladderSides(game, type, index);
   for (const [pos, opt] of [['top', top], ['bottom', bottom]]) {
@@ -331,7 +335,7 @@ function setRung(key, index) {
 function syncStrips() {
   for (const strip of $app.querySelectorAll('.strip')) {
     const [gameId, type] = strip.dataset.ladder.split(':');
-    const game = state.games.find((g) => g.id === gameId);
+    const game = gameById(gameId);
     if (!game) continue;
     const left = rungIndex(game, type) * STRIP_ITEM;
     if (Math.abs(strip.scrollLeft - left) >= STRIP_ITEM / 2) strip.scrollLeft = left;
@@ -348,7 +352,7 @@ $app.addEventListener(
     // syncStrips scrolling a strip to its line fires this too. Only a real swipe pins the
     // column to a line; otherwise it keeps following whoever picks this game.
     const [gameId, type] = key.split(':');
-    const game = state.games.find((g) => g.id === gameId);
+    const game = gameById(gameId);
     if (game && !state.rungs.has(key) && index === rungIndex(game, type)) return;
     setRung(key, index);
   },
@@ -397,18 +401,14 @@ function dissolveStickers(before) {
 }
 
 function render() {
-  // A background refresh mid-drag would replace the slip under the finger; wait.
-  if (slipDrag) {
-    slipDrag.pendingRender = true;
-    return;
-  }
+  if (holdRender()) return; // the slip is being dragged
   trackPicks();
   const faces = captureFaces($app);
   const stickers = new Map([...$app.querySelectorAll('.sticker[data-sticker]:not([data-transient])')].map((el) => [el.dataset.sticker, { el, cell: el.parentElement }]));
-  patch($app, (state.slipId ? renderSlipPage() : renderLanding()) + renderToast());
+  patch($app, renderApp());
   animateFaces($app, faces);
   dissolveStickers(stickers);
-  document.body.classList.toggle('no-scroll', state.sheetOpen || state.pages.length > 0);
+  syncScrollLock();
   if (state.resetPageScroll) $app.querySelector('.tsheet-body')?.scrollTo(0, 0);
   state.resetPageScroll = false;
 
@@ -416,51 +416,6 @@ function render() {
   syncTearLine();
   syncPageBar();
   if (state.games.length) state.stickersPrimed = true;
-}
-
-function renderToast() {
-  if (!state.toast) return '';
-  return `<div class="toast toast-${state.toast.tone}" role="status" id="toast-${state.toast.id}">${esc(state.toast.message)}</div>`;
-}
-
-function renderLanding() {
-  const l = state.landing;
-  return `
-  <main class="landing">
-    <section class="hero">
-      <div class="brand-mark">🏈</div>
-      <h1>Parlay Pool</h1>
-      <p class="lede">Everyone in your Sleeper league adds one leg. One slip, live NFL lines.</p>
-    </section>
-    <form data-form="league" class="card league-form">
-      <label for="league-query" class="field-label">Sleeper league ID</label>
-      <div class="search-row">
-        <input id="league-query" class="input" placeholder="e.g. 1365380346513723392" value="${esc(l.query)}" autocomplete="off" inputmode="numeric">
-        <button class="btn btn-primary">Open</button>
-      </div>
-      ${l.error ? `<p class="error">${esc(l.error)}</p>` : '<p class="hint">It’s the long number in your league’s Sleeper URL.</p>'}
-    </form>
-  </main>`;
-}
-
-function renderSlipPage() {
-  if (state.slip === undefined) return `<main class="center"><div class="spinner"></div></main>`;
-  if (state.slip === null) {
-    return `<main class="center"><div class="card narrow"><h2>Couldn’t open this league</h2><p class="muted">${esc(state.loadError ?? 'Something went wrong.')}</p><a class="btn btn-primary" href="${basePath}">Try another league</a></div></main>`;
-  }
-  if (state.admin.route && !state.acting) return renderTopbar(null) + renderAdmin();
-  const me = memberById(state.me);
-  if (!me || state.switchingUser) return renderTopbar(null) + renderWhoAreYou(me);
-
-  return `
-    ${renderActingBar()}
-    <div class="chrome">${renderTopbar(me)}${renderSubbar()}</div>
-    <div class="layout">
-      <main class="games">${renderLockBar()}${renderGames()}</main>
-      <aside class="parlay-side">${renderParlayCard()}</aside>
-    </div>
-    ${renderSlip()}
-    ${state.pages.length ? renderPage() : ''}`;
 }
 
 // The countdown ticks without a re-render: each digit that changed flips down. The flip
@@ -505,12 +460,11 @@ async function adminLogin() {
 
 async function adminUpdate(mutate, message) {
   try {
-    state.slip = await store.updateSlip(state.slipId, mutate);
+    acceptSlip(await store.updateSlip(state.slipId, mutate));
     toast(message, 'good');
   } catch (e) {
     toast(saveError(e), 'bad');
   }
-  render();
 }
 
 // A new deadline reopens picks and drops picks on games that kick off before it
@@ -518,14 +472,14 @@ async function adminUpdate(mutate, message) {
 async function setCutoff(cutoff) {
   const doomed = Object.entries(picks()).filter(([, p]) => cutoff && p.start < cutoff);
   if (doomed.length) {
-    const list = doomed.map(([id, p]) => `${memberById(id)?.name ?? 'Someone'}: ${p.label}`).join('\n');
+    const list = doomed.map(([id, p]) => `${memberName(id)}: ${p.label}`).join('\n');
     if (!confirm(`This removes ${doomed.length} ${doomed.length === 1 ? 'pick' : 'picks'} on games before then:\n${list}`)) return;
   }
   await adminUpdate((slip) => {
     slip.settings.cutoff = cutoff;
     slip.settings.locked = false;
     for (const [id, p] of Object.entries(slip.picks)) if (cutoff && p.start < cutoff) delete slip.picks[id];
-  }, cutoff ? `Picks lock ${shortDayFmt.format(cutoff)} ${timeFmt.format(cutoff)}` : 'Deadline removed');
+  }, cutoff ? `Picks lock ${dayTimeFmt.format(cutoff)}` : 'Deadline removed');
 }
 
 // ---------- research pages ----------
@@ -538,13 +492,19 @@ function openPage(entry) {
   render();
 }
 
+function popPage() {
+  state.pages.pop();
+  state.resetPageScroll = true;
+  render();
+}
+
 async function loadPastMeetings(gameId) {
-  const game = state.games.find((g) => g.id === gameId);
+  const game = gameById(gameId);
   const key = game && gameKey(game.away, game.home);
   if (!game || state.pastMeetings.has(key)) return;
   state.pastMeetings.set(key, 'loading');
   try {
-    state.pastMeetings.set(key, await sports.loadPastMeetings(game.away, game.home, Number(state.slip.season)));
+    state.pastMeetings.set(key, await sports.loadPastMeetings(game.away, game.home, slipWeek().season));
   } catch {
     state.pastMeetings.set(key, []);
   }
@@ -559,9 +519,10 @@ async function loadResearch() {
   r.error = null;
   try {
     // The board already built the league from this season's results; add the stats.
+    const { season, week } = slipWeek();
     const [league, stats] = await Promise.all([
-      state.sports?.league ?? sports.loadSeasonResults(Number(state.slip.season), Number(state.slip.week)).then(buildLeague),
-      api.fetchSeasonStats(state.slip.season, Number(state.slip.week)),
+      state.sports?.league ?? sports.loadSeasonResults(season, week).then(buildLeague),
+      api.fetchSeasonStats(state.slip.season, week),
     ]);
     r.league = addStats(league, stats);
   } catch (e) {
@@ -571,7 +532,6 @@ async function loadResearch() {
   render();
 }
 
-// Solid top bar once the page scrolls past the hero.
 // A player headshot that fails to load hides, and stays hidden through redraws.
 $app.addEventListener('error', (e) => {
   if (e.target.tagName !== 'IMG' || !e.target.closest('.pl-head')) return;
@@ -594,24 +554,6 @@ $app.addEventListener('scroll', (e) => e.target.classList?.contains('tsheet-body
 
 // ---------- slip ----------
 
-// Puts the paper's side notches exactly on the tear line above the totals: the mask
-// cuts them at --tear from the bottom, so tell it how tall the footer is.
-function syncTearLine() {
-  for (const paper of $app.querySelectorAll('.paper[data-paper]')) {
-    const foot = paper.parentElement.querySelector(':scope > .parlay-foot');
-    if (!foot || !paper.offsetHeight) continue; // hidden at this screen size
-    const fromBottom = paper.getBoundingClientRect().bottom - foot.getBoundingClientRect().top;
-    // Desktop's body mask box is inset 5px from the bottom.
-    const tear = Math.round(fromBottom - (paper.dataset.paper === 'ticket' ? 5 : 0));
-    // Kept in state so the next render writes the same value instead of clearing it.
-    if (state.tear[paper.dataset.paper] === tear) continue;
-    state.tear[paper.dataset.paper] = tear;
-    paper.style.setProperty('--tear', `${tear}px`);
-  }
-}
-
-window.addEventListener('resize', () => requestAnimationFrame(syncTearLine));
-
 // Once per browser, after the lines load, bounce the closed slip so people notice it
 // pulls up.
 function nudgeSlip() {
@@ -627,79 +569,6 @@ function nudgeSlip() {
   }, 1600);
 }
 
-// Open/close without a full re-render, so the slide animates from where it is.
-function setSlip(open) {
-  state.sheetOpen = open;
-  state.slipNudge = false;
-  const wrap = $app.querySelector('.slip-wrap');
-  wrap?.classList.toggle('open', open);
-  wrap?.querySelector('.slip-handle')?.setAttribute('aria-expanded', String(open));
-  document.body.classList.toggle('no-scroll', open || state.pages.length > 0);
-  if (!open) wrap?.querySelector('.sheet-body')?.scrollTo(0, 0);
-}
-
-// Drag the slip by its top edge; it follows the finger, then snaps open or closed
-// based on where it's let go and how fast it was moving. A tap toggles it.
-let slipDrag = null;
-$app.addEventListener('pointerdown', (e) => {
-  const handle = e.target.closest('.slip-handle');
-  if (!handle) return;
-  const slip = handle.closest('.slip');
-  const closedY = slip.offsetHeight - handle.offsetHeight - safeBottom();
-  slipDrag = { slip, startY: e.clientY, lastY: e.clientY, lastT: e.timeStamp, velocity: 0, base: state.sheetOpen ? 0 : closedY, closedY, moved: false };
-  slip.style.transition = 'none';
-  handle.setPointerCapture(e.pointerId);
-});
-
-$app.addEventListener('pointermove', (e) => {
-  if (!slipDrag) return;
-  const d = slipDrag;
-  const dy = e.clientY - d.startY;
-  if (Math.abs(dy) > 5) d.moved = true;
-  if (!d.moved) return;
-  d.velocity = (e.clientY - d.lastY) / Math.max(1, e.timeStamp - d.lastT);
-  d.lastY = e.clientY;
-  d.lastT = e.timeStamp;
-  d.y = Math.min(d.closedY, Math.max(0, d.base + dy));
-  d.slip.style.transform = `translateY(${d.y}px)`;
-  $app.querySelector('.slip-backdrop').style.opacity = String(1 - d.y / d.closedY);
-});
-
-const endSlipDrag = () => {
-  if (!slipDrag) return;
-  const d = slipDrag;
-  slipDrag = null;
-  if (d.pendingRender) setTimeout(render, 400);
-  d.slip.style.transition = '';
-  d.slip.style.transform = '';
-  $app.querySelector('.slip-backdrop').style.opacity = '';
-  if (!d.moved) return setSlip(!state.sheetOpen);
-  const flungUp = d.velocity < -0.4;
-  const flungDown = d.velocity > 0.4;
-  setSlip(flungUp || (!flungDown && d.y < d.closedY / 2));
-};
-
-$app.addEventListener('pointerup', endSlipDrag);
-$app.addEventListener('pointercancel', endSlipDrag);
-$app.addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.slip-handle')) {
-    e.preventDefault();
-    setSlip(!state.sheetOpen);
-  }
-});
-
-let safeArea = null;
-function safeBottom() {
-  if (safeArea === null) {
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);visibility:hidden';
-    document.body.appendChild(probe);
-    safeArea = probe.offsetHeight;
-    probe.remove();
-  }
-  return safeArea;
-}
-
 // ---------- events ----------
 
 // Where the current press started. A click only counts on the control it was pressed
@@ -709,20 +578,19 @@ let pressedOn = null;
 $app.addEventListener('pointerdown', (e) => (pressedOn = e.target), true);
 
 $app.addEventListener('click', (e) => {
+  const pressed = pressedOn;
+  pressedOn = null; // one press, one click
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
   // e.detail is 0 for keyboard and other non-pointer clicks; those have no press.
-  if (e.detail !== 0 && pressedOn && !el.contains(pressedOn)) return;
+  if (e.detail !== 0 && pressed && !el.contains(pressed)) return;
   const { action, id, key } = el.dataset;
 
   switch (action) {
     case 'choose': return choose(key);
     case 'team': return openPage({ kind: 'team', abbr: id });
     case 'matchup': return openPage({ kind: 'matchup', gameId: id });
-    case 'page-back':
-      state.pages.pop();
-      state.resetPageScroll = true;
-      return render();
+    case 'page-back': return popPage();
     case 'close-page':
       state.pages = [];
       return render();
@@ -752,7 +620,7 @@ $app.addEventListener('click', (e) => {
       return render();
     case 'jump':
       return document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    case 'close-sheet': return setSlip(false);
+    case 'close-sheet': return setSlipOpen(false);
     case 'remove-mine': return removeMine();
     case 'admin-cutoff': return setCutoff(id === 'none' ? null : Number(id));
     case 'admin-lock': return adminUpdate((slip) => (slip.settings.locked = true), 'Picks locked');
@@ -764,8 +632,11 @@ $app.addEventListener('click', (e) => {
       }, 'Picks unlocked');
     case 'admin-remove': {
       const pick = picks()[id];
-      if (!pick || !confirm(`Remove ${memberById(id)?.name}’s pick (${pick.label})?`)) return;
-      return adminUpdate((slip) => delete slip.picks[id], 'Pick removed');
+      if (!pick || !confirm(`Remove ${memberName(id)}’s pick (${pick.label})?`)) return;
+      return adminUpdate((slip) => {
+        if (slip.picks[id]?.optKey !== pick.optKey) return false; // they changed it meanwhile
+        delete slip.picks[id];
+      }, 'Pick removed');
     }
     case 'admin-act':
       state.acting = { id, prevMe: state.me };
@@ -775,7 +646,7 @@ $app.addEventListener('click', (e) => {
     case 'acting-done':
       state.me = state.acting.prevMe;
       state.acting = null;
-      setSlip(false);
+      setSlipOpen(false);
       window.scrollTo(0, 0);
       return render();
     case 'reload-lines':
@@ -799,16 +670,12 @@ $app.addEventListener('submit', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && state.pages.length) {
-    state.pages.pop();
-    state.resetPageScroll = true;
-    render();
-  } else if (e.key === 'Escape' && state.sheetOpen) {
-    setSlip(false);
-  }
+  if (e.key === 'Escape' && state.pages.length) popPage();
+  else if (e.key === 'Escape' && state.sheetOpen) setSlipOpen(false);
 });
 
 // ---------- boot ----------
 
+initSheet($app, render);
 if (state.slipId) startSlip();
 render();

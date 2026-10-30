@@ -3,7 +3,7 @@
 import { multiplierToAmerican } from '../lines.js';
 import { pickTeams } from '../rules.js';
 import { isTracking, legsWithLive, myLegLocked, picks, state } from '../state.js';
-import { avatar, chevron, dayTimeFmt, esc, fmtOdds, pretty, seeded, signSpan, teamLogo } from '../ui.js';
+import { avatar, chevron, dayTimeFmt, esc, fmtChance, fmtLine, fmtOdds, pretty, seeded, signSpan, teamLogo } from '../ui.js';
 
 // Fair (no-vig) parlay: multiply each leg's fair probability. A reference for what
 // the slip should pay, since the real price is set wherever the parlay gets placed.
@@ -11,7 +11,7 @@ function fairParlay(legs) {
   const prob = legs.reduce((acc, l) => acc * l.fair, 1);
   const mult = 1 / prob;
   const odds = state.oddsFormat === 'pct'
-    ? `${(prob * 100).toFixed(prob >= 0.1 ? 0 : prob >= 0.01 ? 1 : 2)}%`
+    ? fmtChance(prob)
     : multiplierToAmerican(mult).replace(/\d+/, (n) => Number(n).toLocaleString());
   return { odds, mult: mult >= 100 ? Math.round(mult).toLocaleString() : mult.toFixed(1) };
 }
@@ -29,7 +29,7 @@ function slipHeader(withChevron) {
     const live = count(null, true);
     left = `
       <span class="tally">
-        ${miss ? '<span class="tally-bust">Busted</span>' : hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
+        ${miss ? '<span class="tally-bust">Busted</span>' : legs.length && hit === legs.length ? '<span class="tally-cash">Cashed</span>' : ''}
         <span class="t-hit">✓ ${hit}</span><span class="t-miss">✗ ${miss}</span><span class="t-live">● ${live}</span>
         <small>of ${legs.length}</small>
       </span>`;
@@ -135,24 +135,23 @@ function parlayFoot() {
     return acc * (l.liveFair ?? l.fair);
   }, 1);
   const startProb = legs.reduce((acc, l) => acc * (l.pick.fair ?? l.pick.price / 100), 1);
-  const pct = (p) => (p >= 0.1 ? `${(p * 100).toFixed(0)}%` : p >= 0.01 ? `${(p * 100).toFixed(1)}%` : p > 0 ? `${(p * 100).toFixed(2)}%` : '0%');
   const busted = legs.some((l) => l.status?.state === 'post' && l.grade === 'miss');
   const hits = legs.filter((l) => l.status?.state === 'post' && l.grade !== 'miss').length;
   return `
     <dl class="parlay-foot ${busted ? 'busted' : ''}">
       <div><dt>Legs hit</dt><dd>${hits} of ${legs.length}</dd></div>
-      <div><dt>Chance now</dt><dd>${pct(liveProb)} <small class="${liveProb > startProb ? 'up' : liveProb < startProb ? 'down' : ''}">from ${pct(startProb)}</small></dd></div>
+      <div><dt>Chance now</dt><dd>${fmtChance(liveProb)} <small class="${liveProb > startProb ? 'up' : liveProb < startProb ? 'down' : ''}">from ${fmtChance(startProb)}</small></dd></div>
       <div><dt>Fair payout</dt><dd>${fair.mult}×</dd></div>
     </dl>`;
 }
 
-// Desktop: the same ticket as the phone slip, always open in the sidebar.
 // The paper behind the slip; its side notches sit on the tear line (see syncTearLine).
 const paper = (kind) => {
   const tear = state.tear[kind];
   return `<div class="paper" data-paper="${kind}" aria-hidden="true"${tear == null ? '' : ` style="--tear:${tear}px"`}></div>`;
 };
 
+// Desktop: the same ticket as the phone slip, always open in the sidebar.
 export function renderParlayCard() {
   return `<div class="parlay-card ticket">${paper('ticket')}${slipHeader(false)}<div class="sheet-body">${parlayLegs()}</div>${parlayFoot()}</div>`;
 }
@@ -181,6 +180,6 @@ export function renderSlip() {
 function myLegChip(pick) {
   const { team, away, home } = pickTeams(pick);
   const logos = team ? teamLogo(team, 18) : `${teamLogo(away, 16)}${teamLogo(home, 16)}`;
-  const short = pick.type === 'ml' ? 'ML' : pick.type === 'total' ? pick.label.replace(/^(Over|Under) /, (m) => `${m[0]} `) : pretty(pick.label.split(' ').slice(1).join(' '));
+  const short = pick.type === 'ml' ? 'ML' : pick.type === 'total' ? pick.label.replace(/^(Over|Under) /, (m) => `${m[0]} `) : fmtLine(pick.line);
   return `<span class="my-leg">${logos}<b>${esc(short)}</b></span>`;
 }

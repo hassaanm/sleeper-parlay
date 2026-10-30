@@ -1,4 +1,5 @@
 import { FIREBASE_DB_URL } from './config.js';
+import { DEMO } from './state.js';
 
 // Two interchangeable backends. Both store one JSON document per slip, and both do
 // compare-and-swap: `get` returns the document with a version, and `put` with that
@@ -47,8 +48,7 @@ const timeout = () => AbortSignal.timeout?.(10_000);
 
 // ?demo fills in fake picks, so it always runs on this browser's own copy and never
 // touches the league's shared slip.
-const demo = new URLSearchParams(location.search).has('demo');
-const backend = FIREBASE_DB_URL && !demo ? firebaseBackend : localBackend;
+const backend = FIREBASE_DB_URL && !DEMO ? firebaseBackend : localBackend;
 
 // Firebase drops empty objects, so fill them back in on every read. The database rules
 // only check the top-level fields, so a malformed pick or member is dropped or fixed

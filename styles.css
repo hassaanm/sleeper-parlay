@@ -197,12 +197,12 @@ h1, h2 { letter-spacing: -0.02em; }
 .who-name strong { font-size: 14px; }
 .who-name small { font-size: 11px; color: var(--muted); }
 .who-name strong, .who-name small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chev { color: var(--faint); font-size: 22px; }
+.who-row .chev { color: var(--faint); font-size: 22px; }
 
 /* ---------- games ---------- */
 
 .layout {
-  max-width: 1160px; margin: 0 auto; padding: 0 10px 78px;
+  max-width: 1160px; margin: 0 auto; padding: 0 10px calc(78px + env(safe-area-inset-bottom));
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start;
 }
 .parlay-side { display: none; }
@@ -274,7 +274,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .cell-sub { font-weight: 500; font-size: 12px; color: var(--odds); font-variant-numeric: tabular-nums; margin-top: 1px; }
 .cell-ml .cell-main { color: var(--odds); }
 .sign { font-weight: 400; margin-right: 0.5px; }
-.cell.mine .cell-main, .cell.mine.cell-ml .cell-main { color: var(--accent-ink); }
+.cell.mine .cell-main { color: var(--accent-ink); }
 .cell.mine { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 /* The cell you just picked dips as your sticker lands on it (58% into the 0.8s slap). */
 .cell.mine.just-picked { animation: pick-pop 0.36s ease-out 0.46s; }
@@ -413,8 +413,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .logo-disc { display: grid; place-items: center; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35)); }
 /* Team logo files carry empty space above and below the mark; trim it so the name
    sits right under the logo. */
-.tp-hero .logo-disc { margin-bottom: -6px; }
-.mp-team .logo-disc { margin-bottom: -6px; }
+.tp-hero .logo-disc, .mp-team .logo-disc { margin-bottom: -6px; }
 .tp-hero h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
 .info-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 8px;
@@ -570,12 +569,11 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Value and rank in fixed columns: values line up on their right edge (and decimals),
    ranks line up beside them toward the middle, row after row. Home mirrors away. */
 .cmp-val { display: grid; grid-template-columns: 46px auto; justify-content: start; align-items: baseline; column-gap: 6px; line-height: 1.15; white-space: nowrap; }
-.cmp-val b { text-align: right; }
 .cmp-val.right { grid-template-columns: auto 46px; justify-content: end; }
 .cmp-val.right .rk { order: -1; }
 .cmp-row.plain-row .cmp-val { display: flex; }
 .cmp-row.plain-row .cmp-val.right { justify-content: flex-end; }
-.cmp-val b { font-size: 15px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cmp-val b { text-align: right; font-size: 15px; font-weight: 650; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cmp-val.better b { color: var(--text); font-weight: 800; }
 .cmp-mid { display: grid; gap: 5px; justify-items: center; }
 .cmp-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: var(--muted); text-align: center; white-space: nowrap; }
@@ -662,10 +660,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg {
   position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px;
   padding: 5px 14px; min-height: 44px;
+  background-clip: padding-box; /* row tints stop at the divider above, so they never hide it */
 }
 .leg + .leg { border-top: 1px dashed var(--line); }
-/* Row tints stop at the divider above, so a tinted row never hides it. */
-.leg { background-clip: padding-box; }
 .leg-mine { background-color: var(--accent-soft); }
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
@@ -735,6 +732,9 @@ h1, h2 { letter-spacing: -0.02em; }
   mask-composite: add, intersect;
 }
 .slip > :not(.paper), .ticket > :not(.paper) { position: relative; z-index: 1; }
+/* The faces row's strip sits above the legs and totals, so a face falling out of it
+   passes in front of them. */
+.slip > .slip-handle, .ticket > .slip-peek { z-index: 2; }
 .slip-wrap.open .slip { transform: translateY(0); }
 .slip-wrap.nudge:not(.open) .slip { animation: slip-nudge 1.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes slip-nudge { 0%, 100% { translate: 0 0; } 25% { translate: 0 -14px; } 50% { translate: 0 0; } 65% { translate: 0 -5px; } }
