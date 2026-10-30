@@ -570,8 +570,6 @@ function syncPageBar() {
   $app.querySelector('.ts-bar')?.classList.toggle('solid', top > 70);
   const sheet = body.parentElement;
   sheet.classList.toggle('at-top', top <= 0);
-  const hero = body.querySelector('.tp-hero, .mp-hero');
-  sheet.style.setProperty('--hero-h', `${hero?.offsetHeight ?? 0}px`);
 }
 
 $app.addEventListener('scroll', (e) => e.target.classList?.contains('tsheet-body') && syncPageBar(), true);

@@ -24,7 +24,7 @@ export function renderPage() {
       <span class="ts-title" data-action="page-top">${title}</span>
       <button class="round-btn" data-action="close-page" aria-label="Close">${chevron('down')}</button>
     </div>
-    <div class="tsheet-body">${content}</div>
+    <div class="tsheet-body"><div class="page">${content}</div></div>
   </div>`;
 }
 

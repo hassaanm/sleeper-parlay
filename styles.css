@@ -394,7 +394,10 @@ h1, h2 { letter-spacing: -0.02em; }
 .ts-bar:not(.solid) .ts-title { pointer-events: none; }
 .ts-title:has(.ts-side + .ts-side) { justify-content: space-between; }
 .round-spacer { width: 28px; flex: none; }
-.tsheet-body { height: 100%; overflow-y: auto; padding: 0 16px max(32px, env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+.tsheet-body { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+/* The page is solid, so the glow band behind it (.tsheet::before) shows only where you
+   pull past the top. */
+.page { min-height: 100%; padding: 0 16px max(32px, env(safe-area-inset-bottom)); background: var(--bg-2); }
 .loading-block.small { padding: 36px 0; }
 .center-note { text-align: center; padding: 24px 0; }
 
@@ -510,11 +513,11 @@ h1, h2 { letter-spacing: -0.02em; }
     var(--bg-2);
 }
 /* Pulling a sheet down past its top (the iPhone bounce) shows what's behind the
-   scrolling area. A band in the hero's top-edge colors waits there, as tall as the
-   hero, so the glow carries on up instead of stopping at a hard edge. It shows only
-   while the sheet is at its top (app.js syncPageBar), where the hero, opaque, covers
-   it exactly. */
-.tsheet::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: var(--hero-h, 0px); z-index: -1; opacity: 0; pointer-events: none; }
+   scrolling area. A band in the hero's top-edge colors fills it, the sheet's full
+   height, so the glow carries on up however far you pull. The solid page covers it
+   otherwise, and it's on only while the sheet is at its top (app.js syncPageBar), so
+   a bounce at the bottom stays plain. */
+.tsheet::before { content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; pointer-events: none; }
 .tsheet.at-top::before { opacity: 1; }
 .tsheet[data-kind="team"]::before {
   background:
