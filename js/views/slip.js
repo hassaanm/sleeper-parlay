@@ -53,6 +53,11 @@ function parlayLegs() {
       </div>`;
   }
   const tracking = isTracking(legs);
+  // Each game's bar puts the spread or moneyline pick's team on the right, so winning
+  // always grows right. A total on a game with such a leg matches its sides; otherwise
+  // away is on the left. (A game has at most one spread or moneyline leg: rules.js.)
+  const flips = new Map(legs.filter((l) => l.pick.type !== 'total')
+    .map((l) => [l.pick.matchup, l.pick.team === l.pick.matchup.split(' @ ')[0]]));
   return `<ol class="legs ${tracking ? 'tracking' : ''}">${legs.map((l) => {
     const { team, away, home, vs } = pickTeams(l.pick);
     const logo = team
@@ -74,10 +79,11 @@ function parlayLegs() {
         : final ? 'Final' : `${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}`;
       // The down and the spot meet at a "·" right over the bar's middle; the arrow on the
       // ball's side.
+      const flip = flips.get(l.pick.matchup) ?? false;
       const hasDown = live && st.possession && st.downDistance;
-      const awayBall = st?.possession === away;
-      const downL = hasDown ? `<span class="dd">${awayBall ? '<i class="tri">◀</i>' : ''}${esc(st.downDistance)}</span>` : '';
-      const downR = hasDown ? `<span class="dd">${esc(st.spot ?? '')}${awayBall ? '' : '<i class="tri">▶</i>'}</span>` : '';
+      const leftBall = st?.possession === (flip ? home : away);
+      const downL = hasDown ? `<span class="dd">${leftBall ? '<i class="tri">◀</i>' : ''}${esc(st.downDistance)}</span>` : '';
+      const downR = hasDown ? `<span class="dd">${esc(st.spot ?? '')}${leftBall ? '' : '<i class="tri">▶</i>'}</span>` : '';
       const now = live && l.livePrice ? l.livePrice : l.price;
       const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
@@ -90,7 +96,7 @@ function parlayLegs() {
             <span class="ll-dot">${hasDown ? '·' : final ? `<span class="ll-result ${l.grade}">${barLabel(l.pick, st, true)}</span>` : ''}</span>
             <span class="ll-side right">${downR}<small class="ll-who ${isMine ? 'me' : ''}">${esc(l.member.name)}</small></span>
           </div>
-          ${live || final ? gameBar(l.pick, st) : ''}
+          ${live || final ? gameBar(l.pick, st, flip) : ''}
         </li>`;
     }
 
@@ -112,7 +118,8 @@ function parlayLegs() {
   }).join('')}</ol>`;
 }
 
-// A started leg's game as a bar: away's logo and score on the left, home's on the right.
+// A started leg's game as a bar: one team's logo and score on each end, away on the
+// left unless `flip` (see parlayLegs).
 // A total fills from 0 toward the line (its tick near the right end); a spread or
 // moneyline starts from the middle (a tie, or the picked side's spread) and the dot
 // moves toward the side winning the leg: a lot near the middle, tapering off for big
@@ -136,8 +143,10 @@ function barLabel(pick, st, withTeam = false) {
     : `<span class="num"><span class="sg">${lead > 0 ? '+' : '−'}</span>${Math.abs(lead)}</span>`;
 }
 
-function gameBar(pick, st) {
+function gameBar(pick, st, flip) {
   const [away, home] = pick.matchup.split(' @ ');
+  const ends = [[away, st.awayScore], [home, st.homeScore]];
+  const [[left, leftScore], [right, rightScore]] = flip ? ends.reverse() : ends;
   const final = st.state === 'post';
   let at, tone, from = 50;
   if (pick.type === 'total') {
@@ -146,10 +155,10 @@ function gameBar(pick, st) {
     at = Math.max(DOT_MIN, Math.min(DOT_MAX, (pts / pick.line) * LINE_AT));
     from = 0;
   } else {
-    const pickedHome = pick.team === home;
-    const lead = pickedHome ? st.homeScore - st.awayScore : st.awayScore - st.homeScore;
+    const pickedRight = pick.team === right;
+    const lead = pickedRight ? rightScore - leftScore : leftScore - rightScore;
     const margin = lead + (pick.type === 'spread' ? pick.line : 0); // 0: right on the line
-    at = 50 + (DOT_MAX - 50) * Math.tanh(margin / 14) * (pickedHome ? 1 : -1);
+    at = 50 + (DOT_MAX - 50) * Math.tanh(margin / 14) * (pickedRight ? 1 : -1);
     tone = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
   }
   const lost = (mine, theirs) => (final && mine < theirs ? 'lost' : '');
@@ -157,14 +166,14 @@ function gameBar(pick, st) {
   // finished leg needs no row under its bar.
   return `
     <div class="leg-game ${tone} ${final ? 'final' : ''}">
-      ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
+      ${teamLogo(left, 14)}<b class="gs-left ${lost(leftScore, rightScore)}">${leftScore}</b>
       <span class="gbar">
         <i class="gbar-fill" style="left:${Math.min(from, at)}%;width:${Math.abs(at - from)}%"></i>
         <i class="gbar-tick" style="left:${pick.type === 'total' ? LINE_AT : 50}%"></i>
         <i class="gbar-dot" style="left:${at}%"></i>
         ${final ? '' : `<small class="gbar-lbl" style="left:${at}%">${barLabel(pick, st)}</small>`}
       </span>
-      <b class="gs-home ${lost(st.homeScore, st.awayScore)}">${st.homeScore}</b>${teamLogo(home, 14)}
+      <b class="gs-right ${lost(rightScore, leftScore)}">${rightScore}</b>${teamLogo(right, 14)}
     </div>`;
 }
 
