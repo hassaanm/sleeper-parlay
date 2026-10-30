@@ -86,7 +86,9 @@ export function animateFaces(root, before) {
 
   for (const id of removed) rollOff(row, box, before.get(id), oldRightOf(id), offs.get(id));
   for (const [id, roll] of rolls) rollIn(after.get(id), roll, IMPACT_MS);
-  for (const [id, jump] of jumps) jumpTo(row, box, after.get(id), before.get(id), oldRightOf(id), jump, IMPACT_MS);
+  // The faces that sat to the right of `id` before this render, still in the row.
+  const oldRightAll = (id) => oldOrder.slice(oldOrder.indexOf(id) + 1).map((k) => after.get(k)).filter(Boolean);
+  for (const [id, jump] of jumps) jumpTo(box, after.get(id), before.get(id), oldRightAll(id), jump, IMPACT_MS);
   for (const id of newOrder) {
     if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
@@ -136,13 +138,14 @@ function jumpFor(distance) {
 }
 
 // A face jumping to a new spot: it crouches, launches, flies a real arc, and lands
-// with a thud. The real face takes off from its old place in the stack; at the top of
-// the arc, a copy waiting hidden in the new spot (so in its new place in the stack)
-// takes over and comes down. The copy's image is decoded up front, so the handover
-// can't blink; the two overlap for a frame.
-function jumpTo(row, box, el, old, oldRight, jump, delay) {
-  const to = el.getBoundingClientRect().left - box.left;
-  const dx = to - old.at.left;
+// with a thud. It's one element the whole way: already in its new place in the row,
+// it starts drawn at its old spot and travels there. Until the top of the jump it
+// keeps its old place in the stack by raising itself one level and the faces that
+// were to its right a level higher, so it's over the face to its left and under the
+// face to its right, whichever way it's going. At the top, clear of the row, those
+// overrides end, and it comes down in its new place.
+function jumpTo(box, el, old, oldRight, jump, delay) {
+  const dx = el.getBoundingClientRect().left - box.left - old.at.left;
   const total = jump.crouchMs + jump.airMs + jump.landMs;
   const crouchEnd = jump.crouchMs / total;
   const airEnd = (jump.crouchMs + jump.airMs) / total;
@@ -168,38 +171,14 @@ function jumpTo(row, box, el, old, oldRight, jump, delay) {
         : lerp(1 + jump.thud * 0.3, 1, easeInOut((w - 0.7) / 0.3));
     return { x: dx, ...squash(tall) };
   };
-  const apex = (crouchEnd + airEnd) / 2;
+  // Drawn relative to its new spot: it starts dx back, at the old one.
+  el.animate(frames((t) => ({ ...pose(t), x: pose(t).x - dx }), 0, 1, 60, JUMP_ORIGIN), { duration: total, delay, fill: 'backwards', easing: 'linear' });
 
-  const copy = el.cloneNode(true);
-  el.replaceWith(copy);
-  // Decode the copy's image now: it's hidden until the apex, and a browser may
-  // otherwise leave a hidden new image undecoded and draw it blank for a frame (Safari
-  // does), which shows as a blink mid-jump.
-  if (copy instanceof HTMLImageElement) {
-    copy.removeAttribute('loading');
-    copy.decode().catch(() => {});
-  }
-  // The real face, back in its old place in the stack, takes off.
-  for (const animation of el.getAnimations()) animation.cancel();
-  el.classList.add('face-drop');
-  el.setAttribute('data-transient', '');
-  Object.assign(el.style, { left: `${old.at.left}px`, top: `${old.at.top}px` });
-  row.insertBefore(el, oldRight);
-  // Both follow the same sampled path, so where they overlap at the handover they're
-  // pixel-identical. The real face's half ends on the sample at the apex and holds
-  // that pose until it's removed (without `forwards` it could flash back at its
-  // takeoff spot for a frame, a ghost trailing the jump).
-  const STEPS = 60;
-  const handoverStep = Math.ceil(apex * STEPS);
-  const handover = handoverStep / STEPS;
-  el.animate(frames(pose, 0, handover, handoverStep, JUMP_ORIGIN), { duration: total * handover, delay, fill: 'both', easing: 'linear' })
-    .finished.then(() => el.remove());
-
-  // The copy, in its new spot: hidden until the apex step, then down into its place.
-  copy.animate(
-    frames((t) => ({ ...pose(t), x: pose(t).x - dx, opacity: t >= handover - 1e-9 ? 1 : 0 }), 0, 1, STEPS, JUMP_ORIGIN),
-    { duration: total, delay, fill: 'backwards', easing: 'linear' },
-  );
+  // Its old place in the stack, held until the top of the jump.
+  const untilApex = delay + total * ((crouchEnd + airEnd) / 2);
+  const hold = (target, z) => target.animate([{ zIndex: z }, { zIndex: z }], { duration: untilApex });
+  hold(el, 1);
+  for (const face of oldRight) if (face !== el) hold(face, 2);
 }
 
 // A face whose pick changed but kept its spot jiggles in place as its sticker lands,
