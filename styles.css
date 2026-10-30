@@ -348,10 +348,21 @@ h1, h2 { letter-spacing: -0.02em; }
   mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
 }
 .strip-item {
-  flex: 0 0 36px; scroll-snap-align: center; display: grid; place-items: center;
-  font-size: 11px; font-weight: 700; color: var(--faint); font-variant-numeric: tabular-nums;
+  position: relative; flex: 0 0 36px; scroll-snap-align: center; display: grid; place-items: start center; padding-top: 3px;
+  font-size: 11px; font-weight: 700; line-height: 13px; color: var(--faint); font-variant-numeric: tabular-nums;
 }
 .strip-item.on { color: var(--text); font-size: 12px; }
+/* A small tick under each line, like a dial; the selected line's is green. */
+.strip-item::after {
+  content: ''; position: absolute; left: 50%; bottom: 3px; width: 1.5px; height: 3px; margin-left: -0.75px;
+  border-radius: 1px; background: #4a5683;
+}
+.strip-item.on::after { height: 4px; background: var(--accent); }
+/* A spread's sign hangs off the left of its number. */
+.strip-item .num { position: relative; }
+.strip-item .sg { position: absolute; right: 100%; }
+/* Faded like the cells above and below it when neither can be picked. */
+.strip.dim { opacity: 0.35; }
 .strip-item:not(.on) { cursor: pointer; }
 
 .locked-line { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }

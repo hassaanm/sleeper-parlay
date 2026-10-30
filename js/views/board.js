@@ -201,7 +201,9 @@ function renderGame(game) {
     const index = rungIndex(game, c.type);
     const [top, bottom] = ladderSides(game, c.type, index);
     html += cell(top, c.type, `2/${c.col}`, `${key}:top`) + cell(bottom, c.type, `4/${c.col}`, `${key}:bottom`);
-    html += strip(game, c.type, key, index, `3/${c.col}`);
+    // A column nobody here can pick from fades its strip as much as its cells.
+    const open = (opt) => opt && (picks()[state.me]?.optKey === opt.key || !pickProblem(opt));
+    html += strip(game, c.type, key, index, `3/${c.col}`, !open(top) && !open(bottom));
   }
 
   return `
@@ -225,16 +227,16 @@ function winBar(game) {
     </div>`;
 }
 
-// Horizontal strip of every line, between the two team rows. Scroll it and the
-// buttons above and below follow. Spread values read from the away (top) team's side.
-function strip(game, type, key, index, area) {
+// Horizontal strip of every line, between the two team rows, with a tick under each
+// (styles.css). Scroll it and the buttons above and below follow. Spread values read
+// from the away (top) team's side; their sign hangs off the left, so the tick sits under
+// the number itself.
+function strip(game, type, key, index, area, dim) {
   const ladder = game[type];
+  const label = (r) => (type === 'spread' ? fmtLine(r.away.line).replace(/^([+−])(.*)$/, '<span class="num"><span class="sg">$1</span>$2</span>') : r.line);
   return `
-    <div class="strip" data-ladder="${esc(key)}" data-key="${esc(key)}" style="grid-area:${area}">
-      ${ladder.rungs.map((r, i) => {
-        const cls = ['strip-item', i === index && 'on'].filter(Boolean).join(' ');
-        return `<div class="${cls}">${type === 'spread' ? fmtLine(r.away.line) : r.line}</div>`;
-      }).join('')}
+    <div class="strip ${dim ? 'dim' : ''}" data-ladder="${esc(key)}" data-key="${esc(key)}" style="grid-area:${area}">
+      ${ladder.rungs.map((r, i) => `<div class="strip-item ${i === index ? 'on' : ''}">${label(r)}</div>`).join('')}
     </div>`;
 }
 
