@@ -903,7 +903,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .ll-when, .ll-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
 .ll-side.right .ll-who { margin-left: auto; }
 /* A name too long for the room left beside the down shrinks (app.js fitNames). */
-.ll-who.tight { font-size: 10px; }
+.ll-who.tight { font-size: 10.5px; }
 .ll-dot { color: #b9c2dd; font-weight: 700; }
 .leg-line .dd { display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; font-weight: 600; color: #b9c2dd; }
 .leg-line .tri { font-style: normal; font-size: 7.5px; color: var(--text); }
@@ -918,7 +918,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar { position: relative; height: 26px; margin: 0 2px; }
 
 .gbar i { position: absolute; display: block; }
-.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
+.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: rgba(4, 7, 18, 0.55); } /* darkens whatever's under it, so it reads the same on plain, green, and red rows */
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
 .gbar-dot { top: 2.5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1; }
@@ -934,8 +934,8 @@ h1, h2 { letter-spacing: -0.02em; }
    as much room under the bar as above the pick. */
 .leg.tracked.leg-final { padding-bottom: 8px; row-gap: 1px; }
 /* The last leg sits right above the tear line, which reads as more room; give it less. */
-.leg.tracked:last-child { padding-bottom: 1px; }
-.leg.tracked.leg-final:last-child { padding-bottom: 4px; }
+.leg.tracked:last-child { padding-bottom: 0; margin-bottom: -2px; }
+.leg.tracked.leg-final:last-child { padding-bottom: 2px; margin-bottom: 0; }
 .leg-game.final { margin-top: 3px; }
 .ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ll-result.hit { color: var(--accent); }
