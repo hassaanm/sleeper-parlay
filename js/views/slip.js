@@ -129,18 +129,20 @@ function parlayLegs() {
 const LINE_AT = 88; // a total's line, in % along the bar
 const DOT_MIN = 6;
 const DOT_MAX = 94;
-// What the bar's dot stands for: the running total, or the picked team's lead ("+3",
-// "−4", "Tie"); with the team ("ARI +34") when it's shown away from the bar, on a
-// finished leg's middle line. The sign hangs off the number's left, so the number
+// What the bar's dot stands for: the running total, the picked team's lead ("+3", "−4",
+// "Tie"), or a spread's cushion over its line ("+8.5"). Away from the bar, on a finished
+// leg's middle line, it's the final lead with the team ("ARI +34"). The sign hangs off the number's left, so the number
 // itself sits under the dot.
 function barLabel(pick, st, withTeam = false) {
   if (pick.type === 'total') return `${st.awayScore + st.homeScore}${withTeam ? ' pts' : ''}`;
   const [away] = pick.matchup.split(' @ ');
   const lead = pick.team === away ? st.awayScore - st.homeScore : st.homeScore - st.awayScore;
-  if (lead === 0) return 'Tie';
-  return withTeam
-    ? `${esc(pick.team)} ${fmtLine(lead)}`
-    : `<span class="num"><span class="sg">${lead > 0 ? '+' : '−'}</span>${Math.abs(lead)}</span>`;
+  if (withTeam) return lead === 0 ? 'Tie' : `${esc(pick.team)} ${fmtLine(lead)}`;
+  // On the bar, a spread shows the cushion over the line: DEN +1.5 up by 7 is +8.5,
+  // down by 5 is −3.5.
+  const margin = lead + (pick.type === 'spread' ? pick.line : 0);
+  if (margin === 0) return pick.type === 'spread' ? 'Push' : 'Tie';
+  return `<span class="num"><span class="sg">${margin > 0 ? '+' : '−'}</span>${Math.abs(margin)}</span>`;
 }
 
 function gameBar(pick, st, flip) {
