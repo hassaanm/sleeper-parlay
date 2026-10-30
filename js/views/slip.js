@@ -65,7 +65,7 @@ function parlayLegs() {
     const { team, away, home, vs } = pickTeams(l.pick);
     const logo = team
       ? teamLogo(team, 28)
-      : `<span class="logo-pair">${teamLogo(away, 18)}${teamLogo(home, 18)}</span>`;
+      : `<span class="logo-pair">${teamLogo(away, 20)}${teamLogo(home, 20)}</span>`;
     const isMine = l.member.id === state.me;
     const st = l.status;
     const live = st?.state === 'in';
