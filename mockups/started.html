@@ -16,12 +16,12 @@
      game card is right above it; the same 20px above and below a band. ---- */
   .mock .day-title { margin: 8px 4px 8px; }
   .mock .game + .day-title { margin-top: 24px; }
-  .band { margin: 24px -10px 20px; padding: 9px 14px; background: #141b33; border-top: 1px solid #2d3963; border-bottom: 1px solid #2d3963;
+  .band { margin: 20px -10px 16px; padding: 9px 14px; background: #141b33; border-top: 1px solid #2d3963; border-bottom: 1px solid #2d3963;
     display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--text); }
   .band small { font-weight: 600; letter-spacing: 0.04em; color: var(--muted); }
   .band.live span { color: #ff8f9b; display: inline-flex; align-items: center; gap: 6px; }
   .band.live span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #ff5a6e; animation: blink 1.4s ease-in-out infinite; }
-  .band + .day-title { margin-top: 20px; } /* 24px to the capitals, same as above the band */
+  .band + .day-title { margin-top: 16px; } /* 20px to the capitals, same as above the band */
 
   /* ---- Live and final cards: same card, same grid ---- */
   .game.live { border-color: rgba(255, 107, 125, 0.4); }
@@ -34,18 +34,19 @@
   /* Scored team: abbr small under the logo (where the record sits); the score where the
      abbr was, the ball beside it while they have it, timeouts left under it. */
   .g-team.scored .g-abbr-s { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9.5px; font-weight: 700; color: var(--muted); line-height: 1; }
-  .g-team.scored .score-line { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 4px; }
+  .g-team.scored .score-line { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 7px; }
   .g-team.scored .ball { font-size: 12px; line-height: 1; }
   .g-team.scored .g-score { font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
   .g-team.scored .tos { grid-column: 2; grid-row: 2; display: flex; gap: 3px; padding-left: 3px; }
   .tos i { width: 5px; height: 5px; border-radius: 50%; background: #c9d1ea; }
   .tos i.used { background: #2b3557; }
-  /* Final: logo and score side by side at the same height; the logo names the team. */
-  .game.final .g-team.scored { grid-template-columns: 30px 1fr; grid-template-rows: auto; column-gap: 8px; }
-  .game.final .g-team.scored .logo { width: 30px !important; height: 30px !important; grid-row: 1; }
-  .game.final .g-team.scored .score-line { grid-row: 1; }
+  /* Final: abbr under the logo, the score beside both, about as tall as the logo. */
+  .game.final .g-team.scored { column-gap: 7px; }
+  .game.final .g-team.scored .score-line { grid-row: 1 / 3; }
   .game.final .g-team.scored .g-score { font-size: 30px; letter-spacing: -0.02em; }
-  .game.final .g-team.scored .g-abbr-s { display: none; }
+  /* What decided the spread and total, in the row between the teams. */
+  .settle { display: flex; align-items: center; gap: 5px; height: 24px; padding-left: 3px; font-size: 11.5px; font-weight: 700; color: #b9c2dd; white-space: nowrap; }
+  .settle b { color: var(--text); }
   .g-team.lost { opacity: 0.45; }
 
   /* Where the ball is, in the row between the teams: the arrow points at the team with it. */
@@ -98,7 +99,7 @@ const ball = '<span class="ball" aria-label="Has the ball">🏈</span>';
 const sign = (s) => s.replace(/^([+−])/, '<span class="sign">$1</span>');
 const cell = (area, main, sub = '', cls = '', extra = '') => `<button class="cell ${cls}" style="grid-area:${area}"><span class="cell-main">${sign(main)}</span>${sub ? `<span class="cell-sub">${sign(sub)}</span>` : ''}${extra}</button>`;
 const heads = '<div class="g-head" style="grid-area:1/3">Money</div><div class="g-head" style="grid-area:1/4">Spread</div><div class="g-head" style="grid-area:1/5">Total</div>';
-const bar = (away, c1, c2) => `<div class="win-bar" style="grid-area:2/1/5/2"><span style="flex-basis:${away}%;background:${c1}"></span><span style="flex-basis:${100 - away}%;background:${c2}"></span></div>`;
+const bar = (away, c1, c2) => `<div class="win-bar" style="grid-area:2/1/5/2">${away > 0 ? `<span style="flex-basis:${away}%;background:${c1}"></span>` : ''}${away < 100 ? `<span style="flex-basis:${100 - away}%;background:${c2}"></span>` : ''}</div>`;
 const dots = (s) => [...s].map((r) => `<i class="${r}"></i>`).join('');
 const team = (t, row, record, form) => `<button class="g-team" style="grid-area:${row}/2">${logo(t)}<strong class="g-abbr">${t}</strong><small class="g-record">${record}</small><span class="dots">${dots(form)}</span></button>`;
 const scored = (t, row, score, { lost, hasBall, timeouts } = {}) => `
@@ -130,7 +131,8 @@ const live = (away, home, as, hs, { clock, tvb, ballTop, drive, last, redzone, t
 
 // Final, with kickoff prices: what each line was at kickoff and what won.
 const final = card('final', `<span class="meta-time">Thu 8:15 PM</span>${prime}${matchup}`,
-  bar(37, '#0085CA', '#203731') + scored('CAR', 2, 19, { lost: true }) + scored('GB', 4, 27)
+  bar(0, '#0085CA', '#203731') + scored('CAR', 2, 19, { lost: true }) + scored('GB', 4, 27)
+  + '<div class="settle" style="grid-area:3/2/4/6">GB by <b>8</b> · <b>46</b> total points</div>'
   + cell('2/3', '37%', '', 'frozen cell-ml lost') + cell('4/3', '65%', '', 'frozen cell-ml won', face(A1, -12))
   + cell('2/4', '+3.5', '49%', 'frozen lost') + cell('4/4', '−3.5', '52%', 'frozen won')
   + cell('2/5', 'O 44.5', '50%', 'frozen won') + cell('4/5', 'U 44.5', '51%', 'frozen lost'));
