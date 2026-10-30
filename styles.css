@@ -30,11 +30,7 @@
 html, body { margin: 0; }
 
 body {
-  background:
-    radial-gradient(900px 420px at 0% -10%, rgba(0, 214, 168, 0.09), transparent 60%),
-    radial-gradient(800px 420px at 110% 0%, rgba(122, 92, 255, 0.11), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   color: var(--text);
   font: 15px/1.4 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -42,6 +38,14 @@ body {
   min-height: 100dvh;
 }
 body.no-scroll { overflow: hidden; }
+/* The background glow, on its own fixed layer: the browser composites it once instead
+   of repainting a fixed background on every scroll frame. */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(900px 420px at 0% -10%, rgba(0, 214, 168, 0.09), transparent 60%),
+    radial-gradient(800px 420px at 110% 0%, rgba(122, 92, 255, 0.11), transparent 60%);
+}
 
 button { font: inherit; color: inherit; }
 a { color: inherit; text-decoration: none; }
@@ -148,12 +152,18 @@ h1, h2 { letter-spacing: -0.02em; }
 .me-chip .avatar { box-shadow: 0 0 0 1px var(--line); }
 
 .subbar {
-  position: sticky; top: var(--topbar-h); z-index: 25; height: var(--subbar-h);
+  height: var(--subbar-h);
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 0 max(14px, calc((100vw - 1160px) / 2));
-  background: rgba(11, 16, 32, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line-soft);
 }
+/* On the board, the top bar and the day chips stick as one block under a single
+   frosted background (one blur to composite while scrolling, not two). */
+.chrome {
+  position: sticky; top: 0; z-index: 30;
+  background: rgba(11, 16, 32, 0.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.chrome > .topbar { position: static; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .day-chips { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-left: -9px; }
 .day-chips::-webkit-scrollbar { display: none; }
 .day-chip {
@@ -608,7 +618,16 @@ h1, h2 { letter-spacing: -0.02em; }
   padding: 5px 14px; min-height: 44px;
 }
 .leg + .leg { border-top: 1px dashed var(--line); }
-.leg-mine { background: var(--accent-soft); }
+/* Row tints stop at the divider above, so a tinted row never hides it. */
+.leg { background-clip: padding-box; }
+.leg-mine { background-color: var(--accent-soft); }
+/* Legs on the same game: a short, faint divider starting past the logos, instead of a
+   full dashed line, so they read as one group. */
+.leg.same-game { border-top-color: transparent; }
+.leg.same-game::before {
+  content: ''; position: absolute; top: -1px; left: 56px; right: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
 .leg-mine .leg-face { box-shadow: 0 0 0 2px #0f2b30; }
@@ -700,7 +719,7 @@ h1, h2 { letter-spacing: -0.02em; }
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .round-btn:active { background: rgba(255, 255, 255, 0.14); color: var(--text); }
-.slip-chev { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
+.slip-chev { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); backdrop-filter: none; -webkit-backdrop-filter: none; } /* the slip's own shadow filter flattens a blur here anyway */
 .slip-wrap.open .slip-chev { transform: rotate(180deg); }
 .my-leg.empty { padding: 4px 10px; background: none; border: 1px dashed var(--line); color: var(--muted); font-weight: 600; }
 
@@ -721,7 +740,7 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .slip-wrap:not(.open) .slip .sheet-body, .slip-wrap:not(.open) .slip > .parlay-foot { opacity: 0.3; }
 .slip > .parlay-foot { margin: 0; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); background: transparent; }
-.slip .leg + .leg, .ticket .leg + .leg { border-top-color: #2d3963; }
+.slip .leg + .leg:not(.same-game), .ticket .leg + .leg:not(.same-game) { border-top-color: #2d3963; }
 /* Tracking (parlay underway): tally in the header, score line under each pick, chance
    now vs where it started, tinted rows once a leg is decided. */
 .tally { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -740,10 +759,10 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg-from { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .leg-from.up { color: var(--accent); }
 .leg-from.down { color: var(--bad); }
-.leg-you { background: rgba(255, 255, 255, 0.045); }
+.leg-you { background-color: rgba(255, 255, 255, 0.045); }
 .you-tag { font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); color: var(--text); vertical-align: 2px; }
-.leg-final.hit { background: rgba(0, 214, 168, 0.07); }
-.leg-final.miss { background: rgba(255, 107, 125, 0.07); }
+.leg-final.hit { background-color: rgba(0, 214, 168, 0.07); }
+.leg-final.miss { background-color: rgba(255, 107, 125, 0.07); }
 .parlay-foot dd small { font-size: 11px; font-weight: 600; margin-left: 6px; }
 .parlay-foot dd small.up { color: var(--accent); }
 .parlay-foot dd small.down { color: var(--bad); }

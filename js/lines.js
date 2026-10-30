@@ -54,8 +54,8 @@ function totalOptions(game, market) {
   const line = Number(market.line);
   return {
     line,
-    over: option(game, 'total', market, 'yes', `Over ${line}`, { line }),
-    under: option(game, 'total', market, 'no', `Under ${line}`, { line }),
+    over: option(game, 'total', market, 'yes', `Over ${line}`, { line, side: 'over' }),
+    under: option(game, 'total', market, 'no', `Under ${line}`, { line, side: 'under' }),
   };
 }
 

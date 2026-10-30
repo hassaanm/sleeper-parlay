@@ -1,7 +1,7 @@
 // Run with: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clashFor, gradePick, legLockedReason, pickBlockedReason, pickTeams, slipLocked } from '../js/rules.js';
+import { clashFor, gradePick, legLockedReason, pickBlockedReason, pickFrom, pickTeams, slipLocked } from '../js/rules.js';
 
 const HOUR = 3_600_000;
 const now = Date.UTC(2026, 10, 1, 17); // Sun 12:00 PM CT
@@ -57,4 +57,16 @@ test('pickTeams describes the matchup from the backed team', () => {
   assert.deepEqual(pickTeams(pick()), { team: 'KC', away: 'KC', home: 'DEN', vs: '@ DEN' });
   assert.equal(pickTeams(pick({ label: 'DEN +3.5' })).vs, 'vs KC');
   assert.equal(pickTeams(pick({ type: 'total', label: 'Over 44.5' })).team, null);
+});
+
+test('legs saved with team, line, and side grade from those fields', () => {
+  const opt = { key: 'm2:no', gameId: 'g1', type: 'spread', label: 'DEN +3.5', team: 'DEN', line: 3.5, price: 48, fair: 0.49 };
+  const saved = pickFrom(opt, { matchup: 'KC @ DEN', start: now + HOUR }, now);
+  assert.deepEqual([saved.team, saved.line, saved.side], ['DEN', 3.5, undefined]);
+  assert.equal(gradePick(saved, 23, 20), 'hit');
+  // The fields win over the label.
+  assert.equal(gradePick({ ...saved, label: 'garbled' }, 23, 20), 'hit');
+  const over = pickFrom({ key: 'm3:yes', gameId: 'g1', type: 'total', label: 'Over 44.5', line: 44.5, side: 'over', price: 50 }, { matchup: 'KC @ DEN', start: now }, now);
+  assert.equal(gradePick({ ...over, label: '?' }, 24, 21), 'hit');
+  assert.equal(pickTeams({ ...saved, label: '?' }).vs, 'vs KC');
 });

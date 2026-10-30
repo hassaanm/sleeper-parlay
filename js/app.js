@@ -2,9 +2,9 @@
 import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
-import { buildLeague } from './research.js';
+import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, weekWindowAt } from './lines.js';
-import { clashFor, gameKey, legLockedReason, pickBlockedReason, slipLocked } from './rules.js';
+import { clashFor, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
 import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { DEMO, basePath, isTracking, ladderSides, legsWithLive, memberById, picks, rungIndex, safeGet, safeSet, state } from './state.js';
@@ -89,14 +89,11 @@ async function seedDemoPicks() {
       const opt = shuffle(open).find((o) => !clashFor(slip, member.id, o));
       if (!opt) break;
       const game = state.games.find((g) => g.id === opt.gameId);
-      slip.picks[member.id] = {
-        optKey: opt.key, gameId: opt.gameId, type: opt.type, label: opt.label, matchup: game.matchup,
-        price: opt.price, fair: opt.fair, start: game.start, pickedAt: Date.now(),
-      };
+      slip.picks[member.id] = pickFrom(opt, game);
       added++;
     }
   });
-  toast(`Demo: added ${added} league-mate picks`, 'good');
+  if (added) toast(`Demo: added ${added} league-mate picks`, 'good');
 }
 
 async function startSlip() {
@@ -112,6 +109,10 @@ async function startSlip() {
     if (!firstLoad && slip && slip.rev === state.slip?.rev) return; // the echo of our own save
     const weekChanged = state.slip && slip && state.slip.weekStart !== slip.weekStart;
     const legsBefore = Object.keys(state.slip?.picks ?? {}).length;
+    // A new or changed pick shows on its line, even in a column you'd swiped elsewhere.
+    for (const [uid, pick] of Object.entries(slip?.picks ?? {})) {
+      if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`);
+    }
     state.slip = slip;
     if (!firstLoad && Object.keys(slip?.picks ?? {}).length > legsBefore) setTimeout(bumpFaces, 50);
     if (firstLoad) state.me = rememberedMe(slip);
@@ -155,7 +156,8 @@ async function loadSports() {
     const season = Number(state.slip.season);
     const week = Number(state.slip.week);
     const [games, results] = await Promise.all([sports.loadWeek(season, week), sports.loadSeasonResults(season, week)]);
-    state.sports = { games, teams: sports.summarizeTeams(results) };
+    const league = buildLeague(results);
+    state.sports = { games, league, teams: league.teams };
     render();
     openIfTracking();
   } catch {
@@ -245,17 +247,7 @@ async function choose(key) {
         const who = slip.members.find((m) => m.id === clash.userId)?.name ?? 'Someone';
         throw new Error(`${who} just took ${clash.pick.label}. Pick another leg.`);
       }
-      slip.picks[me] = {
-        optKey: key,
-        gameId: opt.gameId,
-        type: opt.type,
-        label: opt.label,
-        matchup: game.matchup,
-        price: opt.price,
-        fair: opt.fair,
-        start: game.start,
-        pickedAt: Date.now(),
-      };
+      slip.picks[me] = pickFrom(opt, game);
     });
     navigator.vibrate?.(12);
     state.justPicked = key;
@@ -480,8 +472,7 @@ function renderSlipPage() {
 
   return `
     ${renderActingBar()}
-    ${renderTopbar(me)}
-    ${renderSubbar()}
+    <div class="chrome">${renderTopbar(me)}${renderSubbar()}</div>
     <div class="layout">
       <main class="games">${renderLockBar()}${renderGames()}</main>
       <aside class="parlay-side">${renderParlayCard()}</aside>
@@ -585,11 +576,12 @@ async function loadResearch() {
   r.loading = true;
   r.error = null;
   try {
-    const [results, stats] = await Promise.all([
-      sports.loadSeasonResults(Number(state.slip.season), Number(state.slip.week)),
+    // The board already built the league from this season's results; add the stats.
+    const [league, stats] = await Promise.all([
+      state.sports?.league ?? sports.loadSeasonResults(Number(state.slip.season), Number(state.slip.week)).then(buildLeague),
       api.fetchSeasonStats(state.slip.season),
     ]);
-    r.league = buildLeague(results, stats);
+    r.league = addStats(league, stats);
   } catch (e) {
     r.error = e.message;
   }

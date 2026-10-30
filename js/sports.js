@@ -2,7 +2,6 @@
 // Sleeper app uses). One request per week of scores; everything else is derived.
 import { getJson } from './api.js';
 import { gameKey } from './rules.js';
-import { DIVISIONS, divisionOf } from './teams.js';
 
 const BASE = 'https://api.sleeper.com';
 
@@ -96,58 +95,6 @@ export async function loadSeasonResults(season, week) {
   return weeks.flat().map(toGame).filter((g) => g.status.state === 'post').map((g) => ({
     week: g.week, home: g.home, away: g.away, homeScore: g.status.homeScore, awayScore: g.status.awayScore,
   }));
-}
-
-/**
- * Per-team summary from this season's results: record, home/road, last five, streak,
- * and division standing.
- */
-export function summarizeTeams(results) {
-  const teams = new Map();
-  const team = (abbr) => {
-    if (!teams.has(abbr)) teams.set(abbr, { abbr, games: [] });
-    return teams.get(abbr);
-  };
-  for (const g of results) {
-    team(g.home).games.push({ week: g.week, opp: g.away, home: true, pf: g.homeScore, pa: g.awayScore });
-    team(g.away).games.push({ week: g.week, opp: g.home, home: false, pf: g.awayScore, pa: g.homeScore });
-  }
-  const rec = (games) => {
-    const w = games.filter((g) => g.pf > g.pa).length;
-    const l = games.filter((g) => g.pf < g.pa).length;
-    const t = games.length - w - l;
-    return { w, l, t, text: `${w}-${l}${t ? `-${t}` : ''}` };
-  };
-  for (const t of teams.values()) {
-    t.games.sort((a, b) => a.week - b.week);
-    const all = rec(t.games);
-    t.wins = all.w;
-    t.losses = all.l;
-    t.record = all.text;
-    t.homeRecord = rec(t.games.filter((g) => g.home)).text;
-    t.roadRecord = rec(t.games.filter((g) => !g.home)).text;
-    t.lastFive = t.games.slice(-5).reverse().map((g) => ({ won: g.pf > g.pa, tie: g.pf === g.pa, score: `${g.pf}-${g.pa}`, opp: g.opp, home: g.home, week: g.week }));
-    const last = t.games.at(-1);
-    if (last) {
-      const kind = last.pf > last.pa ? 'W' : last.pf < last.pa ? 'L' : 'T';
-      let n = 0;
-      for (let i = t.games.length - 1; i >= 0; i--) {
-        const g = t.games[i];
-        if ((g.pf > g.pa ? 'W' : g.pf < g.pa ? 'L' : 'T') !== kind) break;
-        n++;
-      }
-      t.streak = `${kind}${n}`;
-    }
-    t.pointDiff = t.games.reduce((sum, g) => sum + g.pf - g.pa, 0);
-    t.division = divisionOf(t.abbr);
-  }
-  // Division rank: win percentage, then point differential.
-  for (const [division, members] of Object.entries(DIVISIONS)) {
-    const ranked = members.map((a) => teams.get(a)).filter(Boolean)
-      .sort((a, b) => b.wins / Math.max(1, b.wins + b.losses) - a.wins / Math.max(1, a.wins + a.losses) || b.pointDiff - a.pointDiff);
-    ranked.forEach((t, i) => (t.standing = `${['1st', '2nd', '3rd', '4th'][i]} in ${division}`));
-  }
-  return teams;
 }
 
 /**

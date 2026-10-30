@@ -21,9 +21,9 @@ export const state = {
   me: null,
   switchingUser: false,
   rungs: new Map(), // "<gameId>:<spread|total>" -> selected line index
-  sports: null, // { games, teams }: this week's games (sports.loadWeek) and team summaries
+  sports: null, // { games, league, teams }: this week's games (sports.loadWeek) and the season so far (research.buildLeague)
   pages: [], // research pages, a stack: { kind: 'team', abbr } or { kind: 'matchup', gameId }
-  research: { league: null, loading: false, error: null }, // see research.js
+  research: { league: null, loading: false, error: null }, // the season plus Sleeper's stats (research.addStats)
   pastMeetings: new Map(), // "<away>@<home>" -> meetings from the last three seasons, or 'loading'
   resetPageScroll: false,
   seenStickers: new Map(), // sticker id -> when it first showed, so only new ones get slapped on
@@ -92,8 +92,11 @@ export function legsWithLive() {
         liveFair: status?.state === 'in' && live?.available ? live.fair : null,
       };
     })
-    .sort((a, b) => a.pick.start - b.pick.start);
+    // By kickoff, then by game (in board order), so legs on the same game sit together.
+    .sort((a, b) => a.pick.start - b.pick.start || a.pick.matchup.localeCompare(b.pick.matchup)
+      || TYPE_ORDER.indexOf(a.pick.type) - TYPE_ORDER.indexOf(b.pick.type));
 }
+const TYPE_ORDER = ['ml', 'spread', 'total'];
 
 export const ladderKey = (game, type) => `${game.id}:${type}`;
 const rungHas = (rung, key) => [rung.away, rung.home, rung.over, rung.under].some((o) => o?.key === key);

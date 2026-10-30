@@ -59,7 +59,9 @@ function parlayLegs() {
       </div>`;
   }
   const tracking = isTracking(legs);
-  return `<ol class="legs ${tracking ? 'tracking' : ''}">${legs.map((l) => {
+  return `<ol class="legs ${tracking ? 'tracking' : ''}">${legs.map((l, i) => {
+    // A second leg on the same game hangs under the first, with a lighter divider.
+    const sameGame = i > 0 && legs[i - 1].pick.gameId === l.pick.gameId ? 'same-game' : '';
     const { team, away, home, vs } = pickTeams(l.pick);
     const logo = team
       ? teamLogo(team, 28)
@@ -80,7 +82,7 @@ function parlayLegs() {
       const now = final ? (l.grade === 'miss' ? 0 : 100) : live && l.livePrice ? l.livePrice : l.price;
       const delta = now - l.pick.price;
       return `
-        <li class="leg ${isMine ? 'leg-you' : ''} ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
+        <li class="leg ${sameGame} ${isMine ? 'leg-you' : ''} ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
           <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
           <div class="leg-body">
             <span class="leg-pick">${esc(pretty(l.pick.label))}${isMine ? ' <em class="you-tag">You</em>' : ''}</span>
@@ -96,7 +98,7 @@ function parlayLegs() {
 
     const sub = `${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}`;
     return `
-      <li class="leg ${isMine ? 'leg-mine' : ''}" data-key="${esc(l.member.id)}">
+      <li class="leg ${sameGame} ${isMine ? 'leg-mine' : ''}" data-key="${esc(l.member.id)}">
         <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
         <div class="leg-body">
           <span class="leg-pick">${esc(pretty(l.pick.label))}</span>

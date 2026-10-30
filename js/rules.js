@@ -38,19 +38,47 @@ export function clashFor(slip, userId, opt) {
   return null;
 }
 
+// A saved leg, from a line option and its game. The team, line, and side are stored as
+// data so grading never has to read them back out of the label.
+export function pickFrom(opt, game, now = Date.now()) {
+  return {
+    optKey: opt.key,
+    gameId: opt.gameId,
+    type: opt.type,
+    label: opt.label,
+    matchup: game.matchup,
+    ...(opt.team ? { team: opt.team } : {}),
+    ...(opt.line != null ? { line: opt.line } : {}),
+    ...(opt.side ? { side: opt.side } : {}),
+    price: opt.price,
+    fair: opt.fair,
+    start: game.start,
+    pickedAt: now,
+  };
+}
+
+// What a leg backs: { team, line, side }. Legs saved before those fields existed are
+// read from the label ("JAX -7.5", "Over 45.5", "KC ML").
+function legTerms(pick) {
+  const [first, rest] = pick.label.split(' ');
+  if (pick.type === 'total') {
+    return { team: null, line: pick.line ?? Number(rest), side: pick.side ?? (first === 'Over' ? 'over' : 'under') };
+  }
+  const line = pick.type === 'spread' ? pick.line ?? Number(String(rest).replace('−', '-')) : 0;
+  return { team: pick.team ?? first, line, side: null };
+}
+
 // Grade a pick against a score: 'hit', 'miss', or 'push'. Used for finals, and for
 // "covering right now" while a game is live.
 export function gradePick(pick, awayScore, homeScore) {
   const [away] = pick.matchup.split(' @ ');
-  const [first, rest] = pick.label.split(' ');
+  const { team, line, side } = legTerms(pick);
   let margin;
   if (pick.type === 'total') {
-    const line = Number(rest);
-    margin = first === 'Over' ? awayScore + homeScore - line : line - (awayScore + homeScore);
+    margin = side === 'over' ? awayScore + homeScore - line : line - (awayScore + homeScore);
   } else {
-    const mine = first === away ? awayScore : homeScore;
-    const theirs = first === away ? homeScore : awayScore;
-    const line = pick.type === 'spread' ? Number(String(rest).replace('−', '-')) : 0;
+    const mine = team === away ? awayScore : homeScore;
+    const theirs = team === away ? homeScore : awayScore;
     margin = mine + line - theirs;
   }
   return margin > 0 ? 'hit' : margin < 0 ? 'miss' : 'push';
@@ -60,7 +88,7 @@ export function gradePick(pick, awayScore, homeScore) {
 export function pickTeams(pick) {
   const [away, home] = pick.matchup.split(' @ ');
   if (pick.type === 'total') return { team: null, away, home, vs: `${away} @ ${home}` };
-  const team = pick.label.split(' ')[0];
+  const { team } = legTerms(pick);
   return { team, away, home, vs: team === away ? `@ ${home}` : `vs ${away}` };
 }
 

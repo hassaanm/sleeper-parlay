@@ -1,37 +1,79 @@
-// Turns a season of results plus Sleeper stats into per-team profiles: record, schedule,
-// per-game numbers, league ranks, and starters. Also finds common opponents and
-// who-beat-whom chains between two teams.
+// Turns a season of results into per-team profiles (record, splits, form, standing),
+// then adds Sleeper's season stats (per-game numbers, league ranks, starters) when a
+// research page needs them. Also finds common opponents and who-beat-whom chains
+// between two teams.
+import { DIVISIONS, divisionOf } from './teams.js';
 
 const per = (total, games) => (games ? total / games : 0);
+const resultOf = (pf, pa) => (pf > pa ? 'W' : pf < pa ? 'L' : 'T');
+
+// "W-L" or "W-L-T".
+export function recordOf(games) {
+  const w = games.filter((g) => g.result === 'W').length;
+  const l = games.filter((g) => g.result === 'L').length;
+  const t = games.length - w - l;
+  return `${w}-${l}${t ? `-${t}` : ''}`;
+}
 
 /**
- * results: [{ week, home, away, homeScore, awayScore }]
- * stats: { offense: Sleeper player rows, defense: Sleeper DEF rows }
+ * Every team's season from its results: [{ week, home, away, homeScore, awayScore }].
+ * Each team gets its games (oldest first), record, home and road records, last five,
+ * streak, points, and division standing.
  */
-export function buildLeague(results, stats) {
+export function buildLeague(results) {
   const teams = new Map();
   const team = (abbr) => {
-    if (!teams.has(abbr)) {
-      teams.set(abbr, { abbr, games: [], wins: 0, losses: 0, ties: 0, pointsFor: 0, pointsAgainst: 0, passYd: 0, rushYd: 0, players: [] });
-    }
+    if (!teams.has(abbr)) teams.set(abbr, { abbr, games: [] });
     return teams.get(abbr);
   };
-
   for (const g of results) {
     for (const [me, opp, pf, pa, home] of [
       [g.home, g.away, g.homeScore, g.awayScore, true],
       [g.away, g.home, g.awayScore, g.homeScore, false],
     ]) {
-      const t = team(me);
-      const result = pf > pa ? 'W' : pf < pa ? 'L' : 'T';
-      t.games.push({ week: g.week, opp, home, pf, pa, result });
-      t.pointsFor += pf;
-      t.pointsAgainst += pa;
-      if (result === 'W') t.wins++;
-      else if (result === 'L') t.losses++;
-      else t.ties++;
+      team(me).games.push({ week: g.week, opp, home, pf, pa, result: resultOf(pf, pa) });
     }
   }
+
+  for (const t of teams.values()) {
+    t.games.sort((a, b) => a.week - b.week);
+    t.gp = t.games.length;
+    t.wins = t.games.filter((g) => g.result === 'W').length;
+    t.losses = t.games.filter((g) => g.result === 'L').length;
+    t.ties = t.gp - t.wins - t.losses;
+    t.record = recordOf(t.games);
+    t.homeRecord = recordOf(t.games.filter((g) => g.home));
+    t.roadRecord = recordOf(t.games.filter((g) => !g.home));
+    t.lastFive = t.games.slice(-5);
+    const last = t.games.at(-1);
+    if (last) {
+      const run = t.games.length - 1 - t.games.findLastIndex((g) => g.result !== last.result);
+      t.streak = `${last.result}${run}`;
+    }
+    t.pointsFor = t.games.reduce((sum, g) => sum + g.pf, 0);
+    t.pointsAgainst = t.games.reduce((sum, g) => sum + g.pa, 0);
+    t.pointDiff = t.pointsFor - t.pointsAgainst;
+    t.division = divisionOf(t.abbr);
+  }
+
+  // Division rank: win percentage, then point differential.
+  for (const [division, members] of Object.entries(DIVISIONS)) {
+    const pct = (t) => t.wins / Math.max(1, t.wins + t.losses);
+    const ranked = members.map((a) => teams.get(a)).filter(Boolean).sort((a, b) => pct(b) - pct(a) || b.pointDiff - a.pointDiff);
+    ranked.forEach((t, i) => (t.standing = `${['1st', '2nd', '3rd', '4th'][i]} in ${division}`));
+  }
+
+  return { teams, size: [...teams.values()].filter((t) => t.gp).length, hasStats: false };
+}
+
+/**
+ * Adds Sleeper's season stats to a league from buildLeague: per-game numbers, a 1..32
+ * league rank on each, and this week's expected starters.
+ * stats: { offense: Sleeper player rows, defense: Sleeper DEF rows }
+ */
+export function addStats(league, stats) {
+  const { teams } = league;
+  for (const t of teams.values()) Object.assign(t, { passYd: 0, rushYd: 0, players: [], defense: null });
 
   for (const row of stats?.offense ?? []) {
     // Yards count for the team they were gained with; the player belongs to the team
@@ -52,10 +94,7 @@ export function buildLeague(results, stats) {
   }
 
   for (const t of teams.values()) {
-    t.games.sort((a, b) => a.week - b.week);
-    const gp = t.games.length;
-    t.gp = gp;
-    t.record = `${t.wins}-${t.losses}${t.ties ? `-${t.ties}` : ''}`;
+    const gp = t.gp;
     t.per = {
       points: per(t.pointsFor, gp),
       allowed: per(t.pointsAgainst, gp),
@@ -83,7 +122,8 @@ export function buildLeague(results, stats) {
   rankOn('sacks', true);
   rankOn('takeaways', true);
 
-  return { teams, size: [...teams.values()].filter((t) => t.gp).length };
+  league.hasStats = true;
+  return league;
 }
 
 // Players who won't suit up this week: skipped so the next man up shows instead.
@@ -141,13 +181,6 @@ export function winChains(league, from, to, maxHops = 3) {
   return chains.sort((x, y) => x.length - y.length);
 }
 
-const recordOf = (games) => {
-  const w = games.filter((g) => g.result === 'W').length;
-  const l = games.filter((g) => g.result === 'L').length;
-  const t = games.length - w - l;
-  return `${w}-${l}${t ? `-${t}` : ''}`;
-};
-
 /**
  * A team's résumé, always computable even when two teams share nothing: record against
  * teams with winning records, last three games, home and road splits, average margin.
@@ -166,10 +199,8 @@ export function resume(league, abbr) {
     vsWinningGames: vsWinning.length,
     last3: recordOf(last3),
     last3Points: last3.length ? last3.reduce((sum, g) => sum + g.pf, 0) / last3.length : 0,
-    home: recordOf(t.games.filter((g) => g.home)),
-    road: recordOf(t.games.filter((g) => !g.home)),
-    margin: t.gp ? (t.pointsFor - t.pointsAgainst) / t.gp : 0,
+    home: t.homeRecord,
+    road: t.roadRecord,
+    margin: t.gp ? t.pointDiff / t.gp : 0,
   };
 }
-
-export { recordOf };

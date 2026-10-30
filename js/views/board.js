@@ -142,7 +142,7 @@ function gameMeta(game, { research = true } = {}) {
 function formDots(team) {
   if (!team?.lastFive.length) return '';
   // Oldest on the left, most recent on the right.
-  return `<span class="dots">${[...team.lastFive].reverse().map((g) => `<i class="${g.won ? 'w' : g.tie ? 't' : 'l'}"></i>`).join('')}</span>`;
+  return `<span class="dots">${team.lastFive.map((g) => `<i class="${g.result.toLowerCase()}"></i>`).join('')}</span>`;
 }
 
 // Sportsbook grid: two team rows x (Money | Spread | Total), with a line strip
