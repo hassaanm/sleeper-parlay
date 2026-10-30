@@ -36,14 +36,22 @@ export function animateFaces(root, before) {
   // The face that sat to the right of `id` before this render and is still in the row.
   const oldOrder = [...before.keys()];
   const rightOf = (id) => oldOrder.slice(oldOrder.indexOf(id) + 1).map((k) => after.get(k)).find(Boolean) ?? null;
-  // On your own pick, the row waits for the sticker to stick, then everything moves at once.
+  // On your own pick, the others wait for the sticker to stick, then slide as your copy
+  // peels off.
   const arrival = state.arrival;
   const delay = arrival ? PEEL_DELAY : 0;
 
   for (const [id, el] of after) {
     if (id === arrival?.id) {
-      if (before.has(id)) dropFace(row, before.get(id), rightOf(id), delay);
-      peelOff(root, el, arrival.key, delay);
+      let face = el;
+      if (before.has(id)) {
+        // Your old face falls right away, as itself (already drawn); a copy takes the new
+        // spot, hidden until it peels in. A fresh image would blink while it decodes.
+        face = el.cloneNode(true);
+        el.replaceWith(face);
+        dropFace(row, { el, rect: before.get(id).rect }, rightOf(id));
+      }
+      peelOff(root, face, arrival.key, delay);
       continue;
     }
     const old = before.get(id);
@@ -56,7 +64,7 @@ export function animateFaces(root, before) {
       el.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { ...SLIDE, delay: delay && delay + 80, fill: 'backwards' });
     }
   }
-  for (const [id, old] of before) if (!after.has(id)) dropFace(row, old, rightOf(id), 0);
+  for (const [id, old] of before) if (!after.has(id)) dropFace(row, old, rightOf(id));
 }
 
 // A copy of your sticker lifts off the cell and glides into your face's spot: it
@@ -100,35 +108,33 @@ function peelOff(root, el, key, delay) {
   if (delay) el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: delay });
 }
 
-// A face that leaves the row hops up, then falls under gravity, tumbling, off the
-// bottom of the screen. Rise and fall times come from the same gravity, so a short
-// drop (the phone slip at the bottom) is quick and a long one (the desktop sidebar)
-// takes longer, the way a real fall would. The falling copy sits in the row at its
-// old place, before `rightNeighbor`, so it keeps that place in the stack. It's marked
-// transient so a render mid-fall leaves it alone (dom.js).
-function dropFace(row, { el, rect }, rightNeighbor, delay) {
-  const face = el.cloneNode(true);
-  face.classList.add('face-drop');
-  face.setAttribute('data-transient', '');
+// A face that leaves the row rolls over its edge, then falls under gravity, tumbling,
+// off the bottom of the screen. Fall time comes from gravity, so a short drop (the
+// phone slip at the bottom) is quick and a long one (the desktop sidebar) takes
+// longer, the way a real fall would. The face (the real element, never a fresh copy,
+// so it can't blink) sits in the row at its old place, before `rightNeighbor`, so it
+// keeps that place in the stack. It's marked transient so a render mid-fall leaves it
+// alone (dom.js).
+function dropFace(row, { el, rect }, rightNeighbor) {
+  for (const animation of el.getAnimations()) animation.cancel();
+  el.classList.add('face-drop');
+  el.setAttribute('data-transient', '');
   const box = row.getBoundingClientRect();
-  Object.assign(face.style, { left: `${rect.left - box.left}px`, top: `${rect.top - box.top}px` });
-  row.insertBefore(face, rightNeighbor);
-  const hop = 34;
-  const fall = innerHeight - rect.top + rect.height + 20; // below the hop's start point
-  const rise = Math.sqrt((2 * hop) / GRAVITY);
-  const drop = Math.sqrt((2 * (hop + fall)) / GRAVITY);
-  const total = (rise + drop) * 1000;
+  Object.assign(el.style, { left: `${rect.left - box.left}px`, top: `${rect.top - box.top}px` });
+  row.insertBefore(el, rightNeighbor);
   const side = Math.random() < 0.5 ? -1 : 1;
-  // Sideways drift runs at a steady rate; height follows gravity.
-  face.animate({ translate: ['0 0', `${side * (24 + Math.random() * 24)}px 0`] }, { duration: total, delay, easing: 'linear' });
-  face.animate(
+  const roll = 0.2; // s, tipping over
+  const fall = innerHeight - rect.top + rect.height + 20;
+  const drop = Math.sqrt((2 * fall) / GRAVITY);
+  const drift = side * (16 + Math.random() * 20);
+  el.animate(
     [
-      { transform: 'translateY(0) rotate(0deg) scale(1)', easing: 'cubic-bezier(0.5, 1, 0.89, 1)' }, // rising, slowing (quadratic)
-      { transform: `translateY(-${hop}px) rotate(${side * 25}deg) scale(1.1)`, offset: rise / (rise + drop), easing: 'cubic-bezier(0.11, 0, 0.5, 0)' }, // falling, speeding up
-      { transform: `translateY(${fall}px) rotate(${side * (90 + 200 * drop)}deg) scale(1.1)` },
+      { transform: 'translate(0, 0) rotate(0deg)', easing: 'cubic-bezier(0.3, 0.6, 0.5, 1)' }, // rolling over, easing out
+      { transform: `translate(${side * 8}px, 3px) rotate(${side * 35}deg)`, offset: roll / (roll + drop), easing: 'cubic-bezier(0.11, 0, 0.5, 0)' }, // then falling, speeding up
+      { transform: `translate(${side * 8 + drift}px, ${fall}px) rotate(${side * (35 + 220 * drop)}deg)` },
     ],
-    { duration: total, delay },
-  ).finished.then(() => face.remove());
+    { duration: (roll + drop) * 1000 },
+  ).finished.then(() => el.remove());
 }
 
 // CSS cubic-bezier(x1, y1, x2, y2) as a function of time 0..1, for paths built frame
