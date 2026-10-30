@@ -229,6 +229,8 @@ h1, h2 { letter-spacing: -0.02em; }
   font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap;
 }
 .meta-time { font-weight: 600; color: #b9c2dd; }
+/* Weather or dome: the emoji, then its words, with a little room between. */
+.wx { display: inline-flex; align-items: center; gap: 5px; }
 .tv-list { display: inline-flex; gap: 5px; }
 .tv {
   display: inline-flex; align-items: center; height: 15px; padding: 0 5px; border-radius: 4px;

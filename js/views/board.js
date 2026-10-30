@@ -135,8 +135,8 @@ function gameMeta(game) {
   const info = state.sports?.games.get(gameKey(game.away, game.home));
   const items = [`<span class="meta-time">${esc(timeFmt.format(game.start))}</span>`];
   if (info?.tv) items.push(`<span class="tv-list">${tvBadges(info.tv)}</span>`);
-  if (info?.dome) items.push('<span>🏟️ Dome</span>');
-  else if (info?.weather) items.push(`<span title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)} ${esc(info.weather.temp)}°</span>`);
+  if (info?.dome) items.push('<span class="wx">🏟️<span>Dome</span></span>');
+  else if (info?.weather) items.push(`<span class="wx" title="${esc(info.weather.text)}">${weatherIcon(info.weather.text)}<span>${esc(info.weather.temp)}°</span></span>`);
   items.push(`<button class="meta-research" data-action="matchup" data-id="${esc(game.id)}">Matchup ${chevronSmall()}</button>`);
   return items.join('');
 }

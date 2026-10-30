@@ -195,7 +195,7 @@ function renderMatchupPage(gameId) {
       <b>${esc(timeFmt.format(game.start))}</b>
       <span class="mp-mid-row">
         <small>${esc(shortDayFmt.format(game.start))}</small>
-        ${info?.dome ? '<small>🏟️ Dome</small>' : info?.weather ? `<small>${weatherIcon(info.weather.text)} ${esc(info.weather.temp)}°</small>` : ''}
+        ${info?.dome ? '<small class="wx">🏟️<span>Dome</span></small>' : info?.weather ? `<small class="wx">${weatherIcon(info.weather.text)}<span>${esc(info.weather.temp)}°</span></small>` : ''}
       </span>
       ${info?.tv ? `<span class="tv-list">${tvBadges(info.tv)}</span>` : ''}
     </div>`;
