@@ -252,13 +252,13 @@ export function cell(opt, type, area, cellId) {
     <button class="${cls}" ${style} data-action="choose" data-key="${esc(opt.key)}" ${disabled ? 'aria-disabled="true"' : ''}>
       <span class="cell-main">${main}</span>
       ${cellSub(type, opt)}
-      ${holder ? sticker(holder, opt.key) : ''}
+      ${holder || mine ? sticker(holder ?? memberById(state.me), opt.key) : ''}
     </button>`;
 }
 
-// A league mate's pick gets their avatar stuck on like a sticker: same spot and tilt
-// every render (seeded from who and what), but a little different on every cell, so it
-// looks placed by hand. New ones get slapped on with a bounce.
+// Every pick gets the picker's avatar stuck on like a sticker, yours included: same spot
+// and tilt every render (seeded from who and what), but a little different on every
+// cell, so it looks placed by hand. New ones get slapped on with a bounce.
 function sticker(member, key) {
   const id = `${member.id}:${key}`;
   const rand = seeded(id);

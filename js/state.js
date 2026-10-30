@@ -33,7 +33,7 @@ export const state = {
   demoSeeded: false,
   busyKey: null,
   justPicked: null, // the cell you just picked, for its pop animation
-  arriving: null, // whose avatar is flying into the slip's faces row (hidden there until it lands)
+  arrival: null, // for one render after a pick: { id, key }, whose avatar peels off which cell (faces.js)
   // Admin page ("?admin"): unlocked for this tab once the password matches. While the
   // admin picks on someone's behalf, `acting` holds who, and who to switch back to.
   admin: { route: new URLSearchParams(location.search).has('admin'), authed: sessionGet('parlay:admin') === '1', error: null },

@@ -35,9 +35,9 @@ function slipHeader(withChevron) {
       </span>`;
   } else {
     // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
-    // league still fits. Your avatar stays hidden while it flies in (app.js flyToSlip).
+    // league still fits.
     const overlap = legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
-    const faces = legs.map((l) => avatar(l.member, 24, `stacked${l.member.id === state.arriving ? ' arriving' : ''}`, l.member.id)).join('');
+    const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id)).join('');
     left = `<span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>`;
   }
   return `

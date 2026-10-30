@@ -5,6 +5,9 @@
 // Children match by position and tag. Keyed elements match by key instead: an id, a
 // data-key (unique among its siblings), or an <img>'s src. Give list items a key, so a
 // list that gains, loses, or reorders an item moves nodes instead of rewriting them.
+//
+// Elements marked data-transient are animation extras added outside a render (a face
+// falling out of a row): patch leaves them where they are.
 export function patch(root, html) {
   const tpl = document.createElement('template');
   tpl.innerHTML = html;
@@ -19,9 +22,15 @@ const keyOf = (node) => {
 };
 
 const sameKind = (a, b) => a.nodeType === b.nodeType && a.nodeName === b.nodeName;
+const transient = (node) => node.nodeType === 1 && node.hasAttribute('data-transient');
+// The first node from `node` on that isn't transient.
+const settled = (node) => {
+  while (node && transient(node)) node = node.nextSibling;
+  return node;
+};
 
 function patchChildren(from, to) {
-  const old = [...from.childNodes];
+  const old = [...from.childNodes].filter((node) => !transient(node));
   const keyed = new Map();
   for (const node of old) {
     const key = keyOf(node);
@@ -54,11 +63,18 @@ function patchChildren(from, to) {
       result.push(node);
     }
   }
-  // Put the children in order, then drop whatever wasn't reused.
-  result.forEach((node, i) => {
-    if (from.childNodes[i] !== node) from.insertBefore(node, from.childNodes[i] ?? null);
-  });
-  while (from.childNodes.length > result.length) from.lastChild.remove();
+  // Put the children in order (stepping around transient ones), then drop whatever
+  // wasn't reused.
+  let ref = settled(from.firstChild);
+  for (const node of result) {
+    if (node === ref) ref = settled(ref.nextSibling);
+    else from.insertBefore(node, ref);
+  }
+  while (ref) {
+    const next = settled(ref.nextSibling);
+    ref.remove();
+    ref = next;
+  }
 }
 
 function patchNode(from, to) {

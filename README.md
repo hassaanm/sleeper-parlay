@@ -30,7 +30,7 @@ Slips are shared through Firebase, so everyone in the league sees the same picks
 - `js/app.js`: the entry point. Loads data, handles actions and events, and renders.
 - `js/views/`: HTML for each screen: `board.js`, `slip.js`, `pages.js` (research), `admin.js`.
 - `js/state.js`: the one mutable `state` object and questions about it. `js/rules.js`: the pool's rules as pure functions.
-- `js/ui.js`: shared markup helpers. `js/dom.js`: `patch()`, which updates the page in place on each render.
+- `js/ui.js`: shared markup helpers. `js/dom.js`: `patch()`, which updates the page in place on each render. `js/faces.js`: the slip's faces-row animations.
 - Data: `api.js` and `lines.js` (Sleeper lines), `sports.js` and `research.js` (scores and stats), `teams.js` (team names and colors), `store.js` (the shared slip).
 
 On each render, `patch()` changes only what differs, so elements keep their identity. Give list items a `data-key` so a list that changes moves its items instead of rewriting them.

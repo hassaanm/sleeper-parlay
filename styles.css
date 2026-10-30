@@ -301,11 +301,6 @@ h1, h2 { letter-spacing: -0.02em; }
   100% { transform: rotate(var(--rot)) scale(1); }
 }
 
-/* Your avatar flying into the slip after a pick, and a face falling out of the row
-   (app.js flyToSlip, dropFace). */
-.flyer { position: fixed; z-index: 70; pointer-events: none; border-radius: 50%; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5); }
-.flyer .avatar { display: block; box-shadow: 0 0 0 2px var(--accent); }
-.face-drop { position: fixed; z-index: 70; margin: 0; pointer-events: none; box-shadow: 0 0 0 2px var(--paper), 0 6px 14px rgba(0, 0, 0, 0.45); }
 .cell.blocked { opacity: 0.32; cursor: not-allowed; }
 .cell[aria-disabled]:not(.taken):not(.blocked) { opacity: 0.35; cursor: not-allowed; }
 .cell.busy { animation: pulse 0.9s ease-in-out infinite; }
@@ -720,13 +715,16 @@ h1, h2 { letter-spacing: -0.02em; }
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   height: var(--peek); padding: 4px 14px 0; transition: height 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.faces { display: flex; align-items: center; padding-left: calc(-1 * var(--overlap, -7px)); flex: none; }
+/* The row is its own layer above the legs, so a face falling out of it passes in
+   front of the slip's rows. */
+.faces { position: relative; z-index: 1; display: flex; align-items: center; padding-left: calc(-1 * var(--overlap, -7px)); flex: none; }
 /* Each face sits on the one to its left and under the one to its right. Positioning
    them all keeps that order while one is animating (a transform would otherwise lift
    it above every still face). */
 .faces .stacked { position: relative; margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
-/* Holds your spot while your avatar flies in. */
-.faces .arriving { visibility: hidden; }
+/* A face falling out of the row (app.js dropFace): placed over its old spot, in the
+   row's stacking order. */
+.faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
 .faces-empty { font-size: 13px; color: var(--muted); margin-left: -7px; }
 .peek-right { display: flex; align-items: center; gap: 8px; }
 .my-leg {
