@@ -87,7 +87,7 @@ function parlayLegs() {
           ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}
           <div class="leg-line">
             <span class="ll-side"><span class="ll-when">${when}</span>${downL}</span>
-            <span class="ll-dot">${hasDown ? '·' : ''}</span>
+            <span class="ll-dot">${hasDown ? '·' : final ? `<span class="ll-result ${l.grade}">${barLabel(l.pick, st, true)}</span>` : ''}</span>
             <span class="ll-side right">${downR}<small class="ll-who ${isMine ? 'me' : ''}">${esc(l.member.name)}</small></span>
           </div>
           ${live || final ? gameBar(l.pick, st) : ''}
@@ -116,39 +116,53 @@ function parlayLegs() {
 // A total fills from 0 toward the line (its tick near the right end); a spread or
 // moneyline starts from the middle (a tie, or the picked side's spread) and the dot
 // moves toward the side winning the leg: a lot near the middle, tapering off for big
-// leads. The dot stays clear of the bar's ends, so the label under it (the running
-// total, or the picked team's lead: "+3", "−4", "Tie") always fits right under it.
+// leads. The dot stays clear of the bar's ends, so the label under it (barLabel) always
+// fits right under it.
 // Green while the leg is winning, red while it's losing.
 const LINE_AT = 88; // a total's line, in % along the bar
 const DOT_MIN = 6;
 const DOT_MAX = 94;
+// What the bar's dot stands for: the running total, or the picked team's lead ("+3",
+// "−4", "Tie"); with the team ("ARI +34") when it's shown away from the bar, on a
+// finished leg's middle line. The sign hangs off the number's left, so the number
+// itself sits under the dot.
+function barLabel(pick, st, withTeam = false) {
+  if (pick.type === 'total') return `${st.awayScore + st.homeScore}${withTeam ? ' pts' : ''}`;
+  const [away] = pick.matchup.split(' @ ');
+  const lead = pick.team === away ? st.awayScore - st.homeScore : st.homeScore - st.awayScore;
+  if (lead === 0) return 'Tie';
+  return withTeam
+    ? `${esc(pick.team)} ${fmtLine(lead)}`
+    : `<span class="num"><span class="sg">${lead > 0 ? '+' : '−'}</span>${Math.abs(lead)}</span>`;
+}
+
 function gameBar(pick, st) {
   const [away, home] = pick.matchup.split(' @ ');
-  let at, tone, label, from = 50;
+  const final = st.state === 'post';
+  let at, tone, from = 50;
   if (pick.type === 'total') {
     const pts = st.awayScore + st.homeScore;
     tone = (pick.side === 'over') === (pts > pick.line) ? 'win' : 'lose';
     at = Math.max(DOT_MIN, Math.min(DOT_MAX, (pts / pick.line) * LINE_AT));
     from = 0;
-    label = String(pts);
   } else {
     const pickedHome = pick.team === home;
     const lead = pickedHome ? st.homeScore - st.awayScore : st.awayScore - st.homeScore;
     const margin = lead + (pick.type === 'spread' ? pick.line : 0); // 0: right on the line
     at = 50 + (DOT_MAX - 50) * Math.tanh(margin / 14) * (pickedHome ? 1 : -1);
     tone = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
-    // The sign hangs off the number's left, so the number itself sits under the dot.
-    label = lead === 0 ? 'Tie' : `<span class="num"><span class="sg">${lead > 0 ? '+' : '−'}</span>${Math.abs(lead)}</span>`;
   }
-  const lost = (mine, theirs) => (st.state === 'post' && mine < theirs ? 'lost' : '');
+  const lost = (mine, theirs) => (final && mine < theirs ? 'lost' : '');
+  // Once final, the label moves up to the middle of the line above (barLabel), so a
+  // finished leg needs no row under its bar.
   return `
-    <div class="leg-game ${tone}">
+    <div class="leg-game ${tone} ${final ? 'final' : ''}">
       ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
       <span class="gbar">
         <i class="gbar-fill" style="left:${Math.min(from, at)}%;width:${Math.abs(at - from)}%"></i>
         <i class="gbar-tick" style="left:${pick.type === 'total' ? LINE_AT : 50}%"></i>
         <i class="gbar-dot" style="left:${at}%"></i>
-        <small class="gbar-lbl" style="left:${at}%">${label}</small>
+        ${final ? '' : `<small class="gbar-lbl" style="left:${at}%">${barLabel(pick, st)}</small>`}
       </span>
       <b class="gs-home ${lost(st.homeScore, st.awayScore)}">${st.homeScore}</b>${teamLogo(home, 14)}
     </div>`;

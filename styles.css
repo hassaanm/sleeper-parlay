@@ -741,8 +741,9 @@ h1, h2 { letter-spacing: -0.02em; }
   background-clip: padding-box; /* row tints stop at the divider above, so they never hide it */
 }
 .leg + .leg { border-top: 1px dashed var(--line); }
-/* Your leg: your name in green (before picks lock, your row has the green Remove). */
-.ll-who.me { color: var(--accent); font-weight: 700; }
+/* Your leg: your name with a green squiggle under it (before picks lock, your row has
+   the green Remove instead). */
+.ll-who.me { text-decoration: underline wavy var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; padding-bottom: 3px; }
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
 .logo-pair { position: relative; width: 30px; height: 30px; }
@@ -919,7 +920,14 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 1px; width: 8px; height: 8px; margin-left: -6px; border-radius: 50%; border: 2px solid var(--bg-2); box-sizing: content-box; z-index: 1; }
+.gbar-dot { top: 0; width: 10px; height: 10px; margin-left: -7px; border-radius: 50%; border: 2px solid #3d4870; box-sizing: content-box; z-index: 1; }
+/* A finished leg's label is on the line above (the result, centered), so no room is
+   kept under its bar. */
+.leg-game.final .gbar { height: 14px; }
+.ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
+.ll-result.hit { color: var(--accent); }
+.ll-result.miss { color: var(--bad); }
+.ll-result.push { color: #8fa3d8; }
 .gbar-lbl { position: absolute; top: 15px; transform: translateX(-50%); font-size: 10.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .gbar-lbl .num { position: relative; }
 .gbar-lbl .sg { position: absolute; right: 100%; }
