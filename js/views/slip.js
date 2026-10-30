@@ -64,24 +64,20 @@ function parlayLegs() {
     const final = st?.state === 'post';
 
     if (tracking) {
-      // Tracking row: the pick, then the clock and the down (the arrow on the side of
-      // the team with the ball, matching the bar below: away left, home right). On the
-      // right: a ✓ or ✗ once it's final; while live, the chance now, green while it's at
-      // or above where it started and red below; then who has it. Once the game starts,
-      // a second row shows it as a bar (gameBar).
-      const down = live && st.possession && st.downDistance
-        ? `${esc(st.downDistance)}${st.spot ? ` · ${esc(st.spot)}` : ''}` : '';
-      const ball = !down ? '' : st.possession === away ? `<span class="dd"><i class="tri">◀</i>${down}</span>` : `<span class="dd">${down}<i class="tri">▶</i></span>`;
+      // Tracking row: the pick, then the clock (or Final). On the right: a ✓ or ✗ once
+      // it's final; while live, the chance now, green while it's at or above where it
+      // started and red below; then who has it. Once the game starts, more rows show
+      // it as a bar (gameBar).
       const sub = live
-        ? `<span class="live-tag">● ${esc(st.detail)}</span>${ball}`
+        ? `<span class="live-tag">● ${esc(st.detail)}</span>`
         : final ? '<span>Final</span>' : `<span>${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}</span>`;
       const now = live && l.livePrice ? l.livePrice : l.price;
       const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
-        <li class="leg ${isMine ? 'leg-you' : ''} ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
-          <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
+        <li class="leg ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
+          <span class="leg-logo">${logo}${avatar(l.member, 18, `leg-face ${isMine ? 'me' : ''}`)}</span>
           <div class="leg-body">
-            <span class="leg-pick">${esc(pretty(l.pick.label))}${isMine ? ' <em class="you-tag">You</em>' : ''}</span>
+            <span class="leg-pick">${esc(pretty(l.pick.label))}</span>
             <span class="leg-sub">${sub}</span>
           </div>
           <div class="leg-right">
@@ -95,7 +91,7 @@ function parlayLegs() {
     const sub = `${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}`;
     return `
       <li class="leg ${isMine ? 'leg-mine' : ''}" data-key="${esc(l.member.id)}">
-        <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
+        <span class="leg-logo">${logo}${avatar(l.member, 18, `leg-face ${isMine ? 'me' : ''}`)}</span>
         <div class="leg-body">
           <span class="leg-pick">${esc(pretty(l.pick.label))}</span>
           <span class="leg-sub">${sub}</span>
@@ -111,6 +107,8 @@ function parlayLegs() {
 }
 
 // A started leg's game as a bar: away's logo and score on the left, home's on the right.
+// While live, the down and the spot sit centered over it, with the arrow on the side of
+// the team that has the ball.
 // A total fills from 0 toward the line (its tick near the right end; past it, the dot
 // parks at the end). A spread or moneyline starts from the middle (a tie, or the picked
 // side's spread) and the dot moves toward the side winning the leg; near the middle it
@@ -132,12 +130,17 @@ function gameBar(pick, st) {
     const margin = lead + (pick.type === 'spread' ? pick.line : 0); // 0: right on the line
     at = 50 + 50 * Math.tanh(margin / 14) * (pickedHome ? 1 : -1);
     tone = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
-    label = lead === 0 ? 'Tie' : fmtLine(lead);
+    // The sign hangs off the number's left, so the number itself sits under the dot.
+    label = lead === 0 ? 'Tie' : `<span class="num"><span class="sg">${lead > 0 ? '+' : '−'}</span>${Math.abs(lead)}</span>`;
   }
+  const down = st.state === 'in' && st.possession && st.downDistance
+    ? `${esc(st.downDistance)}${st.spot ? ` · ${esc(st.spot)}` : ''}` : '';
+  const ball = !down ? '' : st.possession === away ? `<i class="tri">◀</i>${down}` : `${down}<i class="tri">▶</i>`;
   const lo = Math.min(from, at);
   const lost = (mine, theirs) => (st.state === 'post' && mine < theirs ? 'lost' : '');
   return `
     <div class="leg-game ${tone}">
+      ${ball ? `<span class="gdown">${ball}</span>` : '<span class="gdown"></span>'}
       ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
       <span class="gbar">
         <i class="gbar-fill" style="left:${lo}%;width:${Math.abs(at - from)}%"></i>

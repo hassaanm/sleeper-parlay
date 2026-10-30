@@ -35,8 +35,9 @@ const visibleRow = (root) => [...root.querySelectorAll('.slip-peek .faces')].fin
 const facesIn = (row) => [...row.querySelectorAll('[data-key]:not([data-transient])')];
 
 /**
- * Before a render: every face in the showing row, member id -> { el, at, pick }, where
- * `at` is its position relative to the row.
+ * Before a render: every face in the showing row, member id -> { el, at, slot, pick },
+ * where `at` is where it shows relative to the row (mid-animation included) and `slot`
+ * its place in the row's layout.
  */
 export function captureFaces(root) {
   const row = visibleRow(root);
@@ -44,7 +45,7 @@ export function captureFaces(root) {
   const box = row.getBoundingClientRect();
   return new Map(facesIn(row).map((el) => {
     const r = el.getBoundingClientRect();
-    return [el.dataset.key, { el, at: { left: r.left - box.left, top: r.top - box.top, width: r.width, height: r.height }, pick: el.dataset.pick }];
+    return [el.dataset.key, { el, at: { left: r.left - box.left, top: r.top - box.top, width: r.width, height: r.height }, slot: el.offsetLeft, pick: el.dataset.pick }];
   }));
 }
 
@@ -99,6 +100,9 @@ export function animateFaces(root, before) {
     if (rolls.has(id) || jumps.has(id)) continue;
     const el = after.get(id);
     if (stayers.includes(id)) jiggle(el, IMPACT_MS);
+    // Its place in the row didn't change (a redraw with nothing new for it, like a pick's
+    // save coming back): leave whatever slide it's in alone, timed as it was.
+    if (before.get(id).slot === el.offsetLeft) continue;
     // A face still sliding from the last render: drop that slide first, so it's measured
     // at its row spot. Its on-screen pose is already in `before`, so it carries on from there.
     const sliding = inlineHeld.get(el)?.translate;

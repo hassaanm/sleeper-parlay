@@ -736,25 +736,25 @@ h1, h2 { letter-spacing: -0.02em; }
 
 .legs { list-style: none; margin: 0; padding: 0; }
 .leg {
-  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; column-gap: 10px; row-gap: 5px;
   padding: 5px 14px; min-height: 44px;
   background-clip: padding-box; /* row tints stop at the divider above, so they never hide it */
 }
 .leg + .leg { border-top: 1px dashed var(--line); }
-.leg-mine { background-color: var(--accent-soft); }
+/* Your leg: a green ring around your face, the same in every state of the slip. */
+.leg-face.me { box-shadow: 0 0 0 2px var(--accent) !important; }
 .leg-logo { position: relative; width: 30px; height: 30px; display: grid; place-items: center; }
 .leg-face { position: absolute; right: -4px; bottom: -3px; box-shadow: 0 0 0 2px var(--bg-2); }
-.leg-mine .leg-face { box-shadow: 0 0 0 2px #0f2b30; }
 .logo-pair { position: relative; width: 30px; height: 30px; }
 /* Away and home side by side along the top, so the picker's face in the
    bottom-right corner doesn't hide either one. */
 .logo-pair img { position: absolute; top: 3px; }
 .logo-pair img:first-child { left: -3px; }
 .logo-pair img:last-child { right: -3px; }
-.leg-body { display: grid; min-width: 0; line-height: 1.2; }
+.leg-body { display: grid; gap: 5px; min-width: 0; line-height: 1.15; }
 .leg-pick { font-weight: 800; font-size: 14.5px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .leg-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.leg-right { display: grid; justify-items: end; line-height: 1.2; }
+.leg-right { display: grid; justify-items: end; gap: 5px; line-height: 1.15; }
 .leg-odds { font-weight: 800; font-size: 14.5px; font-variant-numeric: tabular-nums; }
 .leg-who { font-size: 11px; color: var(--muted); white-space: nowrap; }
 .leg-mine .leg-who { color: var(--accent); font-weight: 700; }
@@ -883,22 +883,28 @@ h1, h2 { letter-spacing: -0.02em; }
 .t-miss { color: var(--bad); }
 .legs.tracking .leg-sub { display: flex; gap: 8px; align-items: center; }
 /* "KC 35 – 24 DEN": the scores stand out, the teams step back. */
-/* The down on the clock's line; the arrow sits on the side of the team with the ball. */
-.leg-sub .dd { display: inline-flex; align-items: center; gap: 4px; color: #b9c2dd; font-weight: 600; }
-.leg-sub .tri { font-style: normal; font-size: 8px; color: var(--text); }
 /* A started leg's game as a bar, under the pick (slip.js gameBar). Scores get a fixed
    width so every bar is the same width and the middles line up. */
-.leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: 14px 20px minmax(0, 1fr) 20px 14px; gap: 5px; align-items: center; margin: -3px 0 1px; }
+.leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: 14px 20px minmax(0, 1fr) 20px 14px; column-gap: 5px; row-gap: 5px; align-items: start; }
+.leg-game > :not(.gdown) { grid-row: 2; }
+.leg-game img, .leg-game b { margin-top: -1px; }
+/* The down and the spot, centered over the bar's middle; the arrow on the ball's side. */
+.gdown { grid-row: 1; grid-column: 3; justify-self: center; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; line-height: 1.2; color: #b9c2dd; white-space: nowrap; }
+.gdown .tri { font-style: normal; font-size: 8px; color: var(--text); }
+.gdown:empty { display: none; }
+.leg-game:has(.gdown:empty) > * { grid-row: 1; }
 .leg-game b { font-size: 12px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
 .leg-game .gs-away { text-align: right; }
 .leg-game b.lost { color: var(--muted); }
-.gbar { position: relative; height: 18px; }
+.gbar { position: relative; height: 27px; }
 .gbar i { position: absolute; display: block; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
-.gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--bg-2); }
-.gbar-lbl { position: absolute; top: 11px; transform: translateX(-50%); font-size: 9px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gbar-tick { top: 0; height: 14px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
+.gbar-dot { top: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; border: 2px solid #fff; box-sizing: border-box; z-index: 1; }
+.gbar-lbl { position: absolute; top: 17px; transform: translateX(-50%); font-size: 9.5px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gbar-lbl .num { position: relative; }
+.gbar-lbl .sg { position: absolute; right: 100%; }
 .leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
 .leg-game.lose .gbar-fill, .leg-game.lose .gbar-dot { background: var(--bad); }
 .leg-game.tie .gbar-dot { background: #8fa3d8; }
@@ -912,8 +918,6 @@ h1, h2 { letter-spacing: -0.02em; }
 .mark.hit { color: var(--accent); }
 .mark.miss { color: var(--bad); }
 .mark.push { color: var(--gold); }
-.leg-you { background-color: rgba(255, 255, 255, 0.045); }
-.you-tag { font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); color: var(--text); vertical-align: 2px; }
 .leg-final.hit { background-color: rgba(0, 214, 168, 0.07); }
 .leg-final.miss { background-color: rgba(255, 107, 125, 0.07); }
 .parlay-foot.busted dd { text-decoration: line-through; text-decoration-color: rgba(255, 107, 125, 0.6); }
