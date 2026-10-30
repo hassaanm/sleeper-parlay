@@ -113,12 +113,15 @@ export function renderWhoAreYou(current) {
 export function renderGames() {
   const live = scoreboardGames('in');
   const final = scoreboardGames('post');
+  // One spinner until both the lines and the scores are in, so the board shows up whole.
+  const linesLoading = !state.games.length && !state.lobby && !state.gamesError;
+  const scoresLoading = !state.sports && !state.sportsFailed;
+  if (linesLoading || scoresLoading) return `<div class="loading-block" data-key="lines-note"><div class="spinner"></div><p class="muted">Loading this week’s games…</p></div>`;
   // Where the lines stand, above any games that have kicked off. A failed refresh keeps
   // the last lines on screen; only a first load shows the error.
   const linesNote = state.games.length ? ''
     : state.gamesError ? `<div class="card" data-key="lines-note"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`
-      : !state.lobby ? `<div class="loading-block" data-key="lines-note"><div class="spinner"></div><p class="muted">Loading this week’s lines…</p></div>`
-        : live.length + final.length ? '' : `<div class="card" data-key="lines-note"><p>No NFL games found for this week yet.</p></div>`;
+      : live.length + final.length ? '' : `<div class="card" data-key="lines-note"><p>No NFL games found for this week yet.</p></div>`;
 
   // Games still to come by day, then a band and the live games, then the final ones.
   const upcoming = state.games.filter((g) => !hasStarted(g));

@@ -883,10 +883,28 @@ h1, h2 { letter-spacing: -0.02em; }
 .t-miss { color: var(--bad); }
 .legs.tracking .leg-sub { display: flex; gap: 8px; align-items: center; }
 /* "KC 35 – 24 DEN": the scores stand out, the teams step back. */
-.leg-score { display: inline-flex; align-items: baseline; gap: 4px; color: var(--text); font-variant-numeric: tabular-nums; }
-.leg-score i { font-style: normal; font-weight: 600; color: var(--muted); }
-.leg-score b { font-weight: 800; }
-.leg-score span { color: var(--faint); }
+/* The down on the clock's line; the arrow sits on the side of the team with the ball. */
+.leg-sub .dd { display: inline-flex; align-items: center; gap: 4px; color: #b9c2dd; font-weight: 600; }
+.leg-sub .tri { font-style: normal; font-size: 8px; color: var(--text); }
+/* A started leg's game as a bar, under the pick (slip.js gameBar). Scores get a fixed
+   width so every bar is the same width and the middles line up. */
+.leg-game { grid-column: 2 / -1; display: grid; grid-template-columns: 14px 20px minmax(0, 1fr) 20px 14px; gap: 5px; align-items: center; margin: -3px 0 1px; }
+.leg-game b { font-size: 12px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.leg-game .gs-away { text-align: right; }
+.leg-game b.lost { color: var(--muted); }
+.gbar { position: relative; height: 18px; }
+.gbar i { position: absolute; display: block; }
+.gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
+.gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
+.gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
+.gbar-dot { top: 2px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 2px solid var(--bg-2); }
+.gbar-lbl { position: absolute; top: 11px; transform: translateX(-50%); font-size: 9px; font-weight: 800; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
+.leg-game.lose .gbar-fill, .leg-game.lose .gbar-dot { background: var(--bad); }
+.leg-game.tie .gbar-dot { background: #8fa3d8; }
+.leg-game.win .gbar-lbl { color: var(--accent); }
+.leg-game.lose .gbar-lbl { color: var(--bad); }
+.leg-game.tie .gbar-lbl { color: #8fa3d8; }
 .leg-from { font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .leg-odds.up { color: var(--accent); }
 .leg-odds.down { color: var(--bad); }

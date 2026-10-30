@@ -33,6 +33,7 @@ export const state = {
   me: null,
   switchingUser: false,
   rungs: new Map(), // "<gameId>:<spread|total>" -> the line swiped to, by its top side's option key
+  sportsFailed: false, // the scores couldn't load; the board shows without them
   sports: null, // { games, league, teams }: this week's games (sports.loadWeek) and the season so far (research.buildLeague)
   pages: [], // research pages, a stack: { kind: 'team', abbr } or { kind: 'matchup', gameId }
   research: { league: null, loading: false, error: null }, // the season plus Sleeper's stats (research.addStats)

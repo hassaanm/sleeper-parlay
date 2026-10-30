@@ -48,6 +48,7 @@ function setSlip(slip) {
     state.gamesError = null;
     state.rungs.clear();
     state.sports = null;
+    state.sportsFailed = false;
     state.prices = new Map();
     state.research = { league: null, loading: false, error: null };
     state.trackOpened = false;
@@ -256,6 +257,9 @@ async function loadSports() {
     loadStartedPrices();
   } catch {
     // Records and weather are extras; the slip works without them.
+    if (request !== sportsRequest) return;
+    state.sportsFailed = true;
+    render();
   }
 }
 

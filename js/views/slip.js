@@ -62,17 +62,19 @@ function parlayLegs() {
     const st = l.status;
     const live = st?.state === 'in';
     const final = st?.state === 'post';
-    const score = st && st.state !== 'pre'
-      ? `<span class="leg-score"><i>${esc(away)}</i><b>${st.awayScore}</b><span>–</span><b>${st.homeScore}</b><i>${esc(home)}</i></span>`
-      : '';
 
     if (tracking) {
-      // Tracking row: the pick, then the game's clock and score underneath. On the
+      // Tracking row: the pick, then the clock and the down (the arrow on the side of
+      // the team with the ball, matching the bar below: away left, home right). On the
       // right: a ✓ or ✗ once it's final; while live, the chance now, green while it's at
-      // or above where it started and red below; then who has it.
+      // or above where it started and red below; then who has it. Once the game starts,
+      // a second row shows it as a bar (gameBar).
+      const down = live && st.possession && st.downDistance
+        ? `${esc(st.downDistance)}${st.spot ? ` · ${esc(st.spot)}` : ''}` : '';
+      const ball = !down ? '' : st.possession === away ? `<span class="dd"><i class="tri">◀</i>${down}</span>` : `<span class="dd">${down}<i class="tri">▶</i></span>`;
       const sub = live
-        ? `<span class="live-tag">● ${esc(st.detail)}</span>${score}`
-        : final ? `<span>Final</span>${score}` : `<span>${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}</span>`;
+        ? `<span class="live-tag">● ${esc(st.detail)}</span>${ball}`
+        : final ? '<span>Final</span>' : `<span>${esc(vs)} · ${esc(dayTimeFmt.format(l.pick.start))}</span>`;
       const now = live && l.livePrice ? l.livePrice : l.price;
       const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
@@ -86,6 +88,7 @@ function parlayLegs() {
             ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}
             <small class="leg-from">${esc(l.member.name)}</small>
           </div>
+          ${live || final ? gameBar(l.pick, st) : ''}
         </li>`;
     }
 
@@ -105,6 +108,45 @@ function parlayLegs() {
         </div>
       </li>`;
   }).join('')}</ol>`;
+}
+
+// A started leg's game as a bar: away's logo and score on the left, home's on the right.
+// A total fills from 0 toward the line (its tick near the right end; past it, the dot
+// parks at the end). A spread or moneyline starts from the middle (a tie, or the picked
+// side's spread) and the dot moves toward the side winning the leg; near the middle it
+// moves a lot, and big leads taper off. The label under the dot is the running total,
+// or the picked team's lead ("+3", "−4", "Tie"). Green while the leg is winning, red
+// while it's losing.
+function gameBar(pick, st) {
+  const [away, home] = pick.matchup.split(' @ ');
+  let at, tone, label, from = 50;
+  if (pick.type === 'total') {
+    const pts = st.awayScore + st.homeScore;
+    tone = (pick.side === 'over') === (pts > pick.line) ? 'win' : 'lose';
+    at = Math.min(100, (pts / pick.line) * 92);
+    from = 0;
+    label = String(pts);
+  } else {
+    const pickedHome = pick.team === home;
+    const lead = pickedHome ? st.homeScore - st.awayScore : st.awayScore - st.homeScore;
+    const margin = lead + (pick.type === 'spread' ? pick.line : 0); // 0: right on the line
+    at = 50 + 50 * Math.tanh(margin / 14) * (pickedHome ? 1 : -1);
+    tone = margin > 0 ? 'win' : margin < 0 ? 'lose' : 'tie';
+    label = lead === 0 ? 'Tie' : fmtLine(lead);
+  }
+  const lo = Math.min(from, at);
+  const lost = (mine, theirs) => (st.state === 'post' && mine < theirs ? 'lost' : '');
+  return `
+    <div class="leg-game ${tone}">
+      ${teamLogo(away, 14)}<b class="gs-away ${lost(st.awayScore, st.homeScore)}">${st.awayScore}</b>
+      <span class="gbar">
+        <i class="gbar-fill" style="left:${lo}%;width:${Math.abs(at - from)}%"></i>
+        <i class="gbar-tick" style="left:${pick.type === 'total' ? 92 : 50}%"></i>
+        <i class="gbar-dot" style="left:${at}%"></i>
+        <small class="gbar-lbl" style="left:${Math.max(8, Math.min(92, at))}%">${label}</small>
+      </span>
+      <b class="gs-home ${lost(st.homeScore, st.awayScore)}">${st.homeScore}</b>${teamLogo(home, 14)}
+    </div>`;
 }
 
 // Receipt-style totals: leg count, fair odds, and what that would pay. Fair means each
