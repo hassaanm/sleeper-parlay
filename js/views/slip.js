@@ -131,16 +131,21 @@ const DOT_MIN = 6;
 const DOT_MAX = 94;
 // What the bar's dot stands for: the picked team's lead ("+3", "−4", "Tie"), or a
 // spread's or total's cushion over its line ("+8.5"). Away from the bar, on a finished
-// leg's middle line, it's the final lead with the team ("ARI +34") or the final total
-// ("33 pts"). The sign hangs off the number's left, so the number itself sits under the
-// dot.
+// leg's middle line, it's the result: a moneyline's winner ("TB"), a total's points
+// ("33 pts"), or a spread's winner with the biggest line they still covered ("JAX −27.5"
+// for a 28-point win; −28 would push). The sign hangs off the number's left, so the
+// number itself sits under the dot.
 function barLabel(pick, st, withTeam = false) {
   const pts = st.awayScore + st.homeScore;
   if (pick.type === 'total' && withTeam) return `${pts} pts`;
   if (pick.type === 'total') return signedNum(pick.side === 'over' ? pts - pick.line : pick.line - pts);
   const [away] = pick.matchup.split(' @ ');
   const lead = pick.team === away ? st.awayScore - st.homeScore : st.homeScore - st.awayScore;
-  if (withTeam) return lead === 0 ? 'Tie' : `${esc(pick.team)} ${fmtLine(lead)}`;
+  if (withTeam) {
+    if (lead === 0) return 'Tie';
+    const winner = lead > 0 ? pick.team : pick.matchup.split(' @ ').find((t) => t !== pick.team);
+    return pick.type === 'ml' ? esc(winner) : `${esc(winner)} ${fmtLine(0.5 - Math.abs(lead))}`;
+  }
   // On the bar, a spread shows the cushion over the line: DEN +1.5 up by 7 is +8.5,
   // down by 5 is −3.5.
   const margin = lead + (pick.type === 'spread' ? pick.line : 0);
