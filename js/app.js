@@ -261,11 +261,8 @@ async function choose(key) {
     toast(saveError(e), 'bad');
   } finally {
     state.busyKey = null;
-    // Your sticker slaps onto the cell, then a copy peels off into your spot in the
-    // faces row while the old one falls and the others slide aside (faces.js).
-    if (picked) state.arrival = { id: me, key };
+    // Your sticker slaps onto the cell, and your face moves in the slip's row (faces.js).
     render();
-    state.arrival = null;
     // After that render, so the toast's own redraw can't move the row first.
     if (picked && matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
   }

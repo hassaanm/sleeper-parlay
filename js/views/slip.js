@@ -37,7 +37,8 @@ function slipHeader(withChevron) {
     // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
     // league still fits.
     const overlap = legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
-    const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id)).join('');
+    // data-pick lets faces.js tell a changed pick (a hop) from a shuffle.
+    const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id, ` data-pick="${esc(l.pick.optKey)}"`)).join('');
     left = `<span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>`;
   }
   return `
