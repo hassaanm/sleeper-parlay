@@ -76,8 +76,9 @@ export function animateFaces(root, before) {
   // A leaving face rolls past the end of the row before it drops.
   const rowEnd = Math.max(...[...before.values()].map(({ at }) => at.left + at.width));
   const offs = new Map(removed.map((id) => [id, rollOffFor(before.get(id).at, rowEnd)]));
-  // The others close up once it has dropped below the row (fallen its own height).
-  const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + Math.sqrt((2 * before.get(id).at.height) / GRAVITY) * 1000));
+  // The others close up once it's halfway down its fall (at least twice its own height).
+  const halfwayMs = ({ at }) => Math.sqrt((2 * Math.max(fallFor(box, at) / 2, 2 * at.height)) / GRAVITY) * 1000;
+  const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + halfwayMs(before.get(id))));
   let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
   for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
   for (const roll of rolls.values()) {
@@ -266,6 +267,9 @@ function rollOffFor(at, rowEnd) {
   return { distance, rollS, edgeSpeed, rolled, rollMs: rollS * 1000 };
 }
 
+// How far a falling face drops: from its spot to just past the bottom of the screen.
+const fallFor = (box, at) => innerHeight - (box.top + at.top) + at.height + 20;
+
 // The face (the real element, never a fresh copy, so it can't blink) sits in the row
 // at its old place, before `oldRight`, so it keeps that place in the stack. It's
 // marked transient so a render mid-fall leaves it alone (dom.js).
@@ -277,7 +281,7 @@ function rollOff(row, box, { el, at }, oldRight, off) {
   row.insertBefore(el, oldRight);
 
   const radius = at.width / 2;
-  const fall = innerHeight - (box.top + at.top) + at.height + 20;
+  const fall = fallFor(box, at);
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
   const total = off.rollS + airtime;
   play(el,
