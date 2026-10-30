@@ -903,7 +903,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .ll-when, .ll-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
 .ll-side.right .ll-who { margin-left: auto; }
 /* A name too long for the room left beside the down shrinks (app.js fitNames). */
-.ll-who.tight { font-size: 9.5px; }
+.ll-who.tight { font-size: 9px; }
 .ll-dot { color: #b9c2dd; font-weight: 700; }
 .leg-line .dd { display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 10.5px; font-weight: 600; color: #b9c2dd; }
 .leg-line .tri { font-style: normal; font-size: 7.5px; color: var(--text); }

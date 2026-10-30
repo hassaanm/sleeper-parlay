@@ -511,10 +511,14 @@ function render() {
   if (state.games.length) state.stickersPrimed = true;
 }
 
-// In the live slip, a name too long to fit beside the down shrinks (only that one).
+// In the live slip, a name that crowds the down and spot (closer than NAME_ROOM px, or
+// cut off) shrinks, only that one.
+const NAME_ROOM = 14;
 function fitNames() {
   for (const el of $app.querySelectorAll('.ll-who')) {
-    if (el.scrollWidth > el.clientWidth + 1) el.classList.add('tight');
+    const spot = el.previousElementSibling; // the spot, on a live leg
+    const gap = spot ? el.getBoundingClientRect().left - spot.getBoundingClientRect().right : Infinity;
+    if (gap < NAME_ROOM || el.scrollWidth > el.clientWidth + 1) el.classList.add('tight');
   }
 }
 
