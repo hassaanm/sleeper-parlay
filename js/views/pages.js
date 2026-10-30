@@ -18,7 +18,7 @@ export function renderPage() {
   const content = current.kind === 'team' ? renderTeamPage(current.abbr) : renderMatchupPage(current.gameId);
   return `
   <div class="sheet-backdrop" data-action="close-page"></div>
-  <div class="tsheet" role="dialog" aria-label="Research">
+  <div class="tsheet" role="dialog" aria-label="Research" data-kind="${current.kind}" style="${heroColors(current, game)}">
     <div class="ts-bar" style="${barColors(current, game)}">
       ${state.pages.length > 1 ? `<button class="round-btn" data-action="page-back" aria-label="Back">${chevron('left')}</button>` : '<span class="round-spacer"></span>'}
       <span class="ts-title" data-action="page-top">${title}</span>
@@ -26,6 +26,14 @@ export function renderPage() {
     </div>
     <div class="tsheet-body">${content}</div>
   </div>`;
+}
+
+// The hero's colors, on the sheet too, for the band behind it (styles.css .tsheet::before).
+function heroColors(page, game) {
+  if (page.kind === 'team') return `--team:${teamColor(page.abbr)}`;
+  if (!game) return '';
+  const colors = matchupColors(game.away, game.home);
+  return `--away:${colors.away};--home:${colors.home}`;
 }
 
 // Team colors for the top bar's tint once it turns solid: one team's color across a
@@ -240,7 +248,7 @@ function renderMatchupPage(gameId) {
   // turnovers. Each row's bar favors the better number.
   const statRows = (rows) => rows.map(([label, key, higher, show]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher, show)).join('');
   const seasonStats = `
-    <div class="cmp-group">Offense</div>
+    <div class="cmp-group"><span>Offense</span></div>
     ${statRows([
       ['PTS / G', 'points', true],
       ['PASS YDS / G', 'passYd', true],
@@ -250,7 +258,7 @@ function renderMatchupPage(gameId) {
       ['3RD DOWN %', 'thirdPct', true, fmtPct],
       ['RED ZONE TD %', 'redZonePct', true, fmtPct],
     ])}
-    <div class="cmp-group">Defense</div>
+    <div class="cmp-group"><span>Defense</span></div>
     ${statRows([
       ['OPP PTS / G', 'allowed', false],
       ['OPP PASS YDS / G', 'oppPassYd', false],
@@ -260,7 +268,7 @@ function renderMatchupPage(gameId) {
       ['OPP 3RD DOWN %', 'oppThirdPct', false, fmtPct],
       ['OPP RED ZONE TD %', 'oppRedZonePct', false, fmtPct],
     ])}
-    <div class="cmp-group">Sacks &amp; turnovers</div>
+    <div class="cmp-group"><span>Sacks &amp; turnovers</span></div>
     ${statRows([
       ['SACKS', 'sacks', true, String],
       ['TAKEAWAYS', 'takeaways', true, String],

@@ -109,7 +109,6 @@ async function startSlip() {
     const firstLoad = state.slip === undefined;
     if (!firstLoad && slip && slip.rev === state.slip?.rev) return; // the echo of our own save
     const weekChanged = state.slip && slip && state.slip.weekStart !== slip.weekStart;
-    const legsBefore = Object.keys(state.slip?.picks ?? {}).length;
     // A new or changed pick shows on its line, even in a column you'd swiped elsewhere.
     for (const [uid, pick] of Object.entries(slip?.picks ?? {})) {
       if (state.slip?.picks?.[uid]?.optKey !== pick.optKey) state.rungs.delete(`${pick.gameId}:${pick.type}`);
@@ -128,6 +127,10 @@ async function startSlip() {
       loadLines();
       loadSports();
     }
+    // While your pick is saving, the push of that same save can beat the save's own
+    // reply. Redrawing now would move your face early and spoil the pick animation;
+    // choose() renders as soon as the save returns.
+    if (state.busyKey) return;
     render();
     openIfTracking();
   });
@@ -237,7 +240,7 @@ async function choose(key) {
   state.busyKey = key;
   render();
   try {
-    state.slip = await store.updateSlip(state.slipId, (slip) => {
+    const saved = await store.updateSlip(state.slipId, (slip) => {
       const reason = pickBlockedReason(slip, me, game.start, { admin: !!acting });
       if (reason) throw new Error(reason);
       const clash = clashFor(slip, me, opt);
@@ -247,11 +250,12 @@ async function choose(key) {
       }
       slip.picks[me] = pickFrom(opt, game);
     });
+    // A push that arrived during the save may already be newer.
+    if ((state.slip?.rev ?? 0) <= saved.rev) state.slip = saved;
     navigator.vibrate?.(12);
     state.justPicked = key;
     setTimeout(() => (state.justPicked = null), 600);
     picked = true;
-    if (matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
   } catch (e) {
     state.slip = (await store.getSlip(state.slipId).catch(() => null)) ?? state.slip;
     toast(saveError(e), 'bad');
@@ -262,6 +266,8 @@ async function choose(key) {
     if (picked) state.arrival = { id: me, key };
     render();
     state.arrival = null;
+    // After that render, so the toast's own redraw can't move the row first.
+    if (picked && matchMedia('(min-width: 960px)').matches) toast(`You’re in: ${pretty(opt.label)}`, 'good');
   }
 }
 
@@ -546,9 +552,17 @@ $app.addEventListener('error', (e) => {
   e.target.style.visibility = 'hidden';
 }, true);
 
+// The page's top bar turns solid once you scroll past the hero. At the very top, the
+// sheet shows the band that continues the hero's glow when you pull down past it.
 function syncPageBar() {
   const body = $app.querySelector('.tsheet-body');
-  $app.querySelector('.ts-bar')?.classList.toggle('solid', (body?.scrollTop ?? 0) > 70);
+  if (!body) return;
+  const top = body.scrollTop;
+  $app.querySelector('.ts-bar')?.classList.toggle('solid', top > 70);
+  const sheet = body.parentElement;
+  sheet.classList.toggle('at-top', top <= 0);
+  const hero = body.querySelector('.tp-hero, .mp-hero');
+  sheet.style.setProperty('--hero-h', `${hero?.offsetHeight ?? 0}px`);
 }
 
 $app.addEventListener('scroll', (e) => e.target.classList?.contains('tsheet-body') && syncPageBar(), true);

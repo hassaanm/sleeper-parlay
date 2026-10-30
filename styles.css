@@ -382,24 +382,11 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Team hero: centered, so the corner buttons never crowd it. */
 /* Team color washes in from the top and fades out softly behind the logo. */
 .tp-hero {
-  position: relative; display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 2px 16px 16px; text-align: center;
+  display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 2px 16px 16px; text-align: center;
   background:
     radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--team) 42%, transparent), transparent 75%),
-    linear-gradient(180deg, color-mix(in srgb, var(--team) 14%, transparent), transparent 85%);
-}
-/* Pulling a sheet down past its top shows the space above the hero. Each hero's glow
-   continues up into it: the same colors as the hero's top edge, held all the way up
-   (a very tall ellipse), so the gradient never looks cut off. */
-.tp-hero::before, .mp-hero::before { content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 100vh; pointer-events: none; }
-.tp-hero::before {
-  background:
-    radial-gradient(70% 10000% at 50% 100%, color-mix(in srgb, var(--team) 42%, transparent), transparent 75%),
-    color-mix(in srgb, var(--team) 14%, transparent);
-}
-.mp-hero::before {
-  background:
-    radial-gradient(60% 10000% at 12% 100%, color-mix(in srgb, var(--away) 40%, transparent), transparent 72%),
-    radial-gradient(60% 10000% at 88% 100%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%);
+    linear-gradient(180deg, color-mix(in srgb, var(--team) 14%, transparent), transparent 85%),
+    var(--bg-2);
 }
 .logo-disc { display: grid; place-items: center; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35)); }
 /* Team logo files carry empty space above and below the mark; trim it so the name
@@ -497,10 +484,28 @@ h1, h2 { letter-spacing: -0.02em; }
 /* Matchup hero: both team colors meeting in the middle, game info stacked between. */
 /* Each team's color glows from its own top corner and the two meet softly in the middle. */
 .mp-hero {
-  position: relative; margin: 0 -16px; padding: 16px 16px 6px;
+  margin: 0 -16px; padding: 16px 16px 6px;
   background:
     radial-gradient(60% 100% at 12% 0%, color-mix(in srgb, var(--away) 40%, transparent), transparent 72%),
-    radial-gradient(60% 100% at 88% 0%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%);
+    radial-gradient(60% 100% at 88% 0%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%),
+    var(--bg-2);
+}
+/* Pulling a sheet down past its top (the iPhone bounce) shows what's behind the
+   scrolling area. A band in the hero's top-edge colors waits there, as tall as the
+   hero, so the glow carries on up instead of stopping at a hard edge. It shows only
+   while the sheet is at its top (app.js syncPageBar), where the hero, opaque, covers
+   it exactly. */
+.tsheet::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: var(--hero-h, 0px); z-index: -1; opacity: 0; pointer-events: none; }
+.tsheet.at-top::before { opacity: 1; }
+.tsheet[data-kind="team"]::before {
+  background:
+    radial-gradient(70% 10000% at 50% 0%, color-mix(in srgb, var(--team) 42%, transparent), transparent 75%),
+    color-mix(in srgb, var(--team) 14%, transparent);
+}
+.tsheet[data-kind="matchup"]::before {
+  background:
+    radial-gradient(60% 10000% at 12% 0%, color-mix(in srgb, var(--away) 40%, transparent), transparent 72%),
+    radial-gradient(60% 10000% at 88% 0%, color-mix(in srgb, var(--home) 40%, transparent), transparent 72%);
 }
 .mp-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
 .mp-team { display: grid; justify-items: center; gap: 4px; background: none; border: none; padding: 6px; border-radius: 14px; cursor: pointer; }
@@ -529,14 +534,14 @@ h1, h2 { letter-spacing: -0.02em; }
 .cmp-head span { display: inline-flex; align-items: center; gap: 6px; }
 .cmp-head span:last-child { justify-self: end; }
 .cmp-head .cmp-title { color: var(--text); letter-spacing: 0.08em; }
-/* A group divider inside a comparison card ("Offense", "Defense", ...): a quiet band
-   across the card with the group's name. */
-.cmp-group {
-  margin: 0 -14px; padding: 6px 14px 5px; background: rgba(255, 255, 255, 0.025);
-  border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
-  font-size: 10px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; text-align: center;
+/* A group divider inside a comparison card ("Offense", "Defense", ...): the group's
+   name in a small capsule on a hairline across the card. */
+.cmp-group { display: flex; align-items: center; gap: 8px; padding: 12px 0 2px; }
+.cmp-group::before, .cmp-group::after { content: ''; flex: 1; height: 1px; background: var(--line-soft); }
+.cmp-group span {
+  padding: 3px 10px; border-radius: 99px; background: rgba(255, 255, 255, 0.05);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.2; color: var(--muted); text-transform: uppercase;
 }
-.cmp-head + .cmp-group { border-top: none; }
 .cmp-group + .cmp-row { border-top: none; }
 .cmp-empty { margin: 0; padding: 9px 0 8px; border-top: 1px solid var(--line-soft); font-size: 12px; color: var(--faint); text-align: center; }
 .cmp-row { display: grid; grid-template-columns: 80px minmax(0, 1fr) 80px; align-items: center; gap: 6px; padding: 7px 0; border-top: 1px solid var(--line-soft); }
