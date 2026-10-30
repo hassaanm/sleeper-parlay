@@ -741,6 +741,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .slip-peek {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   height: var(--peek); padding: 4px 14px 0; transition: height 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  /* The slip's sides are a curtain: a face rolling in comes out from behind the left
+     edge (faces.js). Only sideways, so faces can still hop up and fall down past it. */
+  overflow-x: clip;
 }
 /* The row is its own layer above the legs, so a face falling out of it passes in
    front of the slip's rows. */
@@ -752,6 +755,8 @@ h1, h2 { letter-spacing: -0.02em; }
 /* A face falling out of the row (app.js dropFace): placed over its old spot, in the
    row's stacking order. */
 .faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
+/* A sticker leaving its cell (app.js), kept in place while it dissolves. */
+.sticker.leaving { pointer-events: none; }
 .faces-empty { font-size: 13px; color: var(--muted); margin-left: -7px; }
 .peek-right { display: flex; align-items: center; gap: 8px; }
 .my-leg {

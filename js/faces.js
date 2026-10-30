@@ -1,7 +1,7 @@
 // The slip's faces row (everyone with a leg) animates its changes after each render,
 // the same way for your picks and for friends' picks arriving live:
 //
-//   new pick            rolls in from the left edge of the screen to its spot
+//   new pick            rolls in from behind the slip's left edge to its spot
 //   changed, same spot  a tiny hop in place
 //   changed, new spot   a big hop: up clear of the row, over, and down into its spot
 //   removed             rolls off to the right and falls off the screen
@@ -125,12 +125,13 @@ function jumpPose(t, jump, dx = 0) {
 const easeInOut = (t) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
 const degreesRolled = (distance, radius) => (distance / radius) * (180 / Math.PI);
 
-// A new face rolls in from just off the left edge of the screen and coasts to a stop
-// in its spot, turning as it rolls. It passes over the faces to its left, which sit
-// under it anyway.
+// A new face rolls in from behind the slip's left edge (the row is clipped there) and
+// coasts to a stop in its spot. Its turn is worked back from the spot, so it arrives
+// exactly upright. It passes over the faces to its left, which sit under it anyway.
 function rollIn(el, delay) {
   const rect = el.getBoundingClientRect();
-  const start = -(rect.right + 12); // just past the left edge
+  const curtain = el.closest('.slip-peek')?.getBoundingClientRect().left ?? 0;
+  const start = -(rect.right - curtain + 2); // just behind the slip's left edge
   const duration = Math.min(1000, Math.max(520, 250 + Math.abs(start) * 0.9));
   const radius = rect.width / 2;
   el.animate(

@@ -268,7 +268,7 @@ function sticker(member, key) {
   // Tilt 7–18° either way: never so straight it looks placed by a machine.
   const tilt = (rand() < 0.5 ? -1 : 1) * Math.round(7 + rand() * 11);
   const vars = `--rot:${tilt}deg;--dx:${Math.round(-6 + rand() * 6)}px;--dy:${Math.round(-6 + rand() * 7)}px`;
-  return `<span class="sticker ${fresh ? 'slap' : ''}" style="${vars}" title="${esc(member.name)} has this">${avatar(member, 19)}</span>`;
+  return `<span class="sticker ${fresh ? 'slap' : ''}" style="${vars}" data-sticker="${esc(id)}" title="${esc(member.name)} has this">${avatar(member, 19)}</span>`;
 }
 
 // Second line of a cell: the odds (moneyline cells show odds as their main number).

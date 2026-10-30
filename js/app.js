@@ -377,6 +377,26 @@ function trackPicks() {
   for (const id of active) if (!state.pickSince.has(id)) state.pickSince.set(id, state.stickersPrimed ? Date.now() : 0);
 }
 
+// A sticker whose pick changed or went away dissolves on its cell: it swells a little,
+// blurs, and fades out. Kept as a transient child (dom.js) while it goes.
+function dissolveStickers(before) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const [id, { el, cell }] of before) {
+    if (state.pickSince.has(id) || el.isConnected || !cell?.isConnected) continue;
+    el.classList.remove('slap');
+    el.classList.add('leaving');
+    el.setAttribute('data-transient', '');
+    cell.appendChild(el);
+    el.animate(
+      [
+        { opacity: 1, scale: 1, filter: 'blur(0)' },
+        { opacity: 0, scale: 1.3, filter: 'blur(3px)' },
+      ],
+      { duration: 480, easing: 'ease-out', fill: 'forwards' },
+    ).finished.then(() => el.remove());
+  }
+}
+
 function render() {
   // A background refresh mid-drag would replace the slip under the finger; wait.
   if (slipDrag) {
@@ -385,8 +405,10 @@ function render() {
   }
   trackPicks();
   const faces = captureFaces($app);
+  const stickers = new Map([...$app.querySelectorAll('.sticker[data-sticker]:not([data-transient])')].map((el) => [el.dataset.sticker, { el, cell: el.parentElement }]));
   patch($app, (state.slipId ? renderSlipPage() : renderLanding()) + renderToast());
   animateFaces($app, faces);
+  dissolveStickers(stickers);
   document.body.classList.toggle('no-scroll', state.sheetOpen || state.pages.length > 0);
   if (state.resetPageScroll) $app.querySelector('.tsheet-body')?.scrollTo(0, 0);
   state.resetPageScroll = false;
