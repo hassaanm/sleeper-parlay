@@ -328,8 +328,11 @@ function dropFace({ el, rect }) {
   ).finished.then(() => face.remove());
 }
 
-// Your avatar flies from the cell you tapped to its spot in the faces row, then takes
-// its place there.
+// Your avatar flies from the cell you tapped to a spot just above its place in the faces
+// row. The flyer floats over everything, so it stops short: the real face takes over
+// there and drops into the row itself, tucking under the face to its right.
+const HOVER = 16; // px above the slot where the flyer hands off
+const HOVER_SCALE = 1.1;
 function flyToSlip(from) {
   const me = memberById(state.arriving);
   const target = visibleFaces()?.querySelector(`[data-key="${CSS.escape(state.arriving)}"]`);
@@ -341,10 +344,10 @@ function flyToSlip(from) {
   el.innerHTML = avatar(me, size);
   const x0 = from.left + from.width / 2 - size / 2;
   const y0 = from.top + from.height / 2 - size / 2;
-  // Center on the target, scaled down to its size.
+  // End centered over the slot, HOVER px up, at the face's size times HOVER_SCALE.
   const dx = to.left + to.width / 2 - (x0 + size / 2);
-  const dy = to.top + to.height / 2 - (y0 + size / 2);
-  const end = to.width / size;
+  const dy = to.top + to.height / 2 - HOVER - (y0 + size / 2);
+  const end = (to.width * HOVER_SCALE) / size;
   Object.assign(el.style, { left: `${x0}px`, top: `${y0}px` });
   document.body.appendChild(el);
   const lift = Math.min(120, Math.abs(dy) * 0.35);
@@ -354,20 +357,29 @@ function flyToSlip(from) {
       { transform: `translate(${dx / 2}px, ${dy / 2 - lift}px) scale(1.05)`, offset: 0.45 },
       { transform: `translate(${dx}px, ${dy}px) scale(${end})` },
     ],
-    { duration: 650, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+    { duration: 560, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' },
   ).finished.then(() => {
+    land(true);
     el.remove();
-    land();
   });
 }
 
-// The flight is over: show your face in its spot, with a small settle.
-function land() {
+// The flight is over: show your face in its spot. After a flight it starts where the
+// flyer stopped (just above the slot) and drops in with a small bounce.
+function land(fromHover = false) {
   const id = state.arriving;
   state.arriving = null;
   render();
-  visibleFaces()?.querySelector(`[data-key="${CSS.escape(id ?? '')}"]`)
-    ?.animate([{ transform: 'scale(1.3)' }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(0.2, 1.6, 0.4, 1)' });
+  const face = visibleFaces()?.querySelector(`[data-key="${CSS.escape(id ?? '')}"]`);
+  if (!face || !fromHover) return;
+  face.animate(
+    [
+      { transform: `translateY(-${HOVER}px) scale(${HOVER_SCALE})`, easing: 'cubic-bezier(0.5, 0, 0.75, 0)' },
+      { transform: 'translateY(2px) scale(0.96)', offset: 0.6, easing: 'ease-out' },
+      { transform: 'none' },
+    ],
+    { duration: 260 },
+  );
 }
 
 async function removeMine() {

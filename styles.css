@@ -721,7 +721,10 @@ h1, h2 { letter-spacing: -0.02em; }
   height: var(--peek); padding: 4px 14px 0; transition: height 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .faces { display: flex; align-items: center; padding-left: calc(-1 * var(--overlap, -7px)); flex: none; }
-.faces .stacked { margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
+/* Each face sits on the one to its left and under the one to its right. Positioning
+   them all keeps that order while one is animating (a transform would otherwise lift
+   it above every still face). */
+.faces .stacked { position: relative; margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
 /* Holds your spot while your avatar flies in. */
 .faces .arriving { visibility: hidden; }
 .faces-empty { font-size: 13px; color: var(--muted); margin-left: -7px; }
