@@ -25,6 +25,7 @@ const JUMP_GRAVITY = 1900; // px/s², a touch floatier, so jumps read clearly
 const ROLL_OFF_PAST = 6; // px past the last face before tipping off
 const ROLL_OFF_SPEEDUP_PX = 12; // reaching rolling speed from rest
 const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
+const SHUFFLE_AFTER_FALL_PX = 30; // after a removal, the others close up once it has dropped this far
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
@@ -76,9 +77,9 @@ export function animateFaces(root, before) {
   // A leaving face rolls past the end of the row before it drops.
   const rowEnd = Math.max(...[...before.values()].map(({ at }) => at.left + at.width));
   const offs = new Map(removed.map((id) => [id, rollOffFor(before.get(id).at, rowEnd)]));
-  // The others close up once it's halfway down its fall (at least twice its own height).
-  const halfwayMs = ({ at }) => Math.sqrt((2 * Math.max(fallFor(box, at) / 2, 2 * at.height)) / GRAVITY) * 1000;
-  const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + halfwayMs(before.get(id))));
+  // The others close up once it has dropped SHUFFLE_AFTER_FALL_PX.
+  const droppedMs = Math.sqrt((2 * SHUFFLE_AFTER_FALL_PX) / GRAVITY) * 1000;
+  const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + droppedMs));
   let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
   for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
   for (const roll of rolls.values()) {
@@ -267,9 +268,6 @@ function rollOffFor(at, rowEnd) {
   return { distance, rollS, edgeSpeed, rolled, rollMs: rollS * 1000 };
 }
 
-// How far a falling face drops: from its spot to just past the bottom of the screen.
-const fallFor = (box, at) => innerHeight - (box.top + at.top) + at.height + 20;
-
 // The face (the real element, never a fresh copy, so it can't blink) sits in the row
 // at its old place, before `oldRight`, so it keeps that place in the stack. It's
 // marked transient so a render mid-fall leaves it alone (dom.js).
@@ -281,7 +279,7 @@ function rollOff(row, box, { el, at }, oldRight, off) {
   row.insertBefore(el, oldRight);
 
   const radius = at.width / 2;
-  const fall = fallFor(box, at);
+  const fall = innerHeight - (box.top + at.top) + at.height + 20;
   const airtime = Math.sqrt((2 * fall) / GRAVITY);
   const total = off.rollS + airtime;
   play(el,
