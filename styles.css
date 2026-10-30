@@ -946,7 +946,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .mark.push { color: var(--gold); }
 .leg-final.hit { background-color: rgba(0, 214, 168, 0.07); }
 .leg-final.miss { background-color: rgba(255, 107, 125, 0.07); }
-.parlay-foot.busted dd { text-decoration: line-through; text-decoration-color: rgba(255, 107, 125, 0.6); }
+.parlay-foot.busted dd { text-decoration: line-through; text-decoration-color: rgba(255, 107, 125, 0.8); text-decoration-thickness: 2.5px; }
 .parlay-foot.busted div:first-child dd { text-decoration: none; }
 .live-tag { font-weight: 700; color: #ff8f9b; }
 .leg-final.miss .leg-pick, .leg-final.miss .leg-odds { opacity: 0.55; }
