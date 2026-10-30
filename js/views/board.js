@@ -325,7 +325,7 @@ function liveCard(g) {
 
 // Final: the kickoff time, the winner's color in the bar, each line's price at kickoff
 // with a ✓ on what won, and between the teams the win chance through the game, the
-// final margin, and the total points.
+// final margin ("JAX by 8"), and the total points.
 function finalCard(g) {
   const st = g.status;
   const lines = state.prices.get(g.key);
@@ -334,7 +334,7 @@ function finalCard(g) {
   const winner = margin > 0 ? g.away : margin < 0 ? g.home : null;
   const middle = `
     ${lines?.momentum ? momentum(lines.momentum, matchupColors(g.away, g.home)) : ''}
-    <div class="settle" style="grid-area:3/4">${winner ? `${esc(winner)} −${Math.abs(margin)}` : 'Tie'}</div>
+    <div class="settle" style="grid-area:3/4">${winner ? `${esc(winner)} by ${Math.abs(margin)}` : 'Tie'}</div>
     <div class="settle" style="grid-area:3/5">${st.awayScore + st.homeScore}</div>`;
   return `
   <article class="game final ${takers.some((t) => t.mine) ? 'has-mine' : ''}" data-key="${esc(g.key)}">
