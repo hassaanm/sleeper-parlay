@@ -6,7 +6,7 @@ import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../t
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
 import { awayWinPct } from '../lines.js';
 import { gameById, state } from '../state.js';
-import { chevron, chevronSmall, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
+import { chevron, chevronSmall, teamGo, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
 // over the hero; once you scroll, the top bar turns solid and shows a title.
@@ -185,7 +185,7 @@ function renderMatchupPage(gameId) {
   const teamHead = (abbr) => `
     <button class="mp-team" data-action="team" data-id="${esc(abbr)}" style="--team:${abbr === A ? colors.away : colors.home}">
       <span class="logo-disc">${teamLogo(abbr, 58)}</span>
-      <b>${esc(nickname(abbr))}</b>
+      <b>${esc(nickname(abbr))}${teamGo()}</b>
       <small>${esc(league?.teams.get(abbr)?.record ?? teamInfo(abbr)?.record ?? '')}</small>
     </button>`;
 

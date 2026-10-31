@@ -283,7 +283,12 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .g-team:active { background: var(--card-2); }
 .g-team .logo { justify-self: center; }
-.g-abbr { font-size: 13.5px; font-weight: 750; letter-spacing: -0.01em; line-height: 1; }
+.g-abbr { display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 750; letter-spacing: -0.01em; line-height: 1; }
+/* The › after a team name (ui.js teamGo): green like the Matchup link, nudging right
+   every few seconds. Centered on the text by its flex parent. */
+.team-go { flex: none; display: block; width: 11px; height: 11px; margin-left: 1px; margin-right: -4px; color: var(--accent); animation: team-nudge 3.2s ease-in-out infinite; }
+@keyframes team-nudge { 0%, 70%, 100% { transform: translateX(0); } 78% { transform: translateX(3px); } 86% { transform: translateX(0); } 92% { transform: translateX(1.5px); } }
+@media (prefers-reduced-motion: reduce) { .team-go { animation: none; } }
 .g-record { justify-self: center; font-size: 9.5px; font-weight: 600; color: var(--muted); line-height: 1; white-space: nowrap; }
 .dots { display: flex; gap: 3px; }
 .dots i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
@@ -405,7 +410,7 @@ h1, h2 { letter-spacing: -0.02em; }
 
 /* A started game's team row: abbr small under the logo (where the record sits), the
    score where the abbr was, and while live, timeouts left under the score. */
-.g-team.scored .g-score { grid-column: 2; grid-row: 1; font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
+.g-team.scored .g-score { display: inline-flex; align-items: center; grid-column: 2; grid-row: 1; font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
 .g-team.scored .g-abbr-s { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9.5px; font-weight: 700; line-height: 1; color: var(--muted); }
 .g-team.scored .tos { grid-column: 2; grid-row: 2; display: flex; gap: 3px; padding-left: 3px; }
 .tos i { width: 5px; height: 5px; border-radius: 50%; background: #c9d1ea; }
@@ -607,7 +612,8 @@ h1, h2 { letter-spacing: -0.02em; }
 .mp-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
 .mp-team { display: grid; justify-items: center; gap: 4px; background: none; border: none; padding: 6px; border-radius: 14px; cursor: pointer; }
 .mp-team:active { background: rgba(255, 255, 255, 0.05); }
-.mp-team b { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.mp-team b { display: inline-flex; align-items: center; line-height: 1.2; font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.mp-team .team-go { width: 15px; height: 15px; margin-left: 2px; margin-right: -17px; }
 .mp-team small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .mp-mid { display: grid; justify-items: center; gap: 6px; min-width: 96px; }
 .mp-mid-row { display: flex; gap: 8px; }

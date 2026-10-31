@@ -4,7 +4,7 @@ import { matchupColors } from '../teams.js';
 import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
 import { DEMO_MODES, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
-import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
+import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, teamGo, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
 
@@ -178,7 +178,7 @@ function renderGame(game) {
     return `
       <button class="g-team" style="grid-area:${row}/2" data-action="team" data-id="${esc(abbr)}">
         ${teamLogo(abbr, 24)}
-        <strong class="g-abbr">${esc(abbr)}</strong>
+        <strong class="g-abbr">${esc(abbr)}${teamGo()}</strong>
         <small class="g-record">${esc(team?.record ?? '')}</small>
         ${formDots(team)}
       </button>`;
@@ -242,7 +242,7 @@ function winBar(away, home, awayPct) {
 const scoredTeam = (abbr, row, score, { lost = false, timeouts = null } = {}) => `
   <button class="g-team scored ${lost ? 'lost' : ''}" style="grid-area:${row}/2" data-action="team" data-id="${esc(abbr)}">
     ${teamLogo(abbr, 24)}
-    <span class="g-score">${score}</span>
+    <span class="g-score">${score}${teamGo()}</span>
     <small class="g-abbr-s">${esc(abbr)}</small>
     ${timeouts == null ? '' : `<span class="tos" title="${timeouts} timeouts left">${[0, 1, 2].map((i) => `<i class="${i < timeouts ? '' : 'used'}"></i>`).join('')}</span>`}
   </button>`;
