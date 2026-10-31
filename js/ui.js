@@ -129,8 +129,8 @@ export const fmtChance = (p) => (p >= 0.1 ? `${(p * 100).toFixed(0)}%` : p >= 0.
 export const chevronSmall = () =>
   '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
-// The › after a team's name that opens its page. It nudges right every few seconds so
-// people notice the team is tappable (styles.css .team-go).
+// The › after a team's name that opens its page, so people notice the team is tappable
+// (styles.css .team-go).
 export const teamGo = () =>
   '<svg class="team-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
