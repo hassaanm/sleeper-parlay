@@ -410,7 +410,7 @@ h1, h2 { letter-spacing: -0.02em; }
    score where the abbr was, and while live, timeouts left under the score. */
 .g-team.scored .g-score { display: inline-flex; align-items: center; grid-column: 2; grid-row: 1; font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
 .g-team.scored .g-abbr-s { grid-column: 1; grid-row: 2; justify-self: center; font-size: 9.5px; font-weight: 700; line-height: 1; color: var(--muted); }
-.g-team.scored .g-score .team-go { margin-left: 4px; color: var(--text); } /* white once the game starts, so it stays quiet */
+.g-team.scored .g-score .team-go { margin-left: 2px; color: var(--text); } /* white once the game starts, so it stays quiet */
 .g-team.scored .tos { grid-column: 2; grid-row: 2; display: flex; gap: 3px; padding-left: 3px; }
 .tos i { width: 5px; height: 5px; border-radius: 50%; background: #c9d1ea; }
 .tos i.used { background: #2b3557; }
