@@ -297,15 +297,36 @@ async function ensureCurrentSlip() {
 
 // ---------- actions ----------
 
+// A failed save, in words. fetch rejects with a TypeError ("Failed to fetch", "Load
+// failed") when the network is down, and store.js gives up on hung requests.
+const saveError = (e) => (e?.name === 'TimeoutError' || (e instanceof TypeError && /fetch|load|network/i.test(e.message))
+  ? 'Couldn’t reach the server. Check your connection and try again.'
+  : e.message);
+
+// A short message at the bottom of the screen. Only for things the board can't show:
+// why a greyed-out cell can't be picked, and a save that failed.
+function toast(message) {
+  state.toast = { message, id: Date.now() };
+  render();
+  const id = state.toast.id;
+  setTimeout(() => {
+    if (state.toast?.id === id) {
+      state.toast = null;
+      render();
+    }
+  }, 3200);
+}
+
 // Saves a change to your own leg, and shows it right away instead of after the save
 // (state.pending): the cell turns yours, the stickers swap, and your face moves in the
-// slip's row (faces.js). If the save fails, it all goes back.
+// slip's row (faces.js). If the save fails, it all goes back, and a toast says why.
 async function saveMyLeg(userId, pick, mutate) {
   state.pending = { userId, pick };
   try {
     render();
     acceptSlip(await store.updateSlip(state.slipId, mutate));
-  } catch {
+  } catch (e) {
+    toast(saveError(e));
     acceptSlip(await store.getSlip(state.slipId).catch(() => null));
   } finally {
     state.pending = null;
@@ -322,7 +343,8 @@ async function choose(key) {
   if (previous?.optKey === key) return;
   const game = gameById(opt.gameId);
   if (!game) return;
-  if (pickProblem(opt)) return;
+  const problem = pickProblem(opt);
+  if (problem) return toast(problem);
 
   navigator.vibrate?.(12);
   state.justPicked = key;
@@ -531,11 +553,13 @@ async function adminLogin() {
   render();
 }
 
-// An admin change; if it can't be saved, the page shows the slip as it is.
+// An admin change; if it can't be saved, a toast says why and the page shows the slip
+// as it is.
 async function adminUpdate(mutate) {
   try {
     acceptSlip(await store.updateSlip(state.slipId, mutate));
-  } catch {
+  } catch (e) {
+    toast(saveError(e));
     acceptSlip(await store.getSlip(state.slipId).catch(() => null));
   }
   render();
@@ -713,7 +737,7 @@ $app.addEventListener('click', (e) => {
       const pick = picks()[id];
       if (!pick || !confirm(`Remove ${memberName(id)}’s pick (${pick.label})?`)) return;
       return adminUpdate((slip) => {
-        if (slip.picks[id]?.optKey !== pick.optKey) return false; // they changed it meanwhile
+        if (slip.picks[id]?.optKey !== pick.optKey) throw new Error(`${memberName(id)} changed their pick meanwhile, so nothing was removed.`);
         delete slip.picks[id];
       });
     }

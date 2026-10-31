@@ -47,6 +47,7 @@ export const state = {
   demoMode: DEMO_MODE, // the demo's stage; the top bar's picker changes it in place
   demoSwitching: false, // a new stage is loading: true, then 'loading' while the board holds still
   pending: null, // your leg while its save is in flight: { userId, pick } (pick null = removed); see picks()
+  toast: null, // { message, id }: a blocked tap or a failed save (app.js toast)
   justPicked: null, // the cell you just picked, for its pop animation
   // Admin page ("?admin"): unlocked once the password matches, until the page is left or
   // reloaded (every visit asks again). While the admin picks on someone's behalf,
@@ -93,7 +94,7 @@ export function picks() {
 }
 
 // Why the current member can't take `opt` right now, in words, or null if they can. The
-// board greys out a cell with a problem, and tapping it does nothing (app.js choose).
+// board greys out a cell with a problem, and tapping it shows this (app.js choose).
 export function pickProblem(opt) {
   const game = gameById(opt.gameId);
   if (!game) return 'That line is closed.';

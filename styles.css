@@ -982,6 +982,16 @@ h1, h2 { letter-spacing: -0.02em; }
 @keyframes fade { from { opacity: 0; } }
 
 
+/* ---------- toast ---------- */
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px); transform: translateX(-50%); z-index: 60;
+  background: var(--raise); border: 1px solid var(--bad); color: #ffd3d9; padding: 11px 16px; border-radius: 12px;
+  box-shadow: var(--shadow); font-weight: 600; font-size: 14px; width: max-content; max-width: calc(100vw - 32px); text-align: center;
+  animation: toast-rise 0.2s ease-out;
+}
+@keyframes toast-rise { from { opacity: 0; transform: translate(-50%, 8px); } }
+
 /* ---------- desktop ---------- */
 
 @media (min-width: 960px) {
@@ -989,6 +999,7 @@ h1, h2 { letter-spacing: -0.02em; }
   .parlay-side { display: block; position: sticky; top: calc(var(--topbar-h) + var(--subbar-h) + 20px); margin-top: 20px; }
   .slip-wrap { display: none; }
   .g-grid { grid-template-columns: 6px 100px repeat(3, minmax(0, 1fr)); }
+  .toast { bottom: 24px; }
 }
 
 /* ---------- pick deadline ---------- */

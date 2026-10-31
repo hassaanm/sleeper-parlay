@@ -1,5 +1,5 @@
 // The page shell: which screen shows for the current state (landing, loading, error,
-// admin, "Who's picking?", or the board with its slip).
+// admin, "Who's picking?", or the board with its slip), plus the toast.
 import { basePath, memberById, state } from '../state.js';
 import { esc } from '../ui.js';
 import { renderActingBar, renderAdmin } from './admin.js';
@@ -7,7 +7,12 @@ import { renderGames, renderLockBar, renderSubbar, renderTopbar, renderWhoAreYou
 import { renderPage } from './pages.js';
 import { renderParlayCard, renderSlip } from './slip.js';
 
-export const renderApp = () => (state.slipId ? renderSlipPage() : renderLanding());
+export const renderApp = () => (state.slipId ? renderSlipPage() : renderLanding()) + renderToast();
+
+function renderToast() {
+  if (!state.toast) return '';
+  return `<div class="toast" role="status" id="toast-${state.toast.id}">${esc(state.toast.message)}</div>`;
+}
 
 function renderLanding() {
   const l = state.landing;
