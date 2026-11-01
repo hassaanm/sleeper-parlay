@@ -94,7 +94,7 @@ function faceRing(pct, color, from = null) {
     const a = (from / 100) * 2 * Math.PI; // counterclockwise from the top
     const at = (r) => `${(12 - r * Math.sin(a)).toFixed(2)} ${(12 - r * Math.cos(a)).toFixed(2)}`;
     const d = `M${at(10)} L${at(12)}`;
-    tick = `<path class="ring-notch" d="${d}"/><path class="ring-tick" d="${d}"/>`;
+    tick = `<path class="ring-tick" d="${d}"/>`;
   }
   return `<svg class="face-ring" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">${arc}${tick}</svg>`;
 }

@@ -858,10 +858,9 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .faces .ringed .avatar { grid-area: 1 / 1; }
 .face-ring { grid-area: 1 / 1; width: 24px; height: 24px; overflow: visible; }
-/* Where the chance stood when picked, across the ring's band only: a thin gold line in
-   a small paper-colored cut, so it reads as a notch in the ring. */
-.ring-notch { stroke: var(--paper); stroke-width: 2.4; }
-.ring-tick { stroke: var(--gold); stroke-width: 0.9; }
+/* Where the chance stood when picked, across the ring's band only: a hairline of soft
+   white, just enough to show why the ring is green or red. */
+.ring-tick { stroke: rgba(255, 255, 255, 0.7); stroke-width: 0.6; }
 /* A face falling out of the row (faces.js rollOff): placed over its old spot, in the
    row's stacking order. */
 .faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
