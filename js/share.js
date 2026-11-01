@@ -8,6 +8,26 @@ import { renderShareCard } from './views/slip.js';
 
 // Draws HTML into an image. Only loaded when someone shares.
 const DRAW = 'https://cdn.jsdelivr.net/npm/modern-screenshot@4.7.0/+esm';
+const SCALE = 3; // pixels per CSS pixel: sharp on any phone
+
+// The paper's grain (styles.css --grain) is an SVG noise filter, which draws solid black
+// inside the picture. So it's drawn to a plain image first, at the picture's scale, and
+// the picture's paper uses that instead. Made once per visit.
+let grain = null;
+function grainImage() {
+  grain ??= (async () => {
+    const src = getComputedStyle(document.documentElement).getPropertyValue('--grain').match(/url\(["']?(.*?)["']?\)$/)[1];
+    const svg = new Image();
+    svg.src = src;
+    await svg.decode();
+    const size = 180; // the tile's size in the SVG
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size * SCALE;
+    canvas.getContext('2d').drawImage(svg, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+  })().catch(() => null); // no grain is better than no picture
+  return grain;
+}
 
 export async function makeSlipPicture() {
   const { domToBlob } = await import(DRAW);
@@ -23,10 +43,12 @@ export async function makeSlipPicture() {
     const paper = shot.querySelector('.paper');
     const foot = shot.querySelector('.parlay-foot');
     paper.style.setProperty('--tear', `${Math.round(paper.getBoundingClientRect().bottom - foot.getBoundingClientRect().top - 5)}px`);
+    const texture = await grainImage();
+    if (texture) paper.style.background = `url(${texture}) 0 0 / 180px 180px, var(--paper)`;
     await Promise.all([...shot.querySelectorAll('img')].map((img) => img.decode().catch(() => {})));
     // Logos and faces are fetched again, past the browser's cache: the copies it already
     // has came from plain <img> loads, without the CORS header a picture needs.
-    const blob = await domToBlob(shot, { scale: 3, type: 'image/png', fetch: { requestInit: { cache: 'reload' } } });
+    const blob = await domToBlob(shot, { scale: SCALE, type: 'image/png', fetch: { requestInit: { cache: 'reload' } } });
     return new File([blob], `parlay-week-${state.slip.week}.png`, { type: 'image/png' });
   } finally {
     holder.remove();

@@ -1040,7 +1040,8 @@ h1, h2 { letter-spacing: -0.02em; }
 .shot-head strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
 .shot-head small { font-size: 12.5px; }
 .share-shot .parlay-card.ticket { max-height: none; filter: none; }
-/* The paper's grain is an SVG filter, which draws solid black in the picture. */
+/* The paper's grain is an SVG filter, which draws solid black in the picture; share.js
+   swaps in a drawn copy of it. */
 .share-shot .paper { background: var(--paper); }
 .share-shot .parlay-card.ticket .sheet-body { overflow: visible; }
 /* Your own leg's chip, the Remove button, and the wavy line under your name are for
