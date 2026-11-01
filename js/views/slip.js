@@ -243,7 +243,8 @@ export function renderParlayCard() {
 
 // Phone: the slip lives at the bottom of the screen. Closed, its top edge peeks up
 // (who's in, your leg); drag it or tap it to pull up the full slip. It's one element in
-// both states, so it never jumps or changes width.
+// both states, so it never jumps or changes width. Open, the top row stays put and the
+// legs and totals scroll together below it, so the legs get the room.
 export function renderSlip() {
   const classes = ['slip-wrap', state.sheetOpen && 'open', state.nudging && 'nudge', isTracking(legsWithLive()) && 'tracking'].filter(Boolean).join(' ');
   return `
@@ -254,8 +255,7 @@ export function renderSlip() {
       <div class="slip-handle" role="button" tabindex="0" aria-expanded="${state.sheetOpen}" aria-label="Show or hide the parlay">
         ${slipHeader(true)}
       </div>
-      <div class="sheet-body">${parlayLegs()}</div>
-      ${parlayFoot()}
+      <div class="sheet-body">${parlayLegs()}${parlayFoot()}</div>
     </section>
   </div>`;
 }

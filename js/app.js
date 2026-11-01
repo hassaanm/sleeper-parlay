@@ -10,7 +10,7 @@ import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, p
 import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
-import { holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
+import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
 import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
@@ -500,6 +500,7 @@ function render() {
 
   syncStrips();
   syncTearLine();
+  bindSlipPull();
   syncPageBar();
   fitNames();
   if (state.games.length) state.stickersPrimed = true;
