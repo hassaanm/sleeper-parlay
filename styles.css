@@ -1013,8 +1013,9 @@ h1, h2 { letter-spacing: -0.02em; }
 /* The Share button sits left of the chevron. On the phone it only shows with the slip
    open: closed, the whole top row is one big tap to open it. */
 .share-btn svg { width: 17px; height: 17px; }
-.slip-wrap .share-btn { transition: opacity 0.25s ease; }
-.slip-wrap:not(.open) .share-btn { opacity: 0; pointer-events: none; }
+/* Closed, it folds to nothing (with the row's 8px gap), so the chevron keeps its spot. */
+.slip-wrap .share-btn { overflow: hidden; transition: opacity 0.25s ease, width 0.42s cubic-bezier(0.22, 1, 0.36, 1), margin 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
+.slip-wrap:not(.open) .share-btn { opacity: 0; width: 0; margin-left: -8px; pointer-events: none; }
 
 /* The picture's layout (share.js): off screen, a phone's width, the app's background
    and glow behind the full ticket. Nothing in it moves or scrolls. */
