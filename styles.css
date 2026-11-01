@@ -855,8 +855,9 @@ h1, h2 { letter-spacing: -0.02em; }
 .faces .ring-miss { --ring-bg: linear-gradient(var(--bad), var(--bad)); }
 .faces .ring-push { --ring-bg: linear-gradient(var(--muted), var(--muted)); }
 .faces .ring-later { --ring-bg: linear-gradient(#000, #000); }
-/* Live: filled clockwise from the top to the leg's chance now, the rest a faint track. */
-.faces .ring-live { --ring-bg: conic-gradient(var(--ring) var(--fill), rgba(255, 255, 255, 0.16) 0); }
+/* Live: filled counterclockwise from the top to the leg's chance now (the left side,
+   which overlapping faces never hide, fills first), the rest a faint track. */
+.faces .ring-live { --ring-bg: conic-gradient(rgba(255, 255, 255, 0.16) calc(100% - var(--fill)), var(--ring) 0); }
 /* A face falling out of the row (faces.js rollOff): placed over its old spot, in the
    row's stacking order. */
 .faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
