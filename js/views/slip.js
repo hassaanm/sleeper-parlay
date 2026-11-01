@@ -143,7 +143,7 @@ function parlayLegs() {
       const now = live && l.livePrice ? l.livePrice : l.price;
       const mark = { hit: '<b class="mark hit">✓</b>', miss: '<b class="mark miss">✗</b>', push: '<b class="mark push">–</b>' }[l.grade];
       return `
-        <li class="leg tracked ${live ? 'leg-live' : ''} ${final ? `leg-final ${l.grade}` : ''}" data-key="${esc(l.member.id)}">
+        <li class="leg tracked ${live ? 'leg-live' : final ? `leg-final ${l.grade}` : 'leg-later'}" data-key="${esc(l.member.id)}">
           <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
           <span class="leg-pick">${esc(pretty(l.pick.label))}</span>
           ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}

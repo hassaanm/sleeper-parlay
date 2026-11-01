@@ -965,6 +965,10 @@ h1, h2 { letter-spacing: -0.02em; }
 .legs .leg:last-child { padding-bottom: 11px; }
 .leg.tracked:last-child { padding-bottom: 4px; }
 .leg.tracked.leg-final:last-child { padding-bottom: 8px; }
+/* A leg whose game hasn't started ends on its text line, not a bar with a label under
+   it, so it needs more room below to look as far from the next line as the others. */
+.leg.tracked.leg-later { padding-bottom: 7px; }
+.leg.tracked.leg-later:last-child { padding-bottom: 11px; }
 .leg-game.final { margin-top: 3px; }
 .ll-result { font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; }
 .ll-result.hit { color: var(--accent); }
