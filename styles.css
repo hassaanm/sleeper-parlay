@@ -948,11 +948,13 @@ h1, h2 { letter-spacing: -0.02em; }
 .gbar::before { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 99px; background: #2b3557; }
 .gbar-fill { top: 4px; height: 6px; border-radius: 99px; }
 .gbar-tick { top: 1px; height: 12px; width: 2px; margin-left: -1px; border-radius: 1px; background: #c9d1ea; }
-.gbar-dot { top: 2.5px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; z-index: 1; }
+/* The ring is a border, not a box-shadow: iPhone's Safari draws a shadow ring off to
+   one side in the share picture (share.js). */
+.gbar-dot { top: 0.5px; width: 13px; height: 13px; margin-left: -6.5px; border: 2px solid transparent; background-clip: padding-box; border-radius: 50%; z-index: 1; }
 /* A thin ring in a darker shade of the dot's own color. */
-.leg-game.win .gbar-dot { box-shadow: 0 0 0 2px #064a3b; }
-.leg-game.lose .gbar-dot { box-shadow: 0 0 0 2px #651c27; }
-.leg-game.tie .gbar-dot { box-shadow: 0 0 0 2px #343d60; }
+.leg-game.win .gbar-dot { border-color: #064a3b; }
+.leg-game.lose .gbar-dot { border-color: #651c27; }
+.leg-game.tie .gbar-dot { border-color: #343d60; }
 /* A finished leg's label is on the line above (the result, centered), so no room is
    kept under its bar. */
 .leg-game.final .gbar { height: 14px; }
@@ -993,6 +995,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .leg-game.win .gbar-fill, .leg-game.win .gbar-dot { background: var(--accent); }
 .leg-game.lose .gbar-fill, .leg-game.lose .gbar-dot { background: var(--bad); }
 .leg-game.tie .gbar-dot { background: #8fa3d8; }
+.leg-game .gbar .gbar-dot { background-clip: padding-box; } /* the colors above reset it */
 .leg-game.win .gbar-lbl { color: var(--accent); }
 .leg-game.lose .gbar-lbl { color: var(--bad); }
 .leg-game.tie .gbar-lbl { color: #8fa3d8; }
