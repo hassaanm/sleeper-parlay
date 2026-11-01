@@ -43,6 +43,7 @@ export async function makeSlipPicture() {
     const paper = shot.querySelector('.paper');
     const foot = shot.querySelector('.parlay-foot');
     paper.style.setProperty('--tear', `${Math.round(paper.getBoundingClientRect().bottom - foot.getBoundingClientRect().top - 5)}px`);
+    solidRings(shot);
     const texture = await grainImage();
     if (texture) paper.style.background = `url(${texture}) 0 0 / 180px 180px, var(--paper)`;
     await Promise.all([...shot.querySelectorAll('img')].map((img) => img.decode().catch(() => {})));
@@ -52,6 +53,19 @@ export async function makeSlipPicture() {
     return new File([blob], `parlay-week-${state.slip.week}.png`, { type: 'image/png' });
   } finally {
     holder.remove();
+  }
+}
+
+// A plain ring drawn as a box-shadow (the faces' outlines) lands off to one side in
+// iPhone Safari's picture, peeking out as a half circle. An outline draws the same ring
+// in the right place, so the picture swaps each one.
+const RING = /^(rgba?\([^)]*\)) 0px 0px 0px ([\d.]+)px$/;
+function solidRings(root) {
+  for (const el of root.querySelectorAll('*')) {
+    const ring = getComputedStyle(el).boxShadow.match(RING);
+    if (!ring) continue;
+    el.style.boxShadow = 'none';
+    el.style.outline = `${ring[2]}px solid ${ring[1]}`;
   }
 }
 
