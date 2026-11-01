@@ -63,7 +63,7 @@ function trackedFaces(legs, overlap) {
   // Live faces and the first face after them are pushed apart by the gap, so the groups
   // read apart; the row's first face keeps its usual spot.
   const apart = (first) => (first ? '' : ` style="margin-left:${gap}px"`);
-  const GRADE = { hit: 'var(--ring-up)', miss: 'var(--ring-down)', push: 'var(--muted)' };
+  const GRADE = { hit: 'var(--ring-up)', miss: 'var(--ring-down)', push: 'var(--faint)' };
   return [
     ...done.map((l) => ringedFace(l, faceRing(100, GRADE[l.grade]))),
     ...live.map((l, i) => {
@@ -80,7 +80,7 @@ const ringedFace = (l, ring, style = '') =>
 
 // The ring: `pct` of the way around, counterclockwise from the top (the left side, which
 // overlapping faces never hide, fills first), with round ends; a full ring for 100. A
-// tick across the ring's band marks `from`, the chance when picked. The empty part is
+// notch across the ring's band marks `from`, the chance when picked. The empty part is
 // the slip's paper.
 function faceRing(pct, color, from = null) {
   const p = Math.min(100, Math.max(0, pct));
@@ -91,7 +91,8 @@ function faceRing(pct, color, from = null) {
   if (from != null) {
     const a = (from / 100) * 2 * Math.PI; // counterclockwise from the top
     const at = (r) => `${(12 - r * Math.sin(a)).toFixed(2)} ${(12 - r * Math.cos(a)).toFixed(2)}`;
-    tick = `<path class="ring-tick" d="M${at(10)} L${at(12)}"/>`;
+    const d = `M${at(10)} L${at(12)}`;
+    tick = `<path class="ring-notch" d="${d}"/><path class="ring-tick" d="${d}"/>`;
   }
   return `<svg class="face-ring" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">${arc}${tick}</svg>`;
 }
