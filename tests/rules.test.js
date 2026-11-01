@@ -56,9 +56,10 @@ test('spreads, totals, and moneylines grade against the score', () => {
   assert.equal(gradePick(pick({ type: 'ml', team: 'DEN', line: undefined }), 17, 20), 'hit');
 });
 
-test('pickTeams describes the matchup from the backed team', () => {
-  assert.deepEqual(pickTeams(pick()), { team: 'KC', away: 'KC', home: 'DEN', vs: '@ DEN' });
-  assert.equal(pickTeams(pick({ team: 'DEN' })).vs, 'vs KC');
+test('pickTeams names the backed team and the matchup as AWAY v HOME', () => {
+  assert.deepEqual(pickTeams(pick()), { team: 'KC', away: 'KC', home: 'DEN', vs: 'KC v DEN' });
+  assert.equal(pickTeams(pick({ team: 'DEN' })).vs, 'KC v DEN');
+  assert.equal(pickTeams(pick({ type: 'total' })).vs, 'KC v DEN');
   assert.equal(pickTeams(pick({ type: 'total' })).team, null);
 });
 

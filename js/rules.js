@@ -89,11 +89,11 @@ export function gradePick(pick, awayScore, homeScore) {
   return margin > 0 ? 'hit' : margin < 0 ? 'miss' : 'push';
 }
 
-// Which team a pick backs, and how to describe the matchup from that team's side.
+// Which team a pick backs, and the matchup as "AWAY v HOME" for every pick type, so the
+// game is easy to spot on the slip.
 export function pickTeams(pick) {
   const [away, home] = pick.matchup.split(' @ ');
-  if (pick.type === 'total') return { team: null, away, home, vs: `${away} @ ${home}` };
-  return { team: pick.team, away, home, vs: pick.team === away ? `@ ${home}` : `vs ${away}` };
+  return { team: pick.type === 'total' ? null : pick.team, away, home, vs: `${away} v ${home}` };
 }
 
 // One key for a game across Sleeper's scores and the lines: "AWAY@HOME".
