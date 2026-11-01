@@ -28,7 +28,9 @@ function slipHeader(withChevron) {
   // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
   // league still fits. data-pick lets faces.js tell a changed pick (a hop) from a shuffle.
   const overlap = legs.length > 12 ? -14 : legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
-  const faces = legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id, ` data-pick="${esc(l.pick.optKey)}"`)).join('');
+  const face = (l, extra = '', style = '') =>
+    avatar(l.member, 24, `stacked ${extra}`, l.member.id, ` data-pick="${esc(l.pick.optKey)}"`, style);
+  const faces = isTracking(legs) ? trackedFaces(legs, overlap, face) : legs.map((l) => face(l)).join('');
   // Only counts that aren't zero; live legs show their scores in the slip itself.
   const right = hit || miss
     ? `<span class="tally">${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}</span>`
@@ -41,6 +43,33 @@ function slipHeader(withChevron) {
         ${withChevron ? `<span class="slip-chev round-btn">${chevron('up')}</span>` : ''}
       </span>
     </div>`;
+}
+
+// Once the slip is underway, the faces group by where their game is, each group in slip
+// order: finished games first, overlapped, with a green (hit), red (miss), or gray (push)
+// ring; then live games, spaced out, each ring filled to the leg's chance now and green
+// at or above its chance when picked, red below; then games not started, overlapped,
+// with a black ring. Live faces space out only as far as the row has room.
+const FACES_ROOM = 236; // px for the faces on a phone, beside the tally and the chevron
+function trackedFaces(legs, overlap, face) {
+  const where = (l) => l.status?.state ?? 'pre';
+  const done = legs.filter((l) => where(l) === 'post');
+  const live = legs.filter((l) => where(l) === 'in');
+  const later = legs.filter((l) => where(l) === 'pre');
+  const packed = (done.length + later.length) * (24 + overlap);
+  const gap = Math.max(overlap, Math.min(4, Math.floor((FACES_ROOM - packed) / Math.max(1, live.length)) - 24));
+  // Live faces and the first face after them are pushed apart by the gap, so the groups
+  // read apart; the row's first face keeps its usual spot.
+  const apart = (first) => (first ? '' : `margin-left:${gap}px;`);
+  const ring = (l) => {
+    const now = l.livePrice ?? l.price;
+    return `--ring:${now >= l.pick.price ? 'var(--accent)' : 'var(--bad)'};--fill:${Math.round(now)}%`;
+  };
+  return [
+    ...done.map((l) => face(l, `ring-${l.grade}`)),
+    ...live.map((l, i) => face(l, 'ring-live', apart(!done.length && !i) + ring(l))),
+    ...later.map((l, i) => face(l, 'ring-later', i || !live.length ? '' : apart(false))),
+  ].join('');
 }
 
 function parlayLegs() {
