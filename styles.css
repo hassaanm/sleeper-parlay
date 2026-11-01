@@ -224,7 +224,7 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .parlay-side { display: none; }
 
-.day { scroll-margin-top: calc(var(--topbar-h) + var(--subbar-h) + 6px); }
+.day { scroll-margin-top: calc(var(--topbar-h) + var(--subbar-h) + var(--acting-h, 0px) + 6px); }
 .day-title {
   margin: 14px 4px 8px; font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted);
@@ -737,7 +737,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .parlay-card.ticket .sheet-body { border-top: 1px dashed var(--line); padding: 0; }
 .parlay-card.ticket .parlay-foot { margin: 0; padding: 12px 16px 0; }
 /* A long slip on a short screen: the legs scroll, so the totals stay in view. */
-.parlay-card.ticket { display: flex; flex-direction: column; max-height: calc(100dvh - var(--topbar-h) - var(--subbar-h) - 48px); }
+.parlay-card.ticket { display: flex; flex-direction: column; max-height: calc(100dvh - var(--topbar-h) - var(--subbar-h) - var(--acting-h, 0px) - 48px); }
 .parlay-card.ticket .sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 .legs { list-style: none; margin: 0; padding: 0; }
@@ -1001,7 +1001,7 @@ h1, h2 { letter-spacing: -0.02em; }
 
 @media (min-width: 960px) {
   .layout { grid-template-columns: minmax(0, 1fr) 370px; padding-bottom: 48px; }
-  .parlay-side { display: block; position: sticky; top: calc(var(--topbar-h) + var(--subbar-h) + 20px); margin-top: 20px; }
+  .parlay-side { display: block; position: sticky; top: calc(var(--topbar-h) + var(--subbar-h) + var(--acting-h, 0px) + 20px); margin-top: 20px; }
   .slip-wrap { display: none; }
   .g-grid { grid-template-columns: 6px 100px repeat(3, minmax(0, 1fr)); }
   .toast { bottom: 24px; }
@@ -1077,8 +1077,11 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .adm-btn.danger { color: var(--bad); border-color: rgba(255, 107, 125, 0.4); }
 .adm-board { margin-top: 12px; }
+/* The bar sits at the top of the sticky header (.chrome), so anything placed below the
+   header makes room for it while it shows. */
+:root:has(.acting-bar) { --acting-h: 45px; }
 .acting-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 8px 14px; background: var(--gold); color: #1a1405; font-size: 13px;
+  box-sizing: border-box; height: var(--acting-h); padding: 0 14px; background: var(--gold); color: #1a1405; font-size: 13px;
 }
 .acting-bar .adm-btn { color: #1a1405; border-color: rgba(26, 20, 5, 0.35); }

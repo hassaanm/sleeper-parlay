@@ -64,7 +64,8 @@ export function renderAdmin() {
     </main>`;
 }
 
-// Shown while the admin picks for someone else.
+// Shown while the admin picks for someone else, at the top of the sticky header
+// (shell.js), so Done stays in reach while scrolling.
 export function renderActingBar() {
   if (!state.acting) return '';
   return `

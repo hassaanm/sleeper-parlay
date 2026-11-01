@@ -745,7 +745,9 @@ $app.addEventListener('click', (e) => {
       state.acting = { id, prevMe: state.me };
       state.me = id;
       window.scrollTo(0, 0);
-      return render();
+      render();
+      // Straight to their pick's game, centered (or as near as the page's end allows).
+      return $app.querySelector('.game.has-mine')?.scrollIntoView({ block: 'center' });
     case 'acting-done':
       state.me = state.acting.prevMe;
       state.acting = null;

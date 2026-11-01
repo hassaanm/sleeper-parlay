@@ -44,8 +44,7 @@ function renderSlipPage() {
   if (!me || state.switchingUser) return renderTopbar(null) + renderWhoAreYou(me);
 
   return `
-    ${renderActingBar()}
-    <div class="chrome">${renderTopbar(me)}${renderSubbar()}</div>
+    <div class="chrome">${renderActingBar()}${renderTopbar(me)}${renderSubbar()}</div>
     <div class="layout ${state.demoSwitching ? 'dim' : ''}">
       <main class="games">${renderLockBar()}${renderGames()}</main>
       <aside class="parlay-side">${renderParlayCard()}</aside>
