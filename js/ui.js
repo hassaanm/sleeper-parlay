@@ -17,8 +17,8 @@ export const pretty = (label) => String(label ?? '').replace(/ -(?=\d)/, ' −')
 
 // `key` (optional) marks the avatar for the DOM patcher, and for animations that track
 // one member's avatar across renders; `attrs` adds raw attributes.
-export function avatar(member, size = 32, extraClass = '', key = '', attrs = '', extraStyle = '') {
-  const style = `width:${size}px;height:${size}px;${extraStyle}`;
+export function avatar(member, size = 32, extraClass = '', key = '', attrs = '') {
+  const style = `width:${size}px;height:${size}px`;
   attrs = (key ? ` data-key="${esc(key)}"` : '') + attrs;
   if (member?.avatar) return `<img class="avatar ${extraClass}"${attrs} style="${style}" src="${esc(member.avatar)}" alt="" loading="lazy">`;
   const initials = (member?.name ?? '?').slice(0, 2).toUpperCase();

@@ -28,9 +28,9 @@ function slipHeader(withChevron) {
   // Everyone with a leg, in slip order. They overlap more as the row fills, so a full
   // league still fits. data-pick lets faces.js tell a changed pick (a hop) from a shuffle.
   const overlap = legs.length > 12 ? -14 : legs.length > 9 ? -11 : legs.length > 6 ? -9 : -7;
-  const face = (l, extra = '', style = '') =>
-    avatar(l.member, 24, `stacked ${extra}`, l.member.id, ` data-pick="${esc(l.pick.optKey)}"`, style);
-  const faces = isTracking(legs) ? trackedFaces(legs, overlap, face) : legs.map((l) => face(l)).join('');
+  const faces = isTracking(legs)
+    ? trackedFaces(legs, overlap)
+    : legs.map((l) => avatar(l.member, 24, 'stacked', l.member.id, ` data-pick="${esc(l.pick.optKey)}"`)).join('');
   // Only counts that aren't zero; live legs show their scores in the slip itself.
   const right = hit || miss
     ? `<span class="tally">${hit ? `<span class="t-hit">✓ ${hit}</span>` : ''}${miss ? `<span class="t-miss">✗ ${miss}</span>` : ''}</span>`
@@ -46,12 +46,13 @@ function slipHeader(withChevron) {
 }
 
 // Once the slip is underway, the faces group by where their game is, each group in slip
-// order: finished games first, overlapped, with a green (hit), red (miss), or gray (push)
-// ring; then live games, spaced out, each ring filled to the leg's chance now and green
-// at or above its chance when picked, red below; then games not started, overlapped,
-// with a black ring. Live faces space out only as far as the row has room.
+// order: finished games first, overlapped, with a full green (hit), red (miss), or gray
+// (push) ring; then live games, spaced out, each ring filled to the leg's chance now,
+// green at or above its chance when picked and red below, with a tick at that starting
+// chance; then games not started, overlapped, with no ring. Live faces space out only
+// as far as the row has room.
 const FACES_ROOM = 236; // px for the faces on a phone, beside the tally and the chevron
-function trackedFaces(legs, overlap, face) {
+function trackedFaces(legs, overlap) {
   const where = (l) => l.status?.state ?? 'pre';
   const done = legs.filter((l) => where(l) === 'post');
   const live = legs.filter((l) => where(l) === 'in');
@@ -60,16 +61,37 @@ function trackedFaces(legs, overlap, face) {
   const gap = Math.max(overlap, Math.min(4, Math.floor((FACES_ROOM - packed) / Math.max(1, live.length)) - 24));
   // Live faces and the first face after them are pushed apart by the gap, so the groups
   // read apart; the row's first face keeps its usual spot.
-  const apart = (first) => (first ? '' : `margin-left:${gap}px;`);
-  const ring = (l) => {
-    const now = l.livePrice ?? l.price;
-    return `--ring:${now >= l.pick.price ? 'var(--accent)' : 'var(--bad)'};--fill:${Math.round(now)}%`;
-  };
+  const apart = (first) => (first ? '' : ` style="margin-left:${gap}px"`);
+  const GRADE = { hit: 'var(--accent)', miss: 'var(--bad)', push: 'var(--muted)' };
   return [
-    ...done.map((l) => face(l, `ring-${l.grade}`)),
-    ...live.map((l, i) => face(l, 'ring-live', apart(!done.length && !i) + ring(l))),
-    ...later.map((l, i) => face(l, 'ring-later', i || !live.length ? '' : apart(false))),
+    ...done.map((l) => ringedFace(l, faceRing(100, GRADE[l.grade]))),
+    ...live.map((l, i) => {
+      const now = l.livePrice ?? l.price;
+      return ringedFace(l, faceRing(now, now >= l.pick.price ? 'var(--accent)' : 'var(--bad)', l.pick.price), apart(!done.length && !i));
+    }),
+    ...later.map((l, i) => ringedFace(l, '', i || !live.length ? '' : apart(false))),
   ].join('');
+}
+
+// A face in a ring: the picture inside, and the ring drawn over its edge.
+const ringedFace = (l, ring, style = '') =>
+  `<span class="stacked ringed" data-key="${esc(l.member.id)}" data-pick="${esc(l.pick.optKey)}"${style}>${avatar(l.member, 20)}${ring}</span>`;
+
+// The ring: `pct` of the way around, counterclockwise from the top (the left side, which
+// overlapping faces never hide, fills first), with round ends; a full ring for 100. A
+// tick marks `from`, the chance when picked. The empty part is the slip's paper.
+function faceRing(pct, color, from = null) {
+  const p = Math.min(100, Math.max(0, pct));
+  const arc = p >= 100
+    ? `<circle cx="12" cy="12" r="11" stroke="${color}"/>`
+    : p > 0 ? `<circle cx="12" cy="12" r="11" stroke="${color}" pathLength="100" stroke-dasharray="${p} 100" stroke-linecap="round" transform="rotate(-90 12 12) scale(1 -1) translate(0 -24)"/>` : '';
+  let tick = '';
+  if (from != null) {
+    const a = (from / 100) * 2 * Math.PI; // counterclockwise from the top
+    const at = (r) => `${(12 - r * Math.sin(a)).toFixed(2)} ${(12 - r * Math.cos(a)).toFixed(2)}`;
+    tick = `<path class="ring-tick" d="M${at(8.6)} L${at(13.2)}"/>`;
+  }
+  return `<svg class="face-ring" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">${arc}${tick}</svg>`;
 }
 
 function parlayLegs() {
