@@ -27,8 +27,10 @@ const ROLL_OFF_SPEEDUP_PX = 12; // reaching rolling speed from rest
 const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
 const SHUFFLE_AFTER_FALL_PX = 30; // after a removal, the others close up once it has dropped this far
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
-const JUMP_SHUFFLE_END = 0.95; // share of a jump's flight when the last face under it is in place
-const JUMP_SHUFFLE_MS = 190; // each face's slide as the jumper passes over it
+const JUMP_SHUFFLE_START = 0.4; // share of a jump's flight when the face at its landing spot steps aside
+const JUMP_SHUFFLE_MS = 170; // each face's step
+const JUMP_SHUFFLE_STAGGER = 2.4; // ms per px away from the landing spot, about 40ms a face
+const JUMP_SHUFFLE_LEAN = 9; // degrees a stepping face leans into its step
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
@@ -87,18 +89,17 @@ export function animateFaces(root, before) {
   const droppedMs = Math.sqrt((2 * SHUFFLE_AFTER_FALL_PX) / GRAVITY) * 1000;
   const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + droppedMs));
   let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
-  // For a jump, the others slide one at a time as the jumper passes over them, a wave
-  // that follows it across the row. The one it lands by is in place just before it lands.
+  // For a jump, the others step aside in a ripple that starts at its landing spot and
+  // runs away from it, against the jumper's path, so it reads as the row reacting. The
+  // landing spot opens well before the jumper comes down.
   let wave = null;
   for (const [id, jump] of jumps) {
-    const from = before.get(id).at.left;
     const to = spot(after.get(id));
-    const lift = IMPACT_MS + jump.crouchMs;
-    const span = Math.max(0, jump.airMs * JUMP_SHUFFLE_END - JUMP_SHUFFLE_MS);
+    const start = IMPACT_MS + jump.crouchMs + jump.airMs * JUMP_SHUFFLE_START;
     wave = (left) => ({
       duration: JUMP_SHUFFLE_MS,
       easing: 'cubic-bezier(0.3, 0, 0.25, 1.2)', // a quick step with a small skid past its spot
-      delay: lift + span * Math.min(1, Math.max(0, (left - from) / (to - from || 1))),
+      delay: start + Math.abs(left - to) * JUMP_SHUFFLE_STAGGER,
     });
   }
   for (const roll of rolls.values()) {
@@ -126,7 +127,16 @@ export function animateFaces(root, before) {
     // The slide runs on `translate`, apart from `transform`, so a face that's already
     // moving (rolling in, mid-jump, jiggling) keeps that motion and slides as well.
     const timing = wave ? wave(before.get(id).at.left) : shuffle;
-    if (Math.abs(dx) > 0.5) play(el, [{ translate: `${dx}px 0` }, { translate: '0 0' }], { ...timing, fill: 'backwards' });
+    if (Math.abs(dx) <= 0.5) continue;
+    play(el, [{ translate: `${dx}px 0` }, { translate: '0 0' }], { ...timing, fill: 'backwards' });
+    // In a ripple, each face also leans into its step and rights itself, on `rotate`,
+    // so the step reads as the face scooting over rather than the row sliding.
+    if (wave) {
+      inlineHeld.get(el)?.rotate?.cancel();
+      const lean = `${Math.sign(-dx) * JUMP_SHUFFLE_LEAN}deg`;
+      play(el, [{ rotate: '0deg' }, { rotate: lean, offset: 0.35 }, { rotate: '0deg' }],
+        { duration: timing.duration + 60, delay: timing.delay, easing: 'ease-in-out', fill: 'backwards' });
+    }
   }
 }
 
