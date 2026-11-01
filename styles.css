@@ -844,16 +844,17 @@ h1, h2 { letter-spacing: -0.02em; }
    them all keeps that order while one is animating (a transform would otherwise lift
    it above every still face). */
 .faces .stacked { position: relative; margin-left: var(--overlap, -7px); box-shadow: 0 0 0 2px var(--paper); }
-/* Once the slip is underway, each face is a picture in a ring (slip.js trackedFaces).
-   The paper-colored ring is the face's only outline; the result or chance is drawn over
-   it in green or red. */
+/* Once the slip is underway, each face is a picture in a ring (slip.js trackedFaces):
+   a dark paper-colored band, with the result or chance drawn inside it in green or red. */
 .faces .ringed {
   /* A deep green and a true red, darker than the board's: the rings say how it's going
      without pulling the eye, much like the plain dark outline did. */
   --ring-up: #0a8f78;
   --ring-down: #b0323f;
   display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%;
-  background: var(--paper); box-shadow: none;
+  /* A thin dark outline all the way round, the same with or without a colored ring, so
+     each face stays apart from the one it overlaps. */
+  background: var(--paper); box-shadow: 0 0 0 1px var(--paper);
 }
 .faces .ringed .avatar { grid-area: 1 / 1; }
 .face-ring { grid-area: 1 / 1; width: 24px; height: 24px; overflow: visible; }
