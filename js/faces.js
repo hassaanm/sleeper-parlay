@@ -27,6 +27,8 @@ const ROLL_OFF_SPEEDUP_PX = 12; // reaching rolling speed from rest
 const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
 const SHUFFLE_AFTER_FALL_PX = 30; // after a removal, the others close up once it has dropped this far
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
+const JUMP_SHUFFLE_START = 0.35; // share of a jump's flight before the others start to make room
+const JUMP_SHUFFLE_END = 0.92; // and when they're in place, just before it lands
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
@@ -74,7 +76,7 @@ export function animateFaces(root, before) {
   // its new one starts from where it is (before.at) and the two don't fight.
   for (const id of changed) stop(after.get(id));
 
-  // How the others shuffle: during the jump's flight; or parting just ahead of a face
+  // How the others shuffle: in a hurry late in the jump's flight; or parting just ahead of a face
   // rolling in; or, for a removal alone, once the leaving face is off the edge.
   const jumps = new Map(jumpers.map((id) => [id, jumpFor(Math.abs(spot(after.get(id)) - before.get(id).at.left))]));
   const rolls = new Map(added.map((id) => [id, rollFor(after.get(id))]));
@@ -85,7 +87,15 @@ export function animateFaces(root, before) {
   const droppedMs = Math.sqrt((2 * SHUFFLE_AFTER_FALL_PX) / GRAVITY) * 1000;
   const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + droppedMs));
   let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
-  for (const jump of jumps.values()) shuffle = { duration: jump.airMs, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + jump.crouchMs };
+  // For a jump, the others wait out the first part of the flight, then scramble: a quick
+  // push, done just before the jumper lands, with a small skid past their spot.
+  for (const jump of jumps.values()) {
+    shuffle = {
+      duration: jump.airMs * (JUMP_SHUFFLE_END - JUMP_SHUFFLE_START),
+      easing: 'cubic-bezier(0.55, 0, 0.3, 1.15)',
+      delay: IMPACT_MS + jump.crouchMs + jump.airMs * JUMP_SHUFFLE_START,
+    };
+  }
   for (const roll of rolls.values()) {
     const duration = Math.min(520, Math.max(320, roll.openAtMs));
     shuffle = { duration, easing: 'cubic-bezier(0.45, 0, 0.35, 1)', delay: IMPACT_MS + Math.max(0, roll.openAtMs - duration) };
