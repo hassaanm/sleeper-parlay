@@ -27,10 +27,8 @@ const ROLL_OFF_SPEEDUP_PX = 12; // reaching rolling speed from rest
 const ROLL_OFF_DELAY_MS = 150; // a beat in place first, so the roll-off reads
 const SHUFFLE_AFTER_FALL_PX = 30; // after a removal, the others close up once it has dropped this far
 const SHUFFLE = { duration: 420, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
-const JUMP_SHUFFLE_START = 0.4; // share of a jump's flight when the face at its landing spot steps aside
-const JUMP_SHUFFLE_MS = 170; // each face's step
-const JUMP_SHUFFLE_STAGGER = 2.4; // ms per px away from the landing spot, about 40ms a face
-const JUMP_SHUFFLE_LEAN = 9; // degrees a stepping face leans into its step
+const JUMP_SHUFFLE_MS = 230; // each face's move into the gap a jump leaves
+const JUMP_SHUFFLE_STAGGER = 3; // ms per px from that gap, about 50ms a face
 const JUMP_ORIGIN = '50% 100%'; // squash and stretch from the bottom edge, into the ground
 
 // The faces row of whichever slip is showing: the phone slip and the desktop ticket
@@ -78,7 +76,7 @@ export function animateFaces(root, before) {
   // its new one starts from where it is (before.at) and the two don't fight.
   for (const id of changed) stop(after.get(id));
 
-  // How the others shuffle: in a wave behind a jump (below); or parting just ahead of a face
+  // How the others shuffle: in a wave into the gap a jump leaves (below); or parting just ahead of a face
   // rolling in; or, for a removal alone, once the leaving face is off the edge.
   const jumps = new Map(jumpers.map((id) => [id, jumpFor(Math.abs(spot(after.get(id)) - before.get(id).at.left))]));
   const rolls = new Map(added.map((id) => [id, rollFor(after.get(id))]));
@@ -89,17 +87,17 @@ export function animateFaces(root, before) {
   const droppedMs = Math.sqrt((2 * SHUFFLE_AFTER_FALL_PX) / GRAVITY) * 1000;
   const goneMs = Math.max(0, ...removed.map((id) => offs.get(id).rollMs + droppedMs));
   let shuffle = { ...SHUFFLE, delay: removed.length ? ROLL_OFF_DELAY_MS + goneMs : 0 };
-  // For a jump, the others step aside in a ripple that starts at its landing spot and
-  // runs away from it, against the jumper's path, so it reads as the row reacting. The
-  // landing spot opens well before the jumper comes down.
+  // For a jump, the others move up into the gap it leaves as it takes off: the face
+  // beside the gap first, then each one after it as it sees room opening ahead, a wave
+  // that follows the jumper. All are in place before it lands.
   let wave = null;
   for (const [id, jump] of jumps) {
-    const to = spot(after.get(id));
-    const start = IMPACT_MS + jump.crouchMs + jump.airMs * JUMP_SHUFFLE_START;
+    const from = before.get(id).at.left;
+    const liftoff = IMPACT_MS + jump.crouchMs;
     wave = (left) => ({
       duration: JUMP_SHUFFLE_MS,
-      easing: 'cubic-bezier(0.3, 0, 0.25, 1.2)', // a quick step with a small skid past its spot
-      delay: start + Math.abs(left - to) * JUMP_SHUFFLE_STAGGER,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      delay: liftoff + Math.abs(left - from) * JUMP_SHUFFLE_STAGGER,
     });
   }
   for (const roll of rolls.values()) {
@@ -127,16 +125,7 @@ export function animateFaces(root, before) {
     // The slide runs on `translate`, apart from `transform`, so a face that's already
     // moving (rolling in, mid-jump, jiggling) keeps that motion and slides as well.
     const timing = wave ? wave(before.get(id).at.left) : shuffle;
-    if (Math.abs(dx) <= 0.5) continue;
-    play(el, [{ translate: `${dx}px 0` }, { translate: '0 0' }], { ...timing, fill: 'backwards' });
-    // In a ripple, each face also leans into its step and rights itself, on `rotate`,
-    // so the step reads as the face scooting over rather than the row sliding.
-    if (wave) {
-      inlineHeld.get(el)?.rotate?.cancel();
-      const lean = `${Math.sign(-dx) * JUMP_SHUFFLE_LEAN}deg`;
-      play(el, [{ rotate: '0deg' }, { rotate: lean, offset: 0.35 }, { rotate: '0deg' }],
-        { duration: timing.duration + 60, delay: timing.delay, easing: 'ease-in-out', fill: 'backwards' });
-    }
+    if (Math.abs(dx) > 0.5) play(el, [{ translate: `${dx}px 0` }, { translate: '0 0' }], { ...timing, fill: 'backwards' });
   }
 }
 
