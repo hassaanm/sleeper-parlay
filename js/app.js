@@ -10,6 +10,7 @@ import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, p
 import { ADMIN_PASSWORD_SHA256 } from './config.js';
 import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
+import { closePicture, copyPicture, makeSlipPicture, sharePicture, showPicture } from './share.js';
 import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
 import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
@@ -315,6 +316,22 @@ function toast(message) {
       render();
     }
   }, 3200);
+}
+
+// Draws the slip as a picture and opens the share sheet with it (share.js).
+async function shareSlip() {
+  state.share = {};
+  render();
+  try {
+    const file = await makeSlipPicture();
+    if (!state.share) return; // closed while it was being made
+    showPicture(file);
+  } catch (e) {
+    console.error(e);
+    closePicture();
+    toast('Couldn’t make the picture. Try again.');
+  }
+  render();
 }
 
 // Saves a change to your own leg, and shows it right away instead of after the save
@@ -725,6 +742,16 @@ $app.addEventListener('click', (e) => {
     case 'jump':
       return document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     case 'close-sheet': return setSlipOpen(false);
+    case 'share-slip': return shareSlip();
+    case 'share-send': return sharePicture(state.share.file).catch(() => toast('Couldn’t open sharing. Press and hold the picture instead.'));
+    case 'share-copy':
+      return copyPicture(state.share.file).then(() => {
+        state.share.copied = true;
+        render();
+      }, () => toast('Couldn’t copy the picture.'));
+    case 'share-close':
+      closePicture();
+      return render();
     case 'remove-mine': return removeMine();
     case 'admin-cutoff': return setCutoff(id === 'none' ? null : Number(id));
     case 'admin-lock': return adminUpdate((slip) => (slip.settings.locked = true));

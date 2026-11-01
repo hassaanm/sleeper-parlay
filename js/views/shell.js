@@ -5,7 +5,7 @@ import { esc } from '../ui.js';
 import { renderActingBar, renderAdmin } from './admin.js';
 import { renderGames, renderLockBar, renderSubbar, renderTopbar, renderWhoAreYou } from './board.js';
 import { renderPage } from './pages.js';
-import { renderParlayCard, renderSlip } from './slip.js';
+import { renderParlayCard, renderShareSheet, renderSlip } from './slip.js';
 
 export const renderApp = () => (state.slipId ? renderSlipPage() : renderLanding()) + renderToast();
 
@@ -50,5 +50,6 @@ function renderSlipPage() {
       <aside class="parlay-side">${renderParlayCard()}</aside>
     </div>
     ${renderSlip()}
+    ${renderShareSheet()}
     ${state.pages.length ? renderPage() : ''}`;
 }

@@ -56,6 +56,7 @@ export const state = {
   acting: null, // { id, prevMe }
   oddsFormat: safeGet('parlay:odds') === 'pct' ? 'pct' : 'american',
   sheetOpen: false,
+  share: null, // the slip as a picture (share.js): { file, url, copied }, or {} while it's being made
   // Nudge the closed slip once per browser so people notice it pulls up.
   slipNudge: safeGet('parlay:nudged') !== '1',
   nudging: false,

@@ -9,7 +9,8 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- crossorigin lets the share picture (share.js) read and embed the font. -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
   <!-- Paths below are relative, so "/<leagueId>/" (trailing slash) would break them.
        Leading slashes collapse to one, so "//other.site/..." can't redirect off this site. -->
   <script>if (/\/\d{6,}\/$/.test(location.pathname)) location.replace(location.pathname.replace(/^\/+/, '/').slice(0, -1) + location.search + location.hash);</script>
@@ -18,7 +19,7 @@
   {
     "imports": {
       "./js/api.js": "./js/api.js?v=2b73a7fa24",
-      "./js/app.js": "./js/app.js?v=47a5a2c6bf",
+      "./js/app.js": "./js/app.js?v=c6d6410a5a",
       "./js/config.js": "./js/config.js?v=dd62aa18dd",
       "./js/demo.js": "./js/demo.js?v=443d408059",
       "./js/dom.js": "./js/dom.js?v=976371618c",
@@ -27,21 +28,22 @@
       "./js/markets.js": "./js/markets.js?v=efebc9cbfa",
       "./js/research.js": "./js/research.js?v=84447db333",
       "./js/rules.js": "./js/rules.js?v=8d0d5769ca",
-      "./js/sheet.js": "./js/sheet.js?v=94f24d9948",
+      "./js/share.js": "./js/share.js?v=14f0076420",
+      "./js/sheet.js": "./js/sheet.js?v=d73fed9ad2",
       "./js/sports.js": "./js/sports.js?v=8e36c4831c",
-      "./js/state.js": "./js/state.js?v=06c7c2a7e4",
+      "./js/state.js": "./js/state.js?v=3b48308c2f",
       "./js/store.js": "./js/store.js?v=b93479123b",
       "./js/teams.js": "./js/teams.js?v=36e974c07d",
-      "./js/ui.js": "./js/ui.js?v=01fc5b46a4",
+      "./js/ui.js": "./js/ui.js?v=a2fc74acad",
       "./js/views/admin.js": "./js/views/admin.js?v=4a8cfa53bb",
       "./js/views/board.js": "./js/views/board.js?v=f0becda7e1",
       "./js/views/pages.js": "./js/views/pages.js?v=10c328f1d7",
-      "./js/views/shell.js": "./js/views/shell.js?v=65bade4c2e",
-      "./js/views/slip.js": "./js/views/slip.js?v=5b39ce6869"
+      "./js/views/shell.js": "./js/views/shell.js?v=33e5f88184",
+      "./js/views/slip.js": "./js/views/slip.js?v=52c77c19ef"
     }
   }
   </script>
-  <link rel="stylesheet" href="styles.css?v=9c35aefa19">
+  <link rel="stylesheet" href="styles.css?v=df7469649e">
   <!-- Every module fetched up front, instead of one import level at a time. -->
   <link rel="modulepreload" href="js/api.js?v=2b73a7fa24">
   <link rel="modulepreload" href="js/config.js?v=dd62aa18dd">
@@ -52,18 +54,19 @@
   <link rel="modulepreload" href="js/markets.js?v=efebc9cbfa">
   <link rel="modulepreload" href="js/research.js?v=84447db333">
   <link rel="modulepreload" href="js/rules.js?v=8d0d5769ca">
-  <link rel="modulepreload" href="js/sheet.js?v=94f24d9948">
+  <link rel="modulepreload" href="js/share.js?v=14f0076420">
+  <link rel="modulepreload" href="js/sheet.js?v=d73fed9ad2">
   <link rel="modulepreload" href="js/sports.js?v=8e36c4831c">
-  <link rel="modulepreload" href="js/state.js?v=06c7c2a7e4">
+  <link rel="modulepreload" href="js/state.js?v=3b48308c2f">
   <link rel="modulepreload" href="js/store.js?v=b93479123b">
   <link rel="modulepreload" href="js/teams.js?v=36e974c07d">
-  <link rel="modulepreload" href="js/ui.js?v=01fc5b46a4">
+  <link rel="modulepreload" href="js/ui.js?v=a2fc74acad">
   <link rel="modulepreload" href="js/views/admin.js?v=4a8cfa53bb">
   <link rel="modulepreload" href="js/views/board.js?v=f0becda7e1">
   <link rel="modulepreload" href="js/views/pages.js?v=10c328f1d7">
-  <link rel="modulepreload" href="js/views/shell.js?v=65bade4c2e">
-  <link rel="modulepreload" href="js/views/slip.js?v=5b39ce6869">
-  <script type="module" src="js/app.js?v=47a5a2c6bf"></script>
+  <link rel="modulepreload" href="js/views/shell.js?v=33e5f88184">
+  <link rel="modulepreload" href="js/views/slip.js?v=52c77c19ef">
+  <script type="module" src="js/app.js?v=c6d6410a5a"></script>
   <!-- assets:end -->
 </head>
 <body>

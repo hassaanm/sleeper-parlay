@@ -2,8 +2,9 @@
 // the same header, legs, and totals.
 import { multiplierToAmerican } from '../lines.js';
 import { pickTeams } from '../rules.js';
+import { canCopyImage, canShareFile } from '../share.js';
 import { isTracking, legsWithLive, myLegLocked, picks, state } from '../state.js';
-import { avatar, chevron, dayTimeFmt, esc, fmtChance, fmtLine, fmtOdds, pretty, signSpan, teamLogo } from '../ui.js';
+import { avatar, chevron, shareIcon, dayTimeFmt, esc, fmtChance, fmtLine, fmtOdds, pretty, signSpan, teamLogo } from '../ui.js';
 
 // Fair (no-vig) parlay: multiply each leg's fair probability. A reference for what
 // the slip should pay, since the real price is set wherever the parlay gets placed.
@@ -18,8 +19,8 @@ function fairParlay(legs) {
 
 // The slip's top row (also the peek when it's closed): everyone who's in on the left;
 // on the right, your leg, or once legs finish, how many hit (✓) and missed (✗); then
-// the open/close chevron.
-function slipHeader(withChevron) {
+// the share button and the open/close chevron.
+function slipHeader(withChevron, withShare = true) {
   const legs = legsWithLive();
   const mine = picks()[state.me];
   const final = (grades) => legs.filter((l) => l.status?.state === 'post' && grades.includes(l.grade)).length;
@@ -40,6 +41,7 @@ function slipHeader(withChevron) {
       <span class="faces" style="--overlap:${overlap}px">${legs.length ? faces : '<span class="faces-empty">No legs yet</span>'}</span>
       <span class="peek-right">
         ${right}
+        ${withShare && legs.length ? `<button class="share-btn round-btn" data-action="share-slip" aria-label="Share the slip as a picture">${shareIcon()}</button>` : ''}
         ${withChevron ? `<span class="slip-chev round-btn">${chevron('up')}</span>` : ''}
       </span>
     </div>`;
@@ -293,6 +295,41 @@ const paper = (kind) => {
 // Desktop: the same ticket as the phone slip, always open in the sidebar.
 export function renderParlayCard() {
   return `<div class="parlay-card ticket">${paper('ticket')}${slipHeader(false)}<div class="sheet-body">${parlayLegs()}</div>${parlayFoot()}</div>`;
+}
+
+// The picture that "Share" makes (share.js): the whole slip as the desktop ticket shows
+// it, every leg and the totals with nothing scrolled away, on the app's background under
+// the league and week.
+export function renderShareCard() {
+  const { league, week } = state.slip;
+  const ticket = `<div class="parlay-card ticket">${paper('shot')}${slipHeader(false, false)}<div class="sheet-body">${parlayLegs()}</div>${parlayFoot()}</div>`;
+  return `
+  <div class="share-shot">
+    <div class="shot-head">${avatar(league, 30)}<span><strong>${esc(league.name)}</strong><small>Week ${esc(week)} · Parlay Pool</small></span></div>
+    ${ticket}
+  </div>`.replaceAll(' loading="lazy"', '');
+}
+
+// The picture, once "Share" has made it, with what can be done with it: Share where the
+// browser can share a file (phones), Copy where it can put a picture on the clipboard,
+// and Save where it can't share. While it's being made, a spinner.
+export function renderShareSheet() {
+  const s = state.share;
+  if (!s) return '';
+  const body = s.file
+    ? `<img class="share-img" src="${s.url}" alt="The slip">
+       ${matchMedia('(pointer: coarse)').matches ? '<p class="share-hint">Or press and hold the picture to copy it or save it to Photos.</p>' : ''}
+       <div class="share-actions">
+         ${canShareFile(s.file) ? `<button class="btn btn-primary" data-action="share-send">${shareIcon()}Share</button>` : `<a class="btn btn-primary" href="${s.url}" download="${esc(s.file.name)}">Save</a>`}
+         ${canCopyImage() ? `<button class="btn" data-action="share-copy">${s.copied ? 'Copied ✓' : 'Copy'}</button>` : ''}
+         <button class="btn btn-ghost" data-action="share-close">Done</button>
+       </div>`
+    : '<div class="spinner"></div><p class="share-hint">Making the picture…</p>';
+  return `
+  <div class="share-wrap">
+    <div class="share-backdrop" data-action="share-close"></div>
+    <div class="share-box" role="dialog" aria-label="Share the slip">${body}</div>
+  </div>`;
 }
 
 // Phone: the slip lives at the bottom of the screen. Closed, its top edge peeks up

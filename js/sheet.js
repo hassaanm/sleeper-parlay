@@ -74,6 +74,8 @@ function safeBottom() {
 // based on where it's let go and how fast it was moving. A tap toggles it.
 function startDrag(e) {
   const handle = e.target.closest('.slip-handle');
+  // A button in the top row (Share) is its own tap, not a drag.
+  if (e.target.closest('.slip-handle button')) return;
   // One finger (or the main mouse button) at a time.
   if (!handle || drag || !e.isPrimary || e.button !== 0) return;
   beginDrag(handle.closest('.slip'), e.pointerId, e.clientY, e.timeStamp, !state.sheetOpen);
@@ -186,7 +188,7 @@ export function initSheet(root, render) {
     tearFrame = requestAnimationFrame(() => { tearFrame = 0; syncTearLine(); });
   }, true);
   root.addEventListener('keydown', (e) => {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.slip-handle')) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('.slip-handle') && !e.target.closest('button')) {
       e.preventDefault();
       setSlipOpen(!state.sheetOpen);
     }

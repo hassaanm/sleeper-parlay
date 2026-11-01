@@ -1008,10 +1008,59 @@ h1, h2 { letter-spacing: -0.02em; }
 @keyframes fade { from { opacity: 0; } }
 
 
+/* ---------- sharing the slip as a picture ---------- */
+
+/* The Share button sits left of the chevron. On the phone it only shows with the slip
+   open: closed, the whole top row is one big tap to open it. */
+.share-btn svg { width: 17px; height: 17px; }
+.slip-wrap .share-btn { transition: opacity 0.25s ease; }
+.slip-wrap:not(.open) .share-btn { opacity: 0; pointer-events: none; }
+
+/* The picture's layout (share.js): off screen, a phone's width, the app's background
+   and glow behind the full ticket. Nothing in it moves or scrolls. */
+.shot-holder { position: fixed; left: -10000px; top: 0; pointer-events: none; }
+.share-shot {
+  width: 390px; padding: 22px 16px 26px; box-sizing: border-box;
+  background:
+    radial-gradient(500px 260px at 0% -10%, rgba(0, 214, 168, 0.12), transparent 60%),
+    radial-gradient(460px 260px at 110% 0%, rgba(122, 92, 255, 0.14), transparent 60%),
+    var(--bg);
+  color: var(--text); font: 15px/1.4 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.share-shot *, .share-shot *::before, .share-shot *::after { animation: none !important; transition: none !important; }
+.shot-head { display: flex; align-items: center; gap: 10px; margin: 0 4px 16px; }
+.shot-head span { display: flex; flex-direction: column; min-width: 0; }
+.shot-head strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.shot-head small { font-size: 12.5px; }
+.share-shot .parlay-card.ticket { max-height: none; filter: none; }
+/* The paper's grain is an SVG filter, which draws solid black in the picture. */
+.share-shot .paper { background: var(--paper); }
+.share-shot .parlay-card.ticket .sheet-body { overflow: visible; }
+/* Your own leg's chip, the Remove button, and the wavy line under your name are for
+   you, not for the picture (the wavy line also draws out of place there). */
+.share-shot .my-leg, .share-shot .leg-remove { display: none; }
+.share-shot .ll-who.me { text-decoration: none; }
+
+/* The picture, once made, over the page with what to do with it. */
+.share-wrap { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; }
+.share-backdrop { position: absolute; inset: 0; background: rgba(4, 7, 16, 0.88); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: fade 0.2s ease-out; }
+.share-box {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: min(100%, 390px); max-height: calc(100dvh - 32px); animation: fade 0.2s ease-out;
+}
+.share-img {
+  display: block; width: 100%; min-height: 0; flex: 0 1 auto; object-fit: contain; object-position: top;
+  border-radius: 14px; box-shadow: var(--shadow);
+}
+.share-hint { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.share-actions { display: flex; gap: 8px; width: 100%; }
+.share-actions .btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.share-actions .btn svg { width: 16px; height: 16px; }
+
 /* ---------- toast ---------- */
 
 .toast {
-  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px); transform: translateX(-50%); z-index: 60;
+  position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 70px); transform: translateX(-50%); z-index: 80;
   background: var(--raise); border: 1px solid var(--bad); color: #ffd3d9; padding: 11px 16px; border-radius: 12px;
   box-shadow: var(--shadow); font-weight: 600; font-size: 14px; width: max-content; max-width: calc(100vw - 32px); text-align: center;
   animation: toast-rise 0.2s ease-out;
