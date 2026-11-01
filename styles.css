@@ -848,13 +848,17 @@ h1, h2 { letter-spacing: -0.02em; }
    The paper-colored ring is the face's only outline; the result or chance is drawn over
    it in green or red. */
 .faces .ringed {
+  /* The board's green and red, toned toward the paper: a thin ring around a photo glares
+     at full strength. */
+  --ring-up: color-mix(in srgb, var(--accent) 70%, var(--paper));
+  --ring-down: color-mix(in srgb, var(--bad) 70%, var(--paper));
   display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%;
   background: var(--paper); box-shadow: none;
 }
 .faces .ringed .avatar { grid-area: 1 / 1; }
 .face-ring { grid-area: 1 / 1; width: 24px; height: 24px; overflow: visible; }
-/* Where the chance stood when picked. */
-.ring-tick { stroke: var(--text); stroke-width: 1.4; stroke-linecap: round; }
+/* Where the chance stood when picked: across the ring's band only. */
+.ring-tick { stroke: var(--gold); stroke-width: 1.6; }
 /* A face falling out of the row (faces.js rollOff): placed over its old spot, in the
    row's stacking order. */
 .faces .face-drop { position: absolute; margin: 0; pointer-events: none; }
