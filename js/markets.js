@@ -61,7 +61,12 @@ export async function kickoffPrices(game) {
   });
   const awayTicker = events.find((e) => e.market_type === 'moneyline')?.markets.find((m) => m.subject_id === game.away)?.provider_id;
   const points = (series.get(awayTicker) ?? []).filter((p) => p.end_time >= game.start);
-  const end = points.find((p) => p.price <= 1 || p.price >= 99)?.end_time ?? points.at(-1)?.end_time;
+  // The chart ends where the market settles: the first point after the last one still
+  // in play. A team can touch 1% and come back (ARI–DAL, wk 8 2026, won in OT), so the
+  // first 1% or 99% point is not the end.
+  const open = points.findLastIndex((p) => p.price > 1 && p.price < 99);
+  lines.settled = open < points.length - 1;
+  const end = points[open + 1]?.end_time ?? points.at(-1)?.end_time;
   lines.momentum = points.length && end > game.start
     ? Array.from({ length: 49 }, (_, i) => at(points, game.start + ((end - game.start) * i) / 48))
     : null;

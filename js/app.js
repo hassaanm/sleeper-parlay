@@ -156,7 +156,7 @@ function fakeDemoWeek() {
 }
 
 // Prices for games that have kicked off (markets.js): every live game's, on each
-// refresh; each finished game's once, then kept in this browser, since they never change.
+// refresh; each finished game's until its market settles, then kept in this browser.
 async function loadStartedPrices() {
   const live = scoreboardGames('in');
   const final = scoreboardGames('post');
@@ -173,11 +173,13 @@ async function loadStartedPrices() {
     } catch { /* keep the last prices; try again next refresh */ }
   }
   await Promise.all(final.filter((g) => !madeUp(g) && !state.prices.get(g.key)?.final).map(async (g) => {
-    const saved = `parlay:kickoff:${g.season}:${g.week}:${g.key}`;
+    // v2: v1 cut the chart at the first 1% or 99% point, before comebacks.
+    const saved = `parlay:kickoff2:${g.season}:${g.week}:${g.key}`;
     try {
       const lines = JSON.parse(safeGet(saved) ?? 'null') ?? (await markets.kickoffPrices(g));
-      safeSet(saved, JSON.stringify(lines));
-      state.prices.set(g.key, { ...lines, final: true });
+      // Kept only once the market settles; until then the chart can still grow.
+      if (lines.settled) safeSet(saved, JSON.stringify(lines));
+      state.prices.set(g.key, { ...lines, final: lines.settled });
     } catch { /* shown without prices; tried again on the next refresh */ }
   }));
   render();
