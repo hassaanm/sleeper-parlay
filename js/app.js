@@ -15,6 +15,7 @@ import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncT
 import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
+import { fitNames } from './views/slip.js';
 
 const $app = document.getElementById('app');
 
@@ -519,19 +520,8 @@ function render() {
   syncTearLine();
   bindSlipPull();
   syncPageBar();
-  fitNames();
+  fitNames($app);
   if (state.games.length) state.stickersPrimed = true;
-}
-
-// In the live slip, a name that crowds the down and spot (closer than NAME_ROOM px, or
-// cut off) shrinks, only that one.
-const NAME_ROOM = 14;
-function fitNames() {
-  for (const el of $app.querySelectorAll('.ll-who')) {
-    const spot = el.previousElementSibling; // the spot, on a live leg
-    const gap = spot ? el.getBoundingClientRect().left - spot.getBoundingClientRect().right : Infinity;
-    if (gap < NAME_ROOM || el.scrollWidth > el.clientWidth + 1) el.classList.add('tight');
-  }
 }
 
 // The countdown ticks without a re-render: each digit that changed flips down. The flip

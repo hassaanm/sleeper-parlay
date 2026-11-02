@@ -4,7 +4,7 @@
 // opens its share sheet straight from a tap, and drawing the picture takes longer than
 // that. On a phone the picture can also be pressed and held, for Copy and Save to Photos.
 import { state } from './state.js';
-import { renderShareCard } from './views/slip.js';
+import { fitNames, renderShareCard } from './views/slip.js';
 
 // Draws HTML into an image. Only loaded when someone shares.
 const DRAW = 'https://cdn.jsdelivr.net/npm/modern-screenshot@4.7.0/+esm';
@@ -43,6 +43,7 @@ export async function makeSlipPicture() {
     const paper = shot.querySelector('.paper');
     const foot = shot.querySelector('.parlay-foot');
     paper.style.setProperty('--tear', `${Math.round(paper.getBoundingClientRect().bottom - foot.getBoundingClientRect().top - 5)}px`);
+    fitNames(shot);
     solidRings(shot);
     const texture = await grainImage();
     if (texture) paper.style.background = `url(${texture}) 0 0 / 180px 180px, var(--paper)`;

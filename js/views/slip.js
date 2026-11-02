@@ -99,6 +99,18 @@ function faceRing(pct, color, from = null) {
   return `<svg class="face-ring" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">${arc}${tick}</svg>`;
 }
 
+// In the live slip, a name that crowds the down and spot (closer than NAME_ROOM px, or
+// cut off) shrinks, only that one. Runs after each render (app.js), and on the share
+// picture's copy of the slip (share.js), since it measures what's on screen.
+const NAME_ROOM = 14;
+export function fitNames(root) {
+  for (const el of root.querySelectorAll('.ll-who')) {
+    const spot = el.previousElementSibling; // the spot, on a live leg
+    const gap = spot ? el.getBoundingClientRect().left - spot.getBoundingClientRect().right : Infinity;
+    if (gap < NAME_ROOM || el.scrollWidth > el.clientWidth + 1) el.classList.add('tight');
+  }
+}
+
 // The legs. `forPicture` (the share picture) names every leg's member, yours included,
 // since Remove and "You" mean nothing to whoever gets the picture.
 function parlayLegs(forPicture = false) {
