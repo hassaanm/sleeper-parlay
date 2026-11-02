@@ -1044,9 +1044,10 @@ h1, h2 { letter-spacing: -0.02em; }
    swaps in a drawn copy of it. */
 .share-shot .paper { background: var(--paper); }
 .share-shot .parlay-card.ticket .sheet-body { overflow: visible; }
-/* Your own leg's chip, the Remove button, and the wavy line under your name are for
-   you, not for the picture (the wavy line also draws out of place there). */
-.share-shot .my-leg, .share-shot .leg-remove { display: none; }
+/* Your own leg's chip and the wavy line under your name are for you, not for the
+   picture (the wavy line also draws out of place there). Your row shows your name
+   there, not Remove or "You" (slip.js parlayLegs). */
+.share-shot .my-leg { display: none; }
 .share-shot .ll-who.me { text-decoration: none; }
 
 /* The picture, once made, over the page with what to do with it. */

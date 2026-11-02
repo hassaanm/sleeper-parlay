@@ -99,7 +99,9 @@ function faceRing(pct, color, from = null) {
   return `<svg class="face-ring" viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">${arc}${tick}</svg>`;
 }
 
-function parlayLegs() {
+// The legs. `forPicture` (the share picture) names every leg's member, yours included,
+// since Remove and "You" mean nothing to whoever gets the picture.
+function parlayLegs(forPicture = false) {
   const legs = legsWithLive();
   if (!legs.length) {
     return `
@@ -166,9 +168,9 @@ function parlayLegs() {
         </div>
         <div class="leg-right">
           <span class="leg-odds">${signSpan(fmtOdds(l.price))}</span>
-          ${isMine && !myLegLocked()
-            ? '<button class="leg-who leg-remove" data-action="remove-mine">Remove</button>'
-            : `<span class="leg-who">${isMine ? 'You' : esc(l.member.name)}</span>`}
+          ${forPicture || !isMine ? `<span class="leg-who">${esc(l.member.name)}</span>`
+            : !myLegLocked() ? '<button class="leg-who leg-remove" data-action="remove-mine">Remove</button>'
+            : '<span class="leg-who">You</span>'}
         </div>
       </li>`;
   }).join('')}</ol>`;
@@ -302,7 +304,7 @@ export function renderParlayCard() {
 // the league and week.
 export function renderShareCard() {
   const { league, week } = state.slip;
-  const ticket = `<div class="parlay-card ticket">${paper('shot')}${slipHeader(false, false)}<div class="sheet-body">${parlayLegs()}</div>${parlayFoot()}</div>`;
+  const ticket = `<div class="parlay-card ticket">${paper('shot')}${slipHeader(false, false)}<div class="sheet-body">${parlayLegs(true)}</div>${parlayFoot()}</div>`;
   return `
   <div class="share-shot">
     <div class="shot-head">${avatar(league, 30)}<span><strong>${esc(league.name)}</strong><small>Week ${esc(week)} · Parlay Pool</small></span></div>
