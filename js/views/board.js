@@ -17,7 +17,7 @@ export function renderTopbar(me) {
       ${avatar(slip.league, 34, 'league-avatar')}
       <div class="topbar-text">
         <strong>${esc(slip.league.name)}</strong>
-        <small>${weekPicker()} · ${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</small>
+        <small class="topbar-sub">${weekPicker()}<span>${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</span></small>
       </div>
     </div>
     ${state.demoMode ? demoPicker() : ''}

@@ -1165,12 +1165,19 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .acting-bar .adm-btn { color: #1a1405; border-color: rgba(26, 20, 5, 0.35); }
 
-/* The week in the top bar is a menu (app.js switchWeek): the native picker, see-through,
-   over the label. A later week than the current one reads in the accent color. */
-.week-pick { position: relative; display: inline-flex; align-items: center; gap: 3px; cursor: pointer; }
-.week-pick::after {
-  content: ''; width: 4px; height: 4px; margin: -3px 1px 0 1px;
-  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg);
+/* The week in the top bar is a menu (app.js switchWeek): a quiet pill with the native
+   picker, see-through, over it. A later week than the current one tints it green. */
+.topbar-sub { display: flex; align-items: center; gap: 7px; margin-top: 3px; }
+.week-pick {
+  position: relative; display: inline-flex; align-items: center; gap: 5px; flex: none;
+  height: 20px; padding: 0 8px 0 9px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05);
+  color: var(--text); font-size: 11px; font-weight: 700;
 }
-.week-pick.ahead { color: var(--accent); font-weight: 700; }
+.week-pick::after {
+  content: ''; width: 4px; height: 4px; margin-top: -3px;
+  border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint); transform: rotate(45deg);
+}
+.week-pick.ahead { border-color: rgba(0, 214, 168, 0.45); background: var(--accent-soft); color: var(--accent); }
+.week-pick.ahead::after { border-color: var(--accent); }
 .week-pick select { position: absolute; inset: -6px -4px; opacity: 0; font-size: 16px; cursor: pointer; }
