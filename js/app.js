@@ -12,7 +12,7 @@ import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { closePicture, copyPicture, makeSlipPicture, sharePicture, showPicture } from './share.js';
 import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, basePath, gameById, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
+import { DEMO, basePath, gameById, matchupGame, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 import { fitNames } from './views/slip.js';
@@ -36,23 +36,26 @@ function setSlip(slip) {
   }
   state.slip = slip;
   if (firstLoad) state.me = rememberedMe(slip);
-  if (weekChanged) {
-    state.lobby = null;
-    state.games = [];
-    state.options = new Map();
-    state.gamesError = null;
-    state.rungs.clear();
-    state.sports = null;
-    state.sportsFailed = false;
-    state.prices = new Map();
-    state.research = { league: null, loading: false, error: null };
-    state.trackOpened = false;
-  }
+  if (weekChanged) dropWeekData();
   if (firstLoad || weekChanged) {
     loadLines();
     loadSports();
   }
   return true;
+}
+
+// Forgets the week on screen: its lines, alt-line choices, scores, and season numbers.
+function dropWeekData() {
+  state.lobby = null;
+  state.games = [];
+  state.options = new Map();
+  state.gamesError = null;
+  state.rungs.clear();
+  state.sports = null;
+  state.sportsFailed = false;
+  state.prices = new Map();
+  state.research = { league: null, loading: false, error: null };
+  state.trackOpened = false;
 }
 
 // A slip returned by a save or read (null when a read failed).
@@ -108,7 +111,7 @@ async function seedDemoPicks() {
     })
     .filter((o) => o?.available);
   const { share, me } = demoPickers(state.demoMode);
-  acceptSlip(await store.updateSlip(state.slipId, (slip) => {
+  acceptSlip(await store.updateSlip(state.docId, (slip) => {
     const mates = slip.members.filter((m) => m.id !== state.me);
     const target = Math.floor(mates.length * share) - mates.filter((m) => slip.picks[m.id]).length;
     const pickers = shuffle(mates.filter((m) => !slip.picks[m.id])).slice(0, Math.max(0, target));
@@ -140,8 +143,9 @@ async function switchDemoStage(mode) {
   Object.assign(state, { games: [], options: new Map(), prices: new Map(), demoSeeded: false, trackOpened: false });
   setSlipOpen(false);
   try {
-    await ensureCurrentSlip();
-    state.slip = await store.getSlip(state.slipId); // a new slip starts over at rev 1
+    const main = await ensureCurrentSlip();
+    if (state.viewWeek) await ensureWeekSlip(state.viewWeek, main);
+    state.slip = await store.getSlip(state.docId); // a new slip starts over at rev 1
     await loadSports(); // fresh scoreboard states before the lines (and picks) come back
     await loadLines();
   } finally {
@@ -192,23 +196,21 @@ async function startSlip() {
     safeSet(`parlay:demo-mode:${state.slipId}`, state.demoMode);
   }
   try {
-    await ensureCurrentSlip();
+    await openWeek();
   } catch (e) {
     state.slip = null;
     state.loadError = e.message;
     return render();
   }
-  store.watchSlip(state.slipId, (slip) => {
-    if (!setSlip(slip)) return;
-    render();
-    openIfTracking();
-  });
   setInterval(refreshLive, 60_000);
   // Prices move; refresh the full events every 45s and the lobby every 5 min. A tab left
   // open past the end of the week rolls the slip over itself.
   setInterval(() => {
     if (document.visibilityState !== 'visible') return;
-    if (state.slip && Date.now() >= state.slip.weekEnd) ensureCurrentSlip().catch(() => {});
+    if (state.current && Date.now() >= state.current.weekEnd) {
+      if (state.viewWeek) return switchWeek(state.viewWeek); // the week on screen may be the current one now
+      ensureCurrentSlip().then((main) => (state.current = currentOf(main))).catch(() => {});
+    }
     loadLines();
   }, 45_000);
   setInterval(() => (state.lobby = null), 5 * 60_000);
@@ -219,6 +221,52 @@ async function startSlip() {
     loadLines();
     refreshLive();
   });
+}
+
+const currentOf = (main) => ({ season: main.season, week: Number(main.week), weekEnd: main.weekEnd });
+
+// Opens the week on screen (state.viewWeek, or the current week) and watches its slip.
+// A week the league has reached is the league's own slip; a later one has its own.
+let unwatch = null;
+async function openWeek() {
+  const main = await ensureCurrentSlip();
+  state.current = currentOf(main);
+  if (!(state.viewWeek > state.current.week)) state.viewWeek = null;
+  // The URL names the week on screen ("?week=9"), so a link or a reload opens it again.
+  const url = new URL(location.href);
+  if (state.viewWeek) url.searchParams.set('week', state.viewWeek);
+  else url.searchParams.delete('week');
+  history.replaceState(null, '', url);
+  const docId = state.viewWeek ? await ensureWeekSlip(state.viewWeek, main) : state.slipId;
+  state.docId = docId;
+  unwatch?.();
+  unwatch = store.watchSlip(docId, (slip) => {
+    if (docId !== state.docId) return; // a read from before a week switch
+    // A later week's slip goes away when the league reaches that week and takes it over.
+    if (!slip && docId !== state.slipId) return switchWeek(state.viewWeek);
+    if (!setSlip(slip)) return;
+    render();
+    openIfTracking();
+  });
+}
+
+// The week menu: shows another week's slip, from scratch.
+async function switchWeek(week) {
+  state.viewWeek = week;
+  state.slip = undefined;
+  dropWeekData();
+  state.pages = [];
+  state.demoSeeded = false;
+  if (DEMO) resetDemo();
+  setSlipOpen(false);
+  render();
+  try {
+    await openWeek();
+  } catch (e) {
+    state.slip = null;
+    state.loadError = e.message;
+    render();
+  }
 }
 
 // This week's games (TV, weather, live scores) and every team's record, streak, and
@@ -268,7 +316,7 @@ function rememberedMe(slip) {
 // picks lock 30 minutes before its first kickoff still ahead; the admin can move it.
 async function ensureCurrentSlip() {
   const existing = await store.getSlip(state.slipId);
-  if (existing && existing.weekEnd > Date.now()) return;
+  if (existing && existing.weekEnd > Date.now()) return existing;
 
   const [league, users, nfl] = await Promise.all([
     api.fetchLeague(state.slipId),
@@ -289,14 +337,41 @@ async function ensureCurrentSlip() {
     picks: {},
   };
 
-  if (!existing) {
-    await store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false, cutoff } });
-    return;
-  }
-  await store.updateSlip(state.slipId, (slip) => {
+  if (!existing) return store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false, cutoff } });
+  return store.updateSlip(state.slipId, (slip) => {
     if (slip.weekEnd > Date.now()) return false; // someone else already rolled it
-    Object.assign(slip, fresh, { settings: { ...slip.settings, locked: false, cutoff } });
+    // A week the league started early (from the week menu) carries over: its picks, and
+    // any deadline or lock the admin set.
+    const early = slip.weeks?.[`${fresh.season}-${week}`];
+    Object.assign(slip, fresh, { picks: early?.picks ?? {}, settings: { ...slip.settings, locked: false, cutoff, ...early?.settings } });
+    // Weeks the league has reached are done with.
+    for (const key of Object.keys(slip.weeks ?? {})) {
+      const [season, w] = key.split('-');
+      if (season !== String(fresh.season) || Number(w) <= week) delete slip.weeks[key];
+    }
   });
+}
+
+// A later week's slip, saved under the league's ("<leagueId>/weeks/<season>-<week>").
+// The first visit makes it, with the league's members and that week's own deadline.
+// Weeks are Tuesday to Tuesday, so a later week's window is a whole number of weeks on.
+async function ensureWeekSlip(week, main) {
+  const id = `${state.slipId}/weeks/${main.season}-${week}`;
+  if (await store.getSlip(id)) return id;
+  const weekStart = main.weekStart + (week - Number(main.week)) * 7 * 86_400_000;
+  const range = { start: weekStart, end: weekStart + 7 * 86_400_000 };
+  const cutoff = defaultCutoff(await sports.kickoffs(Number(main.season), week, range).catch(() => []));
+  await store.createSlip(id, {
+    league: main.league,
+    season: main.season,
+    week,
+    weekStart: range.start,
+    weekEnd: range.end,
+    members: main.members,
+    picks: {},
+    settings: { locked: false, blockSameGame: !!main.settings.blockSameGame, cutoff },
+  });
+  return id;
 }
 
 // ---------- actions ----------
@@ -344,10 +419,10 @@ async function saveMyLeg(userId, pick, mutate) {
   state.pending = { userId, pick };
   try {
     render();
-    acceptSlip(await store.updateSlip(state.slipId, mutate));
+    acceptSlip(await store.updateSlip(state.docId, mutate));
   } catch (e) {
     toast(saveError(e));
-    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
+    acceptSlip(await store.getSlip(state.docId).catch(() => null));
   } finally {
     state.pending = null;
   }
@@ -567,10 +642,10 @@ async function adminLogin() {
 // as it is.
 async function adminUpdate(mutate) {
   try {
-    acceptSlip(await store.updateSlip(state.slipId, mutate));
+    acceptSlip(await store.updateSlip(state.docId, mutate));
   } catch (e) {
     toast(saveError(e));
-    acceptSlip(await store.getSlip(state.slipId).catch(() => null));
+    acceptSlip(await store.getSlip(state.docId).catch(() => null));
   }
   render();
 }
@@ -611,7 +686,7 @@ function popPage() {
 }
 
 async function loadPastMeetings(gameId) {
-  const game = gameById(gameId);
+  const game = matchupGame(gameId);
   const key = game && gameKey(game.away, game.home);
   if (!game || state.pastMeetings.has(key)) return;
   state.pastMeetings.set(key, 'loading');
@@ -789,6 +864,7 @@ $app.addEventListener('input', (e) => {
 // The demo's stage picker (top bar).
 $app.addEventListener('change', (e) => {
   if (e.target.id === 'demo-mode') switchDemoStage(e.target.value);
+  if (e.target.id === 'week-pick') switchWeek(Number(e.target.value));
 });
 
 $app.addEventListener('submit', (e) => {

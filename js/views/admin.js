@@ -60,7 +60,7 @@ export function renderAdmin() {
         <div class="card-head"><span>Picks</span><small>${Object.keys(picks()).length} of ${state.slip.members.length}</small></div>
         ${rows}
       </div>
-      <a class="btn btn-ghost btn-block adm-board" href="${basePath}${esc(state.slipId)}">Open the board</a>
+      <a class="btn btn-ghost btn-block adm-board" href="${basePath}${esc(state.slipId)}${state.viewWeek ? `?week=${state.viewWeek}` : ''}">Open the board</a>
     </main>`;
 }
 

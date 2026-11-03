@@ -3,7 +3,7 @@
 import { matchupColors } from '../teams.js';
 import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
-import { DEMO_MODES, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
+import { DEMO_MODES, LAST_WEEK, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
 import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, teamGo, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
@@ -17,7 +17,7 @@ export function renderTopbar(me) {
       ${avatar(slip.league, 34, 'league-avatar')}
       <div class="topbar-text">
         <strong>${esc(slip.league.name)}</strong>
-        <small>Week ${esc(slip.week)} · ${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</small>
+        <small>${weekPicker()} · ${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</small>
       </div>
     </div>
     ${state.demoMode ? demoPicker() : ''}
@@ -27,6 +27,16 @@ export function renderTopbar(me) {
         ${avatar(me, 34)}
       </button>` : ''}
   </header>`;
+}
+
+// The week, as a menu: the current week (the default) or any later one this season.
+function weekPicker() {
+  const now = state.current?.week ?? Number(state.slip.week);
+  const weeks = Array.from({ length: Math.max(LAST_WEEK, now) - now + 1 }, (_, i) => now + i);
+  return `<label class="week-pick ${state.viewWeek ? 'ahead' : ''}">Week ${esc(state.slip.week)}
+    <select id="week-pick" aria-label="Week">
+      ${weeks.map((w) => `<option value="${w}" ${w === Number(state.slip.week) ? 'selected' : ''}>Week ${w}${w === now ? ' (this week)' : ''}</option>`).join('')}
+    </select></label>`;
 }
 
 // The demo's stage, as a small pill between the league and you (app.js reloads into the
@@ -298,7 +308,7 @@ const startedTakers = (g) => Object.entries(picks())
 // The game's research page, if it's still on the board.
 const matchupLink = (g) => {
   const lobby = state.games.find((x) => x.away === g.away && x.home === g.home);
-  return lobby ? `<button class="meta-research" data-action="matchup" data-id="${esc(lobby.id)}">Matchup ${chevronSmall()}</button>` : '';
+  return `<button class="meta-research" data-action="matchup" data-id="${esc(lobby?.id ?? g.key)}">Matchup ${chevronSmall()}</button>`;
 };
 
 // Live: the clock where the kickoff time was, scores and timeouts by the teams, the

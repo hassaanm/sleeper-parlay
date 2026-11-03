@@ -22,8 +22,18 @@ const demoParam = new URLSearchParams(location.search).get('demo');
 export const DEMO_MODE = !DEMO ? null
   : DEMO_MODES.some((m) => m.id === demoParam) ? demoParam : demoParam === 'live' ? 'live-win' : 'pre';
 
+// The last regular-season week; the week menu runs from the current week to here.
+export const LAST_WEEK = 18;
+
 export const state = {
   slipId: routeLeagueId,
+  // The open week's slip: the league's (slipId) for the current week, or a later week's
+  // under it (app.js openWeek). Saves and the live watch go here.
+  docId: routeLeagueId,
+  current: null, // the league's current week: { season, week, weekEnd }
+  // A later week picked from the week menu ("?week=9"), to pick early or try things
+  // out; null for the current week.
+  viewWeek: Number(new URLSearchParams(location.search).get('week')) || null,
   slip: undefined, // undefined = loading, null = failed to load
   loadError: null,
   lobby: null,
@@ -82,6 +92,9 @@ export const memberById = (id) => state.slip?.members.find((m) => m.id === id);
 // A member's name for messages, from `slip` (default: the one on screen).
 export const memberName = (id, slip = state.slip) => slip?.members.find((m) => m.id === id)?.name ?? 'Someone';
 export const gameById = (id) => state.games.find((g) => g.id === id);
+// A matchup page's game: a board game by id, or, once it kicks off and leaves the
+// board, the scoreboard's by "AWAY@HOME".
+export const matchupGame = (id) => gameById(id) ?? state.sports?.games.get(id);
 // Everyone's picks. A change to your own leg shows as soon as you tap (state.pending),
 // before its save comes back.
 export function picks() {

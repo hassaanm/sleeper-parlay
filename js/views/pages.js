@@ -5,14 +5,14 @@ import { gameKey } from '../rules.js';
 import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../teams.js';
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
 import { awayWinPct } from '../lines.js';
-import { gameById, state } from '../state.js';
+import { matchupGame, state } from '../state.js';
 import { chevron, chevronSmall, teamGo, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
 // over the hero; once you scroll, the top bar turns solid and shows a title.
 export function renderPage() {
   const current = state.pages.at(-1);
-  const game = current.kind === 'matchup' ? gameById(current.gameId) : null;
+  const game = current.kind === 'matchup' ? matchupGame(current.gameId) : null;
   const title = current.kind === 'team'
     ? `<span class="ts-side">${teamLogo(current.abbr, 20)}<b>${esc(teamName(current.abbr))}</b></span>`
     : game ? `<span class="ts-side">${teamLogo(game.away, 20)}<b>${esc(game.away)}</b></span><span class="ts-side"><b>${esc(game.home)}</b>${teamLogo(game.home, 20)}</span>` : '';
@@ -174,12 +174,15 @@ function renderTeamPage(abbr) {
 }
 
 function renderMatchupPage(gameId) {
-  const game = gameById(gameId);
+  const game = matchupGame(gameId);
   if (!game) return '<p class="muted center-note">This game isn’t on the board anymore.</p>';
   const { away: A, home: H } = game;
   const league = state.research.league;
   const colors = matchupColors(A, H);
-  const awayPct = awayWinPct(game);
+  // A board game's chance from its lines; a live one's from the market now. A finished
+  // game has none.
+  const live = game.status?.state === 'in' && state.prices.get(game.key)?.ml;
+  const awayPct = game.ml ? awayWinPct(game) : live?.away && live?.home ? Math.round((100 * live.away) / (live.away + live.home)) : null;
   const teamInfo = (abbr) => state.sports?.teams.get(abbr);
   const info = state.sports?.games.get(gameKey(A, H));
   const teamHead = (abbr) => `

@@ -22,7 +22,8 @@ const localBackend = {
 // Firebase Realtime Database REST API. The version is the read's ETag, sent back as
 // if-match, so two friends saving at the same moment can't overwrite each other.
 const firebaseBackend = {
-  url: (id) => `${FIREBASE_DB_URL.replace(/\/$/, '')}/slips/${encodeURIComponent(id)}.json`,
+  // A later week's slip is a path under its league's ("<leagueId>/weeks/<season>-<week>").
+  url: (id) => `${FIREBASE_DB_URL.replace(/\/$/, '')}/slips/${id.split('/').map(encodeURIComponent).join('/')}.json`,
   async get(id) {
     const res = await fetch(this.url(id), { headers: { 'X-Firebase-ETag': 'true' }, cache: 'no-store', signal: timeout() });
     if (!res.ok) throw new Error(`Storage read failed (${res.status})`);
@@ -66,9 +67,12 @@ function normalize(slip) {
   return slip;
 }
 
-// Starts the demo over: drops this browser's copy of the slip.
+// Starts the demo over: drops this browser's copy of the slip, and of its later weeks.
 export function clearLocalSlip(id) {
-  try { localStorage.removeItem(localBackend.key(id)); } catch { /* private mode */ }
+  try {
+    const key = localBackend.key(id);
+    for (const k of Object.keys(localStorage)) if (k === key || k.startsWith(`${key}/`)) localStorage.removeItem(k);
+  } catch { /* private mode */ }
 }
 
 export async function getSlip(id) {

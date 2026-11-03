@@ -18,6 +18,7 @@ Slips are shared through Firebase, so everyone in the league sees the same picks
 
 - **Routes:** `/` asks for a league ID. `/<leagueId>` is that league's slip. Everyone in the league can pick.
 - **Weeks:** the first visit creates the slip. The first visit after the week ends (Tuesday 10:00 UTC) clears picks and reloads members.
+- **Week menu:** the week in the top bar is a menu. It opens on the current week, and any later week this season can be picked (`?week=9`), to try things out or to start the next week early. When the league reaches that week, its picks and settings carry over.
 - **Lines:** `GET https://api.sleeper.app/predictions/events/lobby` gives each NFL game (moneyline) plus its main spread and total. `GET /predictions/events?ids=...` gives every alternate line. Prices are cents; the UI shows American odds.
 - **Conflicts:** per game, one leg on the side (moneyline or spread, since a favorite's spread and the other team's moneyline can't both hit) and one on the total.
 - **Kickoff:** a game can't be picked once it starts, and a leg is locked in once its game starts.
@@ -51,4 +52,4 @@ Before pushing a change to `js/` or `styles.css`, run `npm run stamp`. It stamps
 
 ## Storage
 
-Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. Saves use ETag compare-and-swap. Open pages get changes pushed over Server-Sent Events, with a 60-second fallback check. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.
+Slips live in a Firebase Realtime Database (`FIREBASE_DB_URL` in `js/config.js`), one document per league at `/slips/<leagueId>`. A later week's slip sits under it at `/slips/<leagueId>/weeks/<season>-<week>`. Saves use ETag compare-and-swap. Open pages get changes pushed over Server-Sent Events, with a 60-second fallback check. Database rules only allow numeric league paths with `league` and `week` fields. `?demo` always uses this browser's localStorage, so fake picks never reach the shared slip. Leave `FIREBASE_DB_URL` empty to run fully local.
