@@ -1200,7 +1200,7 @@ h1, h2 { letter-spacing: -0.02em; }
 }
 .standings-btn:active { transform: scale(0.94); }
 .st-hero {
-  display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 4px 16px 14px; text-align: center;
+  display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 22px 16px 14px; text-align: center;
   background: radial-gradient(70% 90% at 50% 0%, rgba(255, 200, 97, 0.22), transparent 75%), var(--bg-2);
 }
 .st-hero h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
