@@ -837,6 +837,10 @@ $app.addEventListener('click', (e) => {
     case 'matchup': return openPage({ kind: 'matchup', gameId: id });
     case 'standings': return openPage({ kind: 'standings' });
     case 'player': return openPage({ kind: 'player', id });
+    case 'week-page': return openPage({ kind: 'week', week: Number(id) });
+    case 'standings-tab':
+      state.standingsTab = id;
+      return render();
     case 'week-go': return switchWeek(Number(id)); // the current week's number opens the current week
     case 'page-back': return popPage();
     case 'close-page':

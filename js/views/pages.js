@@ -6,7 +6,7 @@ import { conferenceOf, matchupColors, nickname, teamColor, teamName } from '../t
 import { commonOpponents, headToHead, recordOf, resume, winChains } from '../research.js';
 import { awayWinPct } from '../lines.js';
 import { matchupGame, state } from '../state.js';
-import { playerTitle, renderPlayerPage, renderStandingsPage, standingsTitle } from './standings.js';
+import { playerTitle, renderPlayerPage, renderStandingsPage, renderWeekPage, standingsTitle, weekTitle } from './standings.js';
 import { chevron, chevronSmall, teamGo, dayTimeFmt, esc, fmt1, fmtPct, fmtSigned, rankTier, rankText, resultChip, shortDayFmt, teamLogo, timeFmt, toneOf, tvBadges, weatherIcon } from '../ui.js';
 
 // Research pages open as a tall sheet. The back/close buttons sit in the top corners
@@ -16,11 +16,13 @@ export function renderPage() {
   const game = current.kind === 'matchup' ? matchupGame(current.gameId) : null;
   const title = current.kind === 'standings' ? standingsTitle()
     : current.kind === 'player' ? playerTitle(current.id)
+    : current.kind === 'week' ? weekTitle(current.week)
     : current.kind === 'team'
     ? `<span class="ts-side">${teamLogo(current.abbr, 20)}<b>${esc(teamName(current.abbr))}</b></span>`
     : game ? `<span class="ts-side">${teamLogo(game.away, 20)}<b>${esc(game.away)}</b></span><span class="ts-side"><b>${esc(game.home)}</b>${teamLogo(game.home, 20)}</span>` : '';
   const content = current.kind === 'standings' ? renderStandingsPage()
     : current.kind === 'player' ? renderPlayerPage(current.id)
+    : current.kind === 'week' ? renderWeekPage(current.week)
     : current.kind === 'team' ? renderTeamPage(current.abbr) : renderMatchupPage(current.gameId);
   return `
   <div class="sheet-backdrop" data-action="close-page"></div>

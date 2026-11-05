@@ -36,6 +36,7 @@ export const state = {
   // Or an earlier week the league kept (history.js), to look back on: read-only.
   viewWeek: Number(new URLSearchParams(location.search).get('week')) || null,
   pastWeeks: [], // the kept weeks of this season, for the week menu
+  standingsTab: 'board', // the standings page's tab: 'board' (leaderboard) or 'history'
   standings: null, // the standings page's data (app.js loadStandings), or { loading } / { error }
   slip: undefined, // undefined = loading, null = failed to load
   loadError: null,
