@@ -785,6 +785,9 @@ $app.addEventListener('click', (e) => {
       state.pages = [];
       return render();
     // Tapping the solid top bar's title scrolls the page back to the top.
+    case 'toggle-stats':
+      state.statsOpen = !state.statsOpen;
+      return render();
     case 'page-top':
       return $app.querySelector('.tsheet-body')?.scrollTo({ top: 0, behavior: 'smooth' });
     case 'be':

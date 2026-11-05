@@ -247,10 +247,26 @@ function renderMatchupPage(gameId) {
       </div>`;
   };
 
-  // Season stats in three groups: the offense, what the defense allows, then sacks and
-  // turnovers. Each row's bar favors the better number.
+  // Season stats. At first, four that sum a team up: scoring, stopping the other team,
+  // how far each play goes, and turnovers, plus who leads more of them. "All stats"
+  // opens every stat in three groups: the offense, what the defense allows, then sacks
+  // and turnovers. Each row's bar favors the better number.
   const statRows = (rows) => rows.map(([label, key, higher, show]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher, show)).join('');
-  const seasonStats = `
+  const CORE = [
+    ['POINTS SCORED / G', 'points', true],
+    ['POINTS ALLOWED / G', 'allowed', false],
+    ['YARDS / PLAY', 'yardsPerPlay', true],
+    ['TURNOVER MARGIN', 'turnoverMargin', true, fmtSigned],
+  ];
+  const leads = (x, y) => CORE.filter(([, key, higher]) => (higher ? x.per[key] > y.per[key] : x.per[key] < y.per[key])).length;
+  const [aLeads, hLeads] = [leads(a, h), leads(h, a)];
+  const edgeTeam = aLeads > hLeads ? A : hLeads > aLeads ? H : null;
+  const verdict = `
+    <p class="cmp-verdict">${edgeTeam
+      ? `${teamLogo(edgeTeam, 18)}<span><b>${esc(nickname(edgeTeam))}</b> lead ${Math.max(aLeads, hLeads)} of ${CORE.length}</span>`
+      : `<span>Even: ${aLeads} each</span>`}</p>`;
+  const toggle = `<button class="cmp-more ${state.statsOpen ? 'open' : ''}" data-action="toggle-stats">${state.statsOpen ? 'Fewer stats' : 'All stats'}${chevron('down')}</button>`;
+  const seasonStats = !state.statsOpen ? verdict + statRows(CORE) + toggle : `
     <div class="cmp-group"><span>Offense</span></div>
     ${statRows([
       ['PTS / G', 'points', true],
@@ -277,7 +293,7 @@ function renderMatchupPage(gameId) {
       ['TAKEAWAYS', 'takeaways', true, String],
       ['GIVEAWAYS', 'giveaways', false, String],
       ['TURNOVER MARGIN', 'turnoverMargin', true, fmtSigned],
-    ])}`;
+    ])}${toggle}`;
 
   // Same layout as compareRow, without a winner or bar: for rows that describe each
   // team rather than rank them. `tones` colors each side (good or bad).

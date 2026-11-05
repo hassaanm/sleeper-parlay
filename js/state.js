@@ -49,6 +49,7 @@ export const state = {
   research: { league: null, loading: false, error: null }, // the season plus Sleeper's stats (research.addStats)
   pastMeetings: new Map(), // "<away>@<home>" -> meetings from the last three seasons, or 'loading'
   resetPageScroll: false,
+  statsOpen: false, // a matchup page shows every season stat, not just the four core ones
   pickSince: new Map(), // "<member>:<optKey>" -> when that pick appeared (0 = already there on load); new ones' stickers slap on
   stickersPrimed: false, // false until the first board render; picks there don't animate
   prices: new Map(), // "<away>@<home>" -> a started game's lines (markets.js): live now, or at kickoff once final
