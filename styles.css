@@ -1339,7 +1339,7 @@ h1, h2 { letter-spacing: -0.02em; }
 
 /* Leaderboard rows: the score as a tinted pill, the details small under it. */
 .st-row { gap: 11px; padding: 10px 2px; }
-.st-row.me { margin: 0 -12px; padding: 10px 14px; background: linear-gradient(90deg, var(--accent-soft), transparent 75%); }
+.st-row.me { width: calc(100% + 24px); margin: 0 -12px; padding: 10px 14px; background: linear-gradient(90deg, var(--accent-soft), transparent 75%); }
 .st-rank { width: 20px; font-size: 14px; }
 .st-rank.r1 { color: #ffd36b; } .st-rank.r2 { color: #dfe6f5; } .st-rank.r3 { color: #f0a46a; }
 .st-rec { gap: 3px; }
