@@ -645,10 +645,7 @@ h1, h2 { letter-spacing: -0.02em; }
   font-size: 10px; font-weight: 800; letter-spacing: 0.1em; line-height: 1.2; color: var(--muted); text-transform: uppercase;
 }
 .cmp-group + .cmp-row { border-top: none; }
-/* A matchup's season stats: who leads more of the four core stats, and the button
-   that opens every stat (pages.js renderMatchupPage). */
-.cmp-verdict { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 0; padding: 10px 0 9px; font-size: 13px; color: var(--muted); }
-.cmp-verdict b { color: var(--text); }
+/* The button that opens every season stat on a matchup page (pages.js). */
 .cmp-more {
   display: flex; align-items: center; justify-content: center; gap: 4px; width: calc(100% + 28px); margin: 0 -14px -2px;
   padding: 10px 0 11px; border: none; border-top: 1px solid var(--line-soft); background: none; border-radius: 0 0 13px 13px;

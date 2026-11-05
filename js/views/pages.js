@@ -247,26 +247,19 @@ function renderMatchupPage(gameId) {
       </div>`;
   };
 
-  // Season stats. At first, four that sum a team up: scoring, stopping the other team,
-  // how far each play goes, and turnovers, plus who leads more of them. "All stats"
-  // opens every stat in three groups: the offense, what the defense allows, then sacks
-  // and turnovers. Each row's bar favors the better number.
+  // Season stats in three groups: the offense, what the defense allows, then sacks and
+  // turnovers. At first each group shows only its key numbers (the defense's mirror the
+  // offense's); "All stats" opens every one. Each row's bar favors the better number.
   const statRows = (rows) => rows.map(([label, key, higher, show]) => compareRow(label, a.per[key], h.per[key], a.ranks[key], h.ranks[key], higher, show)).join('');
-  const CORE = [
-    ['POINTS SCORED / G', 'points', true],
-    ['POINTS ALLOWED / G', 'allowed', false],
-    ['YARDS / PLAY', 'yardsPerPlay', true],
-    ['TURNOVER MARGIN', 'turnoverMargin', true, fmtSigned],
-  ];
-  const leads = (x, y) => CORE.filter(([, key, higher]) => (higher ? x.per[key] > y.per[key] : x.per[key] < y.per[key])).length;
-  const [aLeads, hLeads] = [leads(a, h), leads(h, a)];
-  const edgeTeam = aLeads > hLeads ? A : hLeads > aLeads ? H : null;
-  const verdict = `
-    <p class="cmp-verdict">${edgeTeam
-      ? `${teamLogo(edgeTeam, 18)}<span><b>${esc(nickname(edgeTeam))}</b> lead ${Math.max(aLeads, hLeads)} of ${CORE.length}</span>`
-      : `<span>Even: ${aLeads} each</span>`}</p>`;
   const toggle = `<button class="cmp-more ${state.statsOpen ? 'open' : ''}" data-action="toggle-stats">${state.statsOpen ? 'Fewer stats' : 'All stats'}${chevron('down')}</button>`;
-  const seasonStats = !state.statsOpen ? verdict + statRows(CORE) + toggle : `
+  const seasonStats = !state.statsOpen ? `
+    <div class="cmp-group"><span>Offense</span></div>
+    ${statRows([['POINTS / G', 'points', true], ['YARDS / PLAY', 'yardsPerPlay', true]])}
+    <div class="cmp-group"><span>Defense</span></div>
+    ${statRows([['POINTS ALLOWED / G', 'allowed', false], ['YARDS / PLAY ALLOWED', 'oppYardsPerPlay', false]])}
+    <div class="cmp-group"><span>Turnovers</span></div>
+    ${statRows([['TURNOVER MARGIN', 'turnoverMargin', true, fmtSigned]])}
+    ${toggle}` : `
     <div class="cmp-group"><span>Offense</span></div>
     ${statRows([
       ['PTS / G', 'points', true],
