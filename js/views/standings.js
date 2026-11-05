@@ -92,6 +92,9 @@ export function renderPlayerPage(id) {
   const m = member(id);
   if (!r) return `<div class="st-hero">${avatar(m, 64)}<h2>${esc(m.name)}</h2><p>No finished legs yet.</p></div>`;
 
+  // How likely their legs were when picked, on average (the no-vig market chance).
+  const avgChance = r.legs.reduce((sum, l) => sum + (l.pick.fair ?? l.pick.price / 100), 0) / r.legs.length;
+  const best = Math.max(...r.legs.map((l) => l.margin));
   const stat = (label, value, cls = '') => `<div class="info-cell ${cls}"><b>${value}</b><small>${label}</small></div>`;
   const byType = ['ml', 'spread', 'total'].map((type) => {
     const legs = r.legs.filter((l) => l.pick.type === type);
@@ -128,9 +131,12 @@ export function renderPlayerPage(id) {
       ${stat('Hit rate', pct(r))}
       ${stat('Avg margin', margin(r.avgMargin), toneOf(r.avgMargin))}
       ${byType}
+      ${stat('Avg chance', `${Math.round(100 * avgChance)}%`)}
+      ${stat(`Within ${CLOSE} pts`, r.close)}
+      ${stat('Best leg', margin(best), toneOf(best))}
     </div>
     <div class="cmp st-card">
-      <div class="st-head"><span>How close</span><small>${r.close} of ${r.legs.length} within ${CLOSE} pts</small></div>
+      <div class="st-head"><span>How close</span><small>Newest first</small></div>
       <div class="pl-axis"><span class="t-miss">← Missed by</span><span class="t-hit">Hit by →</span></div>
       ${legRows}
     </div>`;
