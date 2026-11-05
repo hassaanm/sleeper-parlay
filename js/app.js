@@ -3,7 +3,8 @@ import * as api from './api.js';
 import * as store from './store.js';
 import * as sports from './sports.js';
 import * as markets from './markets.js';
-import { demoPickers, fakeMomentum, fakeWeek, resetDemo } from './demo.js';
+import { demoPickers, fakeMomentum, fakePastWeek, fakeWeek, resetDemo } from './demo.js';
+import { archiveOf, gradedLegs, pastWeeks, seasonMembers, weekKey } from './history.js';
 import { addStats, buildLeague } from './research.js';
 import { buildGames, indexOptions, ladderSides, weekWindowAt } from './lines.js';
 import { clashFor, defaultCutoff, gameKey, legLockedReason, pickBlockedReason, pickFrom, slipLocked } from './rules.js';
@@ -12,7 +13,7 @@ import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { closePicture, copyPicture, makeSlipPicture, sharePicture, showPicture } from './share.js';
 import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, basePath, gameById, matchupGame, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
+import { DEMO, basePath, gameById, matchupGame, viewingPast, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 import { fitNames } from './views/slip.js';
@@ -83,7 +84,7 @@ async function loadLines() {
     state.options = indexOptions(games);
     state.gamesError = null;
     if (state.slipNudge) setTimeout(nudgeSlip, 300);
-    if (DEMO && !state.demoSeeded) {
+    if (DEMO && !state.demoSeeded && !viewingPast()) {
       state.demoSeeded = true;
       await seedDemoPicks();
     }
@@ -143,11 +144,16 @@ async function switchDemoStage(mode) {
   Object.assign(state, { games: [], options: new Map(), prices: new Map(), demoSeeded: false, trackOpened: false });
   setSlipOpen(false);
   try {
-    const main = await ensureCurrentSlip();
-    if (state.viewWeek) await ensureWeekSlip(state.viewWeek, main);
-    state.slip = await store.getSlip(state.docId); // a new slip starts over at rev 1
-    await loadSports(); // fresh scoreboard states before the lines (and picks) come back
-    await loadLines();
+    if (viewingPast()) {
+      state.slip = undefined;
+      await openWeek(); // a kept week shows as it was, whatever the stage
+    } else {
+      const main = await ensureCurrentSlip();
+      if (state.viewWeek) await ensureWeekSlip(state.viewWeek, main);
+      state.slip = await store.getSlip(state.docId); // a new slip starts over at rev 1
+      await loadSports(); // fresh scoreboard states before the lines (and picks) come back
+      await loadLines();
+    }
   } finally {
     state.demoSwitching = false;
     render();
@@ -156,7 +162,7 @@ async function switchDemoStage(mode) {
 
 // Past the 'pre' stage, the demo makes up how this week's games are going (demo.js).
 function fakeDemoWeek() {
-  if (DEMO && state.sports) fakeWeek(state.demoMode, state.games, state.sports.games, picks(), state.slip?.members);
+  if (DEMO && state.sports && !viewingPast()) fakeWeek(state.demoMode, state.games, state.sports.games, picks(), state.slip?.members);
 }
 
 // Prices for games that have kicked off (markets.js): every live game's, on each
@@ -231,15 +237,25 @@ let unwatch = null;
 async function openWeek() {
   const main = await ensureCurrentSlip();
   state.current = currentOf(main);
-  if (!(state.viewWeek > state.current.week)) state.viewWeek = null;
+  state.pastWeeks = pastWeeks(main).map((h) => h.week);
+  const past = main.history?.[weekKey(main.season, state.viewWeek)];
+  if (!(state.viewWeek > state.current.week) && !(past && state.viewWeek < state.current.week)) state.viewWeek = null;
   // The URL names the week on screen ("?week=9"), so a link or a reload opens it again.
   const url = new URL(location.href);
   if (state.viewWeek) url.searchParams.set('week', state.viewWeek);
   else url.searchParams.delete('week');
   history.replaceState(null, '', url);
+  unwatch?.();
+  unwatch = null;
+  // A past week is kept inside the league's slip and doesn't change: shown, not saved to.
+  if (viewingPast()) {
+    state.docId = null;
+    setSlip(store.normalize(structuredClone(past)));
+    render();
+    return openIfTracking();
+  }
   const docId = state.viewWeek ? await ensureWeekSlip(state.viewWeek, main) : state.slipId;
   state.docId = docId;
-  unwatch?.();
   unwatch = store.watchSlip(docId, (slip) => {
     if (docId !== state.docId) return; // a read from before a week switch
     // A later week's slip goes away when the league reaches that week and takes it over.
@@ -337,9 +353,14 @@ async function ensureCurrentSlip() {
     picks: {},
   };
 
-  if (!existing) return store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false, cutoff } });
+  if (!existing) {
+    const history = DEMO ? await demoHistory(fresh) : undefined;
+    return store.createSlip(state.slipId, { ...fresh, settings: { locked: false, blockSameGame: false, cutoff }, ...(history && { history }) });
+  }
   return store.updateSlip(state.slipId, (slip) => {
     if (slip.weekEnd > Date.now()) return false; // someone else already rolled it
+    // The week that's ending is kept (history.js), for the week menu and the standings.
+    if (Object.keys(slip.picks).length) (slip.history ??= {})[weekKey(slip.season, slip.week)] = archiveOf(slip);
     // A week the league started early (from the week menu) carries over: its picks, and
     // any deadline or lock the admin set.
     const early = slip.weeks?.[`${fresh.season}-${week}`];
@@ -350,6 +371,16 @@ async function ensureCurrentSlip() {
       if (season !== String(fresh.season) || Number(w) <= week) delete slip.weeks[key];
     }
   });
+}
+
+// The demo's last four weeks, made up on real games (demo.js fakePastWeek).
+async function demoHistory(fresh) {
+  const weeks = Array.from({ length: 4 }, (_, i) => fresh.week - 4 + i).filter((w) => w >= 1);
+  const kept = await Promise.all(weeks.map(async (w) => {
+    const games = await sports.loadWeek(Number(fresh.season), w).catch(() => null);
+    return games && fakePastWeek(fresh, w, [...games.values()]);
+  }));
+  return Object.fromEntries(kept.filter(Boolean).map((h) => [weekKey(h.season, h.week), h]));
 }
 
 // A later week's slip, saved under the league's ("<leagueId>/weeks/<season>-<week>").
@@ -416,6 +447,7 @@ async function shareSlip() {
 // (state.pending): the cell turns yours, the stickers swap, and your face moves in the
 // slip's row (faces.js). If the save fails, it all goes back, and a toast says why.
 async function saveMyLeg(userId, pick, mutate) {
+  if (!state.docId) return toast('That week is over.');
   state.pending = { userId, pick };
   try {
     render();
@@ -641,6 +673,7 @@ async function adminLogin() {
 // An admin change; if it can't be saved, a toast says why and the page shows the slip
 // as it is.
 async function adminUpdate(mutate) {
+  if (!state.docId) return toast('That week is over.');
   try {
     acceptSlip(await store.updateSlip(state.docId, mutate));
   } catch (e) {
@@ -674,7 +707,8 @@ async function setCutoff(cutoff) {
 function openPage(entry) {
   state.pages.push(entry);
   state.resetPageScroll = true;
-  loadResearch();
+  if (entry.kind === 'standings') loadStandings();
+  if (entry.kind === 'team' || entry.kind === 'matchup') loadResearch();
   if (entry.kind === 'matchup') loadPastMeetings(entry.gameId);
   render();
 }
@@ -682,6 +716,27 @@ function openPage(entry) {
 function popPage() {
   state.pages.pop();
   state.resetPageScroll = true;
+  render();
+}
+
+// The standings page's data: every kept week this season plus the current one, each
+// with its scoreboard, graded (history.js). Read fresh on each open.
+let standingsRequest = 0;
+async function loadStandings() {
+  const request = ++standingsRequest;
+  if (!state.standings?.legs) state.standings = { loading: true };
+  try {
+    const main = await store.getSlip(state.slipId);
+    const slips = [...pastWeeks(main), main];
+    const season = Number(main.season);
+    const boards = await Promise.all(slips.map((slip) => sports.loadWeek(season, Number(slip.week), { fresh: slip === main })));
+    if (request !== standingsRequest) return;
+    const legs = gradedLegs(slips.map((slip, i) => ({ slip, games: boards[i] })));
+    state.standings = { slips, legs, members: seasonMembers(slips) };
+  } catch (e) {
+    if (request !== standingsRequest) return;
+    if (!state.standings?.legs) state.standings = { error: e.message };
+  }
   render();
 }
 
@@ -780,6 +835,9 @@ $app.addEventListener('click', (e) => {
     case 'choose': return choose(key);
     case 'team': return openPage({ kind: 'team', abbr: id });
     case 'matchup': return openPage({ kind: 'matchup', gameId: id });
+    case 'standings': return openPage({ kind: 'standings' });
+    case 'player': return openPage({ kind: 'player', id });
+    case 'week-go': return switchWeek(Number(id)); // the current week's number opens the current week
     case 'page-back': return popPage();
     case 'close-page':
       state.pages = [];

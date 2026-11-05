@@ -33,7 +33,10 @@ export const state = {
   current: null, // the league's current week: { season, week, weekEnd }
   // A later week picked from the week menu ("?week=9"), to pick early or try things
   // out; null for the current week.
+  // Or an earlier week the league kept (history.js), to look back on: read-only.
   viewWeek: Number(new URLSearchParams(location.search).get('week')) || null,
+  pastWeeks: [], // the kept weeks of this season, for the week menu
+  standings: null, // the standings page's data (app.js loadStandings), or { loading } / { error }
   slip: undefined, // undefined = loading, null = failed to load
   loadError: null,
   lobby: null,
@@ -77,6 +80,8 @@ export const state = {
 };
 
 export const isLocked = () => slipLocked(state.slip);
+// A kept week from earlier in the season is on screen (read-only).
+export const viewingPast = () => !!state.viewWeek && !!state.current && state.viewWeek < state.current.week;
 export const beforeCutoff = (game) => !!game && startsBeforeCutoff(state.slip, game.start);
 // The admin, picking for someone, can change any leg; everyone else follows the rules.
 export const myLegLocked = () => !state.acting && !!legLockedReason(state.slip, state.me);

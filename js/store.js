@@ -57,7 +57,7 @@ const backend = FIREBASE_DB_URL && !DEMO ? firebaseBackend : localBackend;
 const validPick = (p) => p && typeof p.optKey === 'string' && typeof p.label === 'string'
   && typeof p.matchup === 'string' && p.matchup.includes(' @ ')
   && Number.isFinite(p.start) && Number.isFinite(p.price);
-function normalize(slip) {
+export function normalize(slip) {
   if (!slip || typeof slip !== 'object') return null;
   slip.settings ??= {};
   slip.picks = Object.fromEntries(Object.entries(slip.picks ?? {}).filter(([, p]) => validPick(p)));

@@ -94,3 +94,42 @@ export function fakeMomentum(g) {
     return Math.round(p + ((end - p) * i * i) / (48 * 48));
   });
 }
+
+// A made-up past week for the demo's standings and week menu: most league mates take a
+// leg on one of that week's real games, with a line set near the real result so some
+// legs win big, some lose, and some come down to a point. The same every visit.
+export function fakePastWeek(main, week, games) {
+  const rand = seeded(`${main.league.id}:${week}`);
+  const pickOf = (list) => list[Math.floor(rand() * list.length)];
+  const half = (n) => Math.floor(n) + 0.5; // lines end in .5
+  const finals = games.filter((g) => g.status.state === 'post');
+  const picks = {};
+  for (const member of main.members) {
+    if (!finals.length || rand() < 0.2) continue;
+    const g = pickOf(finals);
+    const { awayScore: a, homeScore: h } = g.status;
+    const matchup = `${g.away} @ ${g.home}`;
+    const type = pickOf(['ml', 'spread', 'spread', 'total']);
+    const base = { optKey: `demo:${week}:${member.id}`, gameId: `demo:${g.key}`, type, matchup, start: g.start, pickedAt: g.start - 86_400_000 };
+    const fair = 0.25 + rand() * 0.5;
+    const price = Math.round(fair * 100);
+    if (type === 'total') {
+      const line = half(a + h + (rand() - 0.5) * 20);
+      const side = rand() < 0.5 ? 'over' : 'under';
+      picks[member.id] = { ...base, label: `${side === 'over' ? 'Over' : 'Under'} ${line}`, line, side, price, fair };
+    } else {
+      const team = rand() < 0.5 ? g.away : g.home;
+      const lead = team === g.away ? a - h : h - a; // the team's real winning margin
+      if (type === 'ml') picks[member.id] = { ...base, label: `${team} ML`, team, price, fair };
+      else {
+        const line = Math.max(-13.5, Math.min(13.5, half(-lead + (rand() - 0.5) * 16)));
+        picks[member.id] = { ...base, label: `${team} ${line > 0 ? '+' : ''}${line}`, team, line, price, fair };
+      }
+    }
+  }
+  const weekStart = main.weekStart - (Number(main.week) - week) * 7 * 86_400_000;
+  return {
+    league: main.league, season: main.season, week, weekStart, weekEnd: weekStart + 7 * 86_400_000,
+    members: main.members, picks, settings: { locked: true }, rev: 1,
+  };
+}

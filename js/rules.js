@@ -73,19 +73,24 @@ export function pickFrom(opt, game, now = Date.now()) {
   };
 }
 
+// How far a pick landed from its line, in points: positive is a hit by that much,
+// negative a miss. Moneylines count the final margin; spreads add the line; totals
+// compare the combined score with the line.
+export function pickMargin(pick, awayScore, homeScore) {
+  const [away] = pick.matchup.split(' @ ');
+  if (pick.type === 'total') {
+    const total = awayScore + homeScore;
+    return pick.side === 'over' ? total - pick.line : pick.line - total;
+  }
+  const mine = pick.team === away ? awayScore : homeScore;
+  const theirs = pick.team === away ? homeScore : awayScore;
+  return mine + (pick.type === 'spread' ? pick.line : 0) - theirs;
+}
+
 // Grade a pick against a score: 'hit', 'miss', or 'push'. Used for finals, and for
 // "covering right now" while a game is live.
 export function gradePick(pick, awayScore, homeScore) {
-  const [away] = pick.matchup.split(' @ ');
-  let margin;
-  if (pick.type === 'total') {
-    const total = awayScore + homeScore;
-    margin = pick.side === 'over' ? total - pick.line : pick.line - total;
-  } else {
-    const mine = pick.team === away ? awayScore : homeScore;
-    const theirs = pick.team === away ? homeScore : awayScore;
-    margin = mine + (pick.type === 'spread' ? pick.line : 0) - theirs;
-  }
+  const margin = pickMargin(pick, awayScore, homeScore);
   return margin > 0 ? 'hit' : margin < 0 ? 'miss' : 'push';
 }
 

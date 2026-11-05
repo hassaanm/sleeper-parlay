@@ -1,6 +1,6 @@
 // The admin page and the bar shown while the admin picks for someone else.
 import { LOCK_LEAD_MS } from '../rules.js';
-import { basePath, isLocked, memberById, picks, state } from '../state.js';
+import { basePath, isLocked, memberById, picks, state, viewingPast } from '../state.js';
 import { avatar, dayTimeFmt, esc, pretty } from '../ui.js';
 
 // "<league URL>?admin": set the pick deadline, lock or unlock picks, and fix anyone's
@@ -16,6 +16,9 @@ export function renderAdmin() {
         <button class="btn btn-primary btn-block">Unlock</button>
       </form>
     </main>`;
+  }
+  if (viewingPast()) {
+    return `<main class="who admin"><div class="card narrow"><h2>Week ${state.slip.week} is over</h2><p class="muted">Its picks are kept as they were, for the standings. Pick this week from the week menu to change things.</p></div></main>`;
   }
   const { cutoff, locked } = state.slip.settings;
   const when = (t) => dayTimeFmt.format(t);

@@ -6,7 +6,9 @@ import { clashFor, gameKey } from '../rules.js';
 import { DEMO_MODES, LAST_WEEK, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
 import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, teamGo, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
-export const STRIP_ITEM = 36; // px, must match .strip-item width in CSS
+export const STRIP_ITEM = 36;
+
+const TROPHY_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M4 1.5h8v1.5h2.5v1.8a3 3 0 0 1-2.8 3A4 4 0 0 1 9 10.1V12h2v2.5H5V12h2v-1.9a4 4 0 0 1-2.7-2.3 3 3 0 0 1-2.8-3V3H4zm0 3H3v.3c0 .6.4 1.1 1 1.3zm8 0v1.6c.6-.2 1-.7 1-1.3v-.3z"/></svg>'; // px, must match .strip-item width in CSS
 
 export function renderTopbar(me) {
   const slip = state.slip;
@@ -17,7 +19,7 @@ export function renderTopbar(me) {
       ${avatar(slip.league, 34, 'league-avatar')}
       <div class="topbar-text">
         <strong>${esc(slip.league.name)}</strong>
-        <small class="topbar-sub">${weekPicker()}<span>${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</span></small>
+        <small class="topbar-sub">${weekPicker()}<button class="standings-btn" data-action="standings" aria-label="Standings">${TROPHY_ICON}</button><span class="leg-count">${isLocked() ? `<span class="locked-legs" title="Picks are locked">${LOCK_ICON}</span>` : ''}${legCount} ${legCount === 1 ? 'leg' : 'legs'}</span></small>
       </div>
     </div>
     ${state.demoMode ? demoPicker() : ''}
@@ -29,10 +31,11 @@ export function renderTopbar(me) {
   </header>`;
 }
 
-// The week, as a menu: the current week (the default) or any later one this season.
+// The week, as a menu: the current week (the default), an earlier week the league kept,
+// or any later one this season.
 function weekPicker() {
   const now = state.current?.week ?? Number(state.slip.week);
-  const weeks = Array.from({ length: Math.max(LAST_WEEK, now) - now + 1 }, (_, i) => now + i);
+  const weeks = [...state.pastWeeks, ...Array.from({ length: Math.max(LAST_WEEK, now) - now + 1 }, (_, i) => now + i)];
   return `<label class="week-pick ${state.viewWeek ? 'ahead' : ''}">Week ${esc(state.slip.week)}
     <select id="week-pick" aria-label="Week">
       ${weeks.map((w) => `<option value="${w}" ${w === Number(state.slip.week) ? 'selected' : ''}>Week ${w}${w === now ? ' (this week)' : ''}</option>`).join('')}

@@ -1190,3 +1190,77 @@ h1, h2 { letter-spacing: -0.02em; }
 .week-pick.ahead { border-color: rgba(0, 214, 168, 0.45); background: var(--accent-soft); color: var(--accent); }
 .week-pick.ahead::after { border-color: var(--accent); }
 .week-pick select { position: absolute; inset: -6px -4px; opacity: 0; font-size: 16px; cursor: pointer; }
+
+/* Standings (views/standings.js): a trophy pill in the top bar opens a research-style
+   page with the leaderboard, standout legs, and each week's slip; a name opens that
+   member's page with how close each leg came. */
+.standings-btn {
+  display: inline-grid; place-items: center; flex: none; width: 24px; height: 20px; padding: 0; border-radius: 99px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--gold); cursor: pointer;
+}
+.standings-btn:active { transform: scale(0.94); }
+.st-hero {
+  display: grid; justify-items: center; gap: 4px; margin: 0 -16px; padding: 4px 16px 14px; text-align: center;
+  background: radial-gradient(70% 90% at 50% 0%, rgba(255, 200, 97, 0.22), transparent 75%), var(--bg-2);
+}
+.st-hero h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.st-hero p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.st-cup { font-size: 40px; line-height: 1; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35)); }
+.st-card { margin-top: 12px; padding: 0 12px 4px; }
+.st-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 11px 2px 8px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.st-head small { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--faint); }
+.st-row, .st-week {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 2px; border: 0; border-top: 1px solid var(--line-soft);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.st-row:active, .st-week:active { background: rgba(255, 255, 255, 0.03); }
+.st-row.me .st-name b { color: var(--accent); }
+.st-rank { width: 16px; flex: none; text-align: center; font-size: 13px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.st-rank.top { color: var(--gold); }
+.st-name { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.st-name b { font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-dots { display: flex; flex-wrap: wrap; gap: 3px; }
+.st-dots i { width: 7px; height: 7px; border-radius: 2px; background: var(--faint); }
+.st-dots i.hit { background: var(--accent); }
+.st-dots i.miss { background: var(--bad); }
+.st-rec { display: grid; justify-items: end; flex: none; font-variant-numeric: tabular-nums; }
+.st-rec b { font-size: 15px; font-weight: 800; }
+.st-rec small { font-size: 11px; color: var(--muted); }
+.st-go { display: inline-flex; flex: none; color: var(--faint); }
+.st-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.st-tile {
+  display: grid; gap: 3px; justify-items: start; padding: 11px 12px; border-radius: 14px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: inherit; font: inherit; min-width: 0;
+}
+.st-tile small { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.st-tile > b { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.st-tile > b.hit { color: var(--accent); }
+.st-tile > b.miss { color: var(--bad); }
+.st-tile-who { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-tile-pick { font-size: 11.5px; color: var(--muted); }
+.st-week b { flex: none; width: 64px; font-size: 14px; font-weight: 750; }
+.st-week-tally { flex: 1; display: flex; gap: 10px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.st-week-tally .muted { font-weight: 600; }
+.st-week-result { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.st-week-result.cashed { color: var(--accent); }
+.st-week-result.busted { color: var(--bad); }
+.pl-axis { display: flex; justify-content: space-between; padding: 0 2px 6px; font-size: 11px; font-weight: 700; }
+.pl-leg { display: grid; gap: 5px; padding: 10px 2px; border-top: 1px solid var(--line-soft); }
+.pl-leg-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.pl-leg-top b { flex: 1; min-width: 0; font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-week { flex: none; font-size: 11px; font-weight: 700; color: var(--faint); }
+.pl-landed { flex: none; font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--muted); }
+.pl-landed.hit { color: var(--accent); }
+.pl-landed.miss { color: var(--bad); }
+.pl-landed em { margin-left: 3px; padding: 1px 5px; border-radius: 99px; font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; background: rgba(255, 200, 97, 0.15); color: var(--gold); }
+.pl-bar { position: relative; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.05); }
+.pl-bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line); }
+.pl-bar i { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 99px; background: var(--faint); }
+.pl-bar i.hit { background: var(--accent); }
+.pl-bar i.miss { background: var(--bad); }
+.pl-score { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* The demo's stage pill takes the room; the slip shows the legs anyway. */
+.topbar:has(.demo-pick) .leg-count { display: none; }
