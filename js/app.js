@@ -732,7 +732,7 @@ async function loadStandings() {
     const boards = await Promise.all(slips.map((slip) => sports.loadWeek(season, Number(slip.week), { fresh: slip === main })));
     if (request !== standingsRequest) return;
     const legs = gradedLegs(slips.map((slip, i) => ({ slip, games: boards[i] })));
-    state.standings = { slips, legs, members: seasonMembers(slips) };
+    state.standings = { slips, legs, members: seasonMembers(slips), boards: new Map(slips.map((slip, i) => [Number(slip.week), boards[i]])) };
   } catch (e) {
     if (request !== standingsRequest) return;
     if (!state.standings?.legs) state.standings = { error: e.message };

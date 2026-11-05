@@ -20,8 +20,7 @@ function fairParlay(legs) {
 // The slip's top row (also the peek when it's closed): everyone who's in on the left;
 // on the right, your leg, or once legs finish, how many hit (✓) and missed (✗); then
 // the share button and the open/close chevron.
-function slipHeader(withChevron, withShare = true) {
-  const legs = legsWithLive();
+function slipHeader(withChevron, withShare = true, legs = legsWithLive()) {
   const mine = picks()[state.me];
   const final = (grades) => legs.filter((l) => l.status?.state === 'post' && grades.includes(l.grade)).length;
   const hit = final(['hit', 'push']);
@@ -113,8 +112,7 @@ export function fitNames(root) {
 
 // The legs. `forPicture` (the share picture) names every leg's member, yours included,
 // since Remove and "You" mean nothing to whoever gets the picture.
-function parlayLegs(forPicture = false) {
-  const legs = legsWithLive();
+function parlayLegs(forPicture = false, legs = legsWithLive()) {
   if (!legs.length) {
     return `
       <div class="empty">
@@ -271,8 +269,7 @@ function gameBar(pick, st, flip) {
 // recomputed live: finished legs count as 100% (hit or push) or 0% (miss), live legs use
 // the market's current price, the rest their current price. The payout is then the
 // locked one, from each leg's price when it was picked.
-function parlayFoot() {
-  const legs = legsWithLive();
+function parlayFoot(legs = legsWithLive()) {
   if (!legs.length) return '';
   const fair = fairParlay(legs);
   if (!isTracking(legs)) {
@@ -310,6 +307,12 @@ const paper = (kind) => {
 export function renderParlayCard() {
   return `<div class="parlay-card ticket">${paper('ticket')}${slipHeader(false)}<div class="sheet-body">${parlayLegs()}</div>${parlayFoot()}</div>`;
 }
+
+// A past week's slip on its standings page (views/standings.js): the same ticket, every
+// leg final, from that week's legs (built like legsWithLive's) rather than the slip on
+// screen.
+export const renderWeekTicket = (legs) =>
+  `<div class="parlay-card ticket week-ticket">${paper('week')}${slipHeader(false, false, legs)}<div class="sheet-body">${parlayLegs(true, legs)}</div>${parlayFoot(legs)}</div>`;
 
 // The picture that "Share" makes (share.js): the whole slip as the desktop ticket shows
 // it, every leg and the totals with nothing scrolled away, on the app's background under

@@ -32,9 +32,10 @@ test('standings rank by hits, then misses, then margin, with ties sharing a rank
 });
 
 test('highlights pick the biggest cover, closest calls, and longest shot', () => {
-  const l = (grade, margin, fair) => ({ grade, margin, pick: leg({ fair }) });
-  const h = highlights([l('hit', 14, 0.6), l('hit', 0.5, 0.7), l('hit', 3, 0.25), l('miss', -0.5, 0.5), l('miss', -10, 0.5)]);
+  const l = (grade, margin, fair, start = 1) => ({ grade, margin, pick: leg({ fair, start }) });
+  const h = highlights([l('hit', 14, 0.6), l('hit', 0.5, 0.7), l('hit', 3, 0.25), l('miss', -0.5, 0.5, 1), l('miss', -10, 0.5, 2), l('miss', -4, 0.5, 1)]);
   assert.deepEqual([h.biggest.margin, h.closest.margin, h.heartbreak.margin, h.longshot.margin], [14, 0.5, -0.5, 3]);
+  assert.deepEqual([h.brick.margin, h.killer.margin], [-10, -4]);
 });
 
 test('a finished week is kept locked, and only this season’s earlier weeks are listed', () => {

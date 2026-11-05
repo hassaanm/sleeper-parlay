@@ -1275,6 +1275,33 @@ h1, h2 { letter-spacing: -0.02em; }
 .st-week-name small { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .st-week-name b { width: auto; }
 .st-tiles.first { margin-top: 4px; }
-.pl-leg.tap { width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.pl-leg.tap:active { background: rgba(255, 255, 255, 0.03); }
 .st-open { margin-top: 12px; }
+/* A week's standout legs as stickers: tilted, with a white die-cut edge and a drop
+   shadow, two to a row. */
+.stickers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 8px; margin: 6px 2px 4px; }
+.stk {
+  --fill: var(--card-2); --ink: var(--text);
+  display: grid; gap: 3px; min-width: 0; padding: 6px 9px 7px; border-radius: 12px; cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.85); background: var(--fill); color: var(--ink); font: inherit; text-align: left;
+  transform: rotate(var(--tilt)); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  animation: stk-slap 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
+}
+.stk:nth-child(2) { animation-delay: 0.05s; } .stk:nth-child(3) { animation-delay: 0.1s; }
+.stk:nth-child(4) { animation-delay: 0.15s; } .stk:nth-child(5) { animation-delay: 0.2s; } .stk:nth-child(6) { animation-delay: 0.25s; }
+@keyframes stk-slap { from { transform: rotate(var(--tilt)) scale(1.35); opacity: 0; } }
+.stk:active { transform: rotate(var(--tilt)) scale(0.96); }
+.stk.hit { --fill: #0f5f4d; }
+.stk.gold { --fill: #6b4f12; }
+.stk.violet { --fill: #45307d; }
+.stk.miss { --fill: #6e2230; }
+.stk.pink { --fill: #6a2350; }
+.stk.slate { --fill: #34405f; }
+.stk-top { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; }
+.stk-top i { font-style: normal; font-size: 13px; letter-spacing: 0; }
+.stk-who { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.stk-who b { flex: 1; min-width: 0; font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stk-who em { flex: none; font-style: normal; font-size: 13px; font-weight: 850; font-variant-numeric: tabular-nums; }
+/* The week's slip, whole: no inner scroll, like the share picture's. */
+.week-slip { margin-top: 16px; }
+.week-slip .parlay-card.ticket { max-height: none; }
+.week-slip .parlay-card.ticket .sheet-body { overflow: visible; }

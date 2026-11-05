@@ -92,8 +92,9 @@ export function weekResults(slips, legs) {
   }).sort((a, b) => b.week - a.week);
 }
 
-// The season's standout legs: the biggest cover, the closest hit, the closest miss,
-// and the least likely hit (by its no-vig chance when picked).
+// A week's standout legs: the biggest cover, the closest hit, the closest miss, the
+// widest miss, the least likely hit (by its no-vig chance when picked), and the slip
+// killer (the first miss to kick off; on a tie, the wider miss).
 export function highlights(legs) {
   const hits = legs.filter((l) => l.grade === 'hit');
   const misses = legs.filter((l) => l.grade === 'miss');
@@ -104,6 +105,8 @@ export function highlights(legs) {
     closest: best(hits, (l) => -l.margin),
     heartbreak: best(misses, (l) => l.margin),
     longshot: best(hits, (l) => -chance(l)),
+    brick: best(misses, (l) => -l.margin),
+    killer: best(misses, (l) => -l.pick.start * 1000 - l.margin),
   };
 }
 

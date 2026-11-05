@@ -1,9 +1,11 @@
 // The season's standings (a research-style page), in two tabs: the leaderboard, and the
 // history of each week's slip. A name opens that member's page (their record and how
-// close every leg came); a week opens that week's page (its standout legs and every leg,
-// best to worst). The numbers come from history.js.
+// close every leg came); a week opens that week's page (its standout legs as stickers,
+// then the slip itself). The numbers come from history.js.
 import { CLOSE, highlights, standings, weekResults } from '../history.js';
+import { gameKey, gradePick } from '../rules.js';
 import { state } from '../state.js';
+import { renderWeekTicket } from './slip.js';
 import { avatar, chevronSmall, esc, fmtSigned, toneOf } from '../ui.js';
 
 const loading = () => {
@@ -78,30 +80,65 @@ const payout = (slip) => Math.round(Object.values(slip?.picks ?? {}).reduce((x, 
 const resultOf = (w) => (w.cashed ? { label: 'Cashed', cls: 'cashed' } : w.misses ? { label: 'Busted', cls: 'busted' }
   : { label: w.pending === w.total ? 'Upcoming' : 'Live', cls: '' });
 
-// One leg and how close it came: a bar out from the middle, right for a hit, left for a
-// miss, as long as the margin (two touchdowns or more fills it). `who` shows the member
-// (a week's page); otherwise the week (a member's page).
-function legRow(l, who) {
+// One leg on a member's page and how close it came: a bar out from the middle, right
+// for a hit, left for a miss, as long as the margin (two touchdowns or more fills it).
+function legRow(l) {
   const width = Math.min(1, Math.abs(l.margin) / 14) * 50;
   const close = Math.abs(l.margin) <= CLOSE && l.grade !== 'push';
-  const m = member(l.memberId);
   return `
-    <${who ? `button class="pl-leg tap" data-action="player" data-id="${esc(l.memberId)}"` : 'div class="pl-leg"'}>
+    <div class="pl-leg">
       <div class="pl-leg-top">
-        ${who ? avatar(m, 22) : `<span class="pl-week">Wk ${l.week}</span>`}
+        <span class="pl-week">Wk ${l.week}</span>
         <b>${esc(l.pick.label)}</b>
         <span class="pl-landed ${l.grade}">${landed(l)}${close ? ' <em>close</em>' : ''}</span>
       </div>
       <div class="pl-bar"><i class="${l.grade}" style="${l.margin >= 0 ? 'left:50%' : 'right:50%'};width:${width}%"></i></div>
-      <small class="pl-score">${who ? `${esc(m.name)} · ` : ''}${esc(l.away)} ${l.awayScore} – ${esc(l.home)} ${l.homeScore}</small>
-    </${who ? 'button' : 'div'}>`;
+      <small class="pl-score">${esc(l.away)} ${l.awayScore} – ${esc(l.home)} ${l.homeScore}</small>
+    </div>`;
 }
 
 const axis = '<div class="pl-axis"><span class="t-miss">← Missed by</span><span class="t-hit">Hit by →</span></div>';
 
 export const weekTitle = (week) => `<span class="ts-side"><b>Week ${esc(week)}</b></span>`;
 
-// One week's slip: how it did, its standout legs, and every leg from best to worst.
+// A week's legs for the slip (views/slip.js renderWeekTicket), built the way
+// state.js legsWithLive builds the current week's, from that week's scoreboard.
+function ticketLegs(week) {
+  const games = state.standings.boards.get(week) ?? new Map();
+  const TYPE_ORDER = ['ml', 'spread', 'total'];
+  return Object.entries(slipOf(week)?.picks ?? {}).map(([id, pick]) => {
+    const status = games.get(gameKey(...pick.matchup.split(' @ ')))?.status;
+    return {
+      member: member(id), pick, price: pick.price, fair: pick.fair ?? pick.price / 100, status,
+      grade: status && status.state !== 'pre' ? gradePick(pick, status.awayScore, status.homeScore) : null,
+      livePrice: null, liveFair: null,
+    };
+  }).sort((a, b) => a.pick.start - b.pick.start || a.pick.matchup.localeCompare(b.pick.matchup)
+    || TYPE_ORDER.indexOf(a.pick.type) - TYPE_ORDER.indexOf(b.pick.type));
+}
+
+// The week's standout legs as stickers, slapped on at a tilt: a few words, the number,
+// and who. Tapping one opens that member's page.
+function stickers(legs) {
+  const h = highlights(legs);
+  const chance = (l) => `${Math.round(100 * (l.pick.fair ?? l.pick.price / 100))}%`;
+  const list = [
+    ['🚀', 'Biggest cover', h.biggest, (l) => margin(l.margin), 'hit'],
+    ['😅', 'Sweated it', h.closest, (l) => margin(l.margin), 'gold'],
+    ['🎲', 'Long shot', h.longshot, chance, 'violet'],
+    ['💀', 'Slip killer', h.killer, (l) => esc(l.pick.label), 'miss'],
+    ['💔', 'Heartbreaker', h.heartbreak, (l) => margin(l.margin), 'pink'],
+    ['🧱', 'Brick', h.brick, (l) => margin(l.margin), 'slate'],
+  ].filter(([, , l]) => l);
+  const tilts = [-3, 2, -1.5, 2.5, -2, 1.5];
+  return `<div class="stickers">${list.map(([emoji, label, l, value, tone], i) => `
+    <button class="stk ${tone}" style="--tilt:${tilts[i]}deg" data-action="player" data-id="${esc(l.memberId)}">
+      <span class="stk-top"><i>${emoji}</i>${label}</span>
+      <span class="stk-who">${avatar(member(l.memberId), 16)}<b>${esc(member(l.memberId).name)}</b><em>${value(l)}</em></span>
+    </button>`).join('')}</div>`;
+}
+
+// One week: how it did, its standout legs as stickers, and the slip itself.
 export function renderWeekPage(week) {
   const s = state.standings;
   if (!s?.legs) return loading();
@@ -110,34 +147,14 @@ export function renderWeekPage(week) {
   if (!w) return `<div class="st-hero"><h2>Week ${esc(week)}</h2><p>Nothing kept for this week.</p></div>`;
   const legs = s.legs.filter((l) => l.week === week);
   const result = resultOf(w);
-  const h = highlights(legs);
-  const tile = (label, l, value) => (l ? `
-    <button class="st-tile" data-action="player" data-id="${esc(l.memberId)}">
-      <small>${label}</small>
-      <b class="${l.grade}">${value}</b>
-      <span class="st-tile-who">${avatar(member(l.memberId), 18)}${esc(member(l.memberId).name)}</span>
-      <span class="st-tile-pick">${esc(l.pick.label)}</span>
-    </button>` : '');
-  const chance = (l) => Math.round(100 * (l.pick.fair ?? l.pick.price / 100));
-  const tiles = [
-    tile('Biggest cover', h.biggest, h.biggest && margin(h.biggest.margin)),
-    tile('Closest hit', h.closest, h.closest && margin(h.closest.margin)),
-    tile('Heartbreaker', h.heartbreak, h.heartbreak && margin(h.heartbreak.margin)),
-    tile('Longest shot', h.longshot, h.longshot && `${chance(h.longshot)}%`),
-  ].join('');
   return `
     <div class="st-hero">
       <h2>Week ${esc(week)}</h2>
-      <p><span class="st-week-result ${result.cls}">${result.label}</span> · ${w.hits} of ${w.total} hit · ${payout(slip)}× slip</p>
+      <p><span class="st-week-result ${result.cls}">${result.label}</span> · ${w.hits} of ${w.total} hit</p>
     </div>
-    ${tiles ? `<div class="st-tiles first">${tiles}</div>` : ''}
-    ${legs.length ? `
-    <div class="cmp st-card">
-      <div class="st-head"><span>Every leg</span><small>Best to worst</small></div>
-      ${axis}
-      ${[...legs].sort((a, b) => b.margin - a.margin).map((l) => legRow(l, true)).join('')}
-    </div>` : ''}
-    <button class="btn btn-block st-open" data-action="week-go" data-id="${esc(week)}">Open the Week ${esc(week)} slip</button>`;
+    ${legs.length ? stickers(legs) : ''}
+    <div class="week-slip">${renderWeekTicket(ticketLegs(week))}</div>
+    <button class="btn btn-block st-open" data-action="week-go" data-id="${esc(week)}">Open Week ${esc(week)} on the board</button>`;
 }
 
 export function renderPlayerPage(id) {
@@ -158,7 +175,7 @@ export function renderPlayerPage(id) {
     return stat({ ml: 'Moneyline', spread: 'Spread', total: 'Total' }[type], legs.length ? `${hits}–${legs.length - hits}` : '—');
   }).join('');
 
-  const legRows = [...r.legs].reverse().map((l) => legRow(l, false)).join('');
+  const legRows = [...r.legs].reverse().map(legRow).join('');
 
   return `
     <div class="st-hero">
