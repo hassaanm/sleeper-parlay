@@ -18,7 +18,7 @@ export function renderAdmin() {
     </main>`;
   }
   if (viewingPast()) {
-    return `<main class="who admin"><div class="card narrow"><h2>Week ${state.slip.week} is over</h2><p class="muted">Its picks are kept as they were, for the standings. Pick this week from the week menu to change things.</p></div></main>`;
+    return `<main class="who admin"><div class="card narrow"><h2>Week ${esc(state.slip.week)} is over</h2><p class="muted">Its picks are kept as they were, for the standings. Pick this week from the week menu to change things.</p></div></main>`;
   }
   const { cutoff, locked } = state.slip.settings;
   const when = (t) => dayTimeFmt.format(t);
