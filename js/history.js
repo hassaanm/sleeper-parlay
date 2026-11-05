@@ -46,28 +46,37 @@ export const CLOSE = 3;
 
 const average = (list) => (list.length ? list.reduce((s, n) => s + n, 0) / list.length : null);
 
-// The leaderboard: each member's record, hit rate, average margin, and close calls.
-// Most hits first, then fewest misses, then the bigger average margin. Members level
-// on hits and misses share a rank.
+// A leg's chance of hitting when it was picked: its no-vig market chance.
+export const chanceOf = (pick) => pick.fair ?? pick.price / 100;
+
+// The leaderboard. Each member's score is how far they beat the odds: hits minus the
+// hits their picks were expected to make (the sum of each leg's chance when picked),
+// so a 40% pick that hits counts for more than a 70% one. Pushes count neither way.
+// Highest score first; the bigger average margin breaks a tie. Members level on score
+// (to a tenth) share a rank.
 export function standings(legs) {
   const rows = new Map();
   for (const l of legs) {
-    if (!rows.has(l.memberId)) rows.set(l.memberId, { memberId: l.memberId, hits: 0, misses: 0, pushes: 0, legs: [] });
+    if (!rows.has(l.memberId)) rows.set(l.memberId, { memberId: l.memberId, hits: 0, misses: 0, pushes: 0, expected: 0, legs: [] });
     const r = rows.get(l.memberId);
     if (l.grade === 'hit') r.hits++;
     else if (l.grade === 'miss') r.misses++;
     else r.pushes++;
+    if (l.grade !== 'push') r.expected += chanceOf(l.pick);
     r.legs.push(l);
   }
+  const tenth = (n) => Math.round(n * 10) / 10;
   const list = [...rows.values()].map((r) => ({
     ...r,
+    score: tenth(r.hits - r.expected),
     pct: r.hits + r.misses ? r.hits / (r.hits + r.misses) : null,
+    avgChance: average(r.legs.map((l) => chanceOf(l.pick))),
     avgMargin: average(r.legs.map((l) => l.margin)),
     close: r.legs.filter((l) => Math.abs(l.margin) <= CLOSE).length,
-  })).sort((a, b) => b.hits - a.hits || a.misses - b.misses || b.avgMargin - a.avgMargin);
+  })).sort((a, b) => b.score - a.score || b.avgMargin - a.avgMargin);
   list.forEach((r, i) => {
     const prev = list[i - 1];
-    r.rank = prev && prev.hits === r.hits && prev.misses === r.misses ? prev.rank : i + 1;
+    r.rank = prev && prev.score === r.score ? prev.rank : i + 1;
   });
   return list;
 }
@@ -99,12 +108,11 @@ export function highlights(legs) {
   const hits = legs.filter((l) => l.grade === 'hit');
   const misses = legs.filter((l) => l.grade === 'miss');
   const best = (list, score) => list.reduce((top, l) => (top && score(top) >= score(l) ? top : l), null);
-  const chance = (l) => l.pick.fair ?? l.pick.price / 100;
   return {
     biggest: best(hits, (l) => l.margin),
     closest: best(hits, (l) => -l.margin),
     heartbreak: best(misses, (l) => l.margin),
-    longshot: best(hits, (l) => -chance(l)),
+    longshot: best(hits, (l) => -chanceOf(l.pick)),
     brick: best(misses, (l) => -l.margin),
     killer: best(misses, (l) => -l.pick.start * 1000 - l.margin),
   };

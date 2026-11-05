@@ -50,9 +50,12 @@ export function renderStandingsPage() {
     return `${hero}
     <div class="cmp st-card">
       ${weeks.map((w) => `
-        <button class="st-week" data-action="${w.hits + w.misses ? 'week-page' : 'week-go'}" data-id="${w.week}">
-          <span class="st-week-name"><b>Week ${w.week}</b><small>${payout(slipOf(w.week))}× slip</small></span>
-          <span class="st-week-tally">${w.hits || w.misses ? `<span class="t-hit">✓ ${w.hits}</span>` : ''}${w.misses ? `<span class="t-miss">✗ ${w.misses}</span>` : ''}${w.pending ? `<span class="muted">${w.pending} to play</span>` : ''}</span>
+        <button class="st-week ${resultOf(w).cls}" data-action="${w.hits + w.misses ? 'week-page' : 'week-go'}" data-id="${w.week}">
+          <span class="st-week-num"><small>Week</small><b>${w.week}</b></span>
+          <span class="st-week-mid">
+            <span class="st-week-tally">${w.hits || w.misses ? `<span class="t-hit">✓ ${w.hits}</span><span class="t-miss">✗ ${w.misses}</span>` : ''}${w.pending ? `<span class="muted">${w.pending} to play</span>` : ''}<small>${payout(slipOf(w.week)).toLocaleString()}× slip</small></span>
+            <span class="st-week-bar">${weekBar(w.week)}</span>
+          </span>
           <span class="st-week-result ${resultOf(w).cls}">${resultOf(w).label}</span>
           <span class="st-go">${chevronSmall()}</span>
         </button>`).join('') || '<p class="muted center-note">No weeks yet.</p>'}
@@ -60,18 +63,43 @@ export function renderStandingsPage() {
   }
 
   if (!rows.length) return `${hero}<p class="muted center-note">No finished legs yet. Check back after this week’s games.</p>`;
-  return `${hero}
+  // The top three stand on a podium (when there are at least three); everyone, the top
+  // three included, is in the list under it.
+  const podium = rows.length >= 3 ? `
+    <div class="podium">
+      ${[[rows[1], 'silver'], [rows[0], 'gold'], [rows[2], 'bronze']].map(([r, medal]) => `
+        <button class="pod ${medal}" data-action="player" data-id="${esc(r.memberId)}">
+          <span class="pod-face">${avatar(member(r.memberId), medal === 'gold' ? 56 : 46)}${medal === 'gold' ? '<i class="pod-crown">👑</i>' : ''}</span>
+          <b class="pod-name">${esc(member(r.memberId).name)}</b>
+          <span class="pod-score ${toneOf(r.score)}">${score(r.score)}</span>
+          <span class="pod-step"><i>${r.rank}</i><small>${record(r)}</small></span>
+        </button>`).join('')}
+    </div>` : '';
+  return `${hero}${podium}
     <div class="cmp st-card">
-      <div class="st-head"><span>${s.legs.length} ${s.legs.length === 1 ? 'leg' : 'legs'} graded</span><small>Record · hit rate</small></div>
+      <div class="st-head"><span>Beat the odds</span><small>Hits minus expected hits</small></div>
       ${rows.map((r) => `
         <button class="st-row ${r.memberId === state.me ? 'me' : ''}" data-action="player" data-id="${esc(r.memberId)}">
-          <span class="st-rank ${r.rank === 1 ? 'top' : ''}">${r.rank}</span>
-          ${avatar(member(r.memberId), 30)}
+          <span class="st-rank r${r.rank}">${r.rank}</span>
+          ${avatar(member(r.memberId), 32)}
           <span class="st-name"><b>${esc(member(r.memberId).name)}</b><span class="st-dots">${r.legs.map(dot).join('')}</span></span>
-          <span class="st-rec"><b>${record(r)}</b><small>${pct(r)}</small></span>
-          <span class="st-go">${chevronSmall()}</span>
+          <span class="st-rec"><b class="st-score ${toneOf(r.score)}">${score(r.score)}</b><small>${record(r)} · ${Math.round(100 * r.avgChance)}% · ${margin(r.avgMargin)}</small></span>
         </button>`).join('')}
+      <p class="st-key">Score: hits minus the hits your picks’ odds expected. Then record · average chance · average margin.</p>
     </div>`;
+}
+
+// "+2.2", "−3.5", "0.0": how far someone beat (or trailed) the odds.
+const score = (n) => (n > 0 ? `+${n.toFixed(1)}` : n < 0 ? `−${Math.abs(n).toFixed(1)}` : '0.0');
+
+// A week's legs as squares, in kickoff order: green hit, red miss, gray still to play.
+function weekBar(week) {
+  const games = state.standings.boards.get(week) ?? new Map();
+  return Object.values(slipOf(week)?.picks ?? {}).sort((a, b) => a.start - b.start).map((pick) => {
+    const st = games.get(gameKey(...pick.matchup.split(' @ ')))?.status;
+    const grade = st?.state === 'post' ? gradePick(pick, st.awayScore, st.homeScore) : 'later';
+    return `<i class="${grade}"></i>`;
+  }).join('');
 }
 
 const slipOf = (week) => state.standings.slips.find((slip) => Number(slip.week) === week);
@@ -165,8 +193,6 @@ export function renderPlayerPage(id) {
   const m = member(id);
   if (!r) return `<div class="st-hero">${avatar(m, 64)}<h2>${esc(m.name)}</h2><p>No finished legs yet.</p></div>`;
 
-  // How likely their legs were when picked, on average (the no-vig market chance).
-  const avgChance = r.legs.reduce((sum, l) => sum + (l.pick.fair ?? l.pick.price / 100), 0) / r.legs.length;
   const best = Math.max(...r.legs.map((l) => l.margin));
   const stat = (label, value, cls = '') => `<div class="info-cell ${cls}"><b>${value}</b><small>${label}</small></div>`;
   const byType = ['ml', 'spread', 'total'].map((type) => {
@@ -182,15 +208,16 @@ export function renderPlayerPage(id) {
       ${avatar(m, 64)}
       <h2>${esc(m.name)}</h2>
       <p>${r.rank === 1 ? '🏆 ' : ''}${ordinal(r.rank)} of ${rows.length}</p>
+      <span class="pl-score-badge ${toneOf(r.score)}"><b>${score(r.score)}</b> vs the odds</span>
     </div>
     <div class="info-grid">
       ${stat('Record', record(r))}
       ${stat('Hit rate', pct(r))}
+      ${stat('Expected', `${(r.hits + r.misses ? r.expected : 0).toFixed(1)} hits`)}
+      ${stat('Avg chance', `${Math.round(100 * r.avgChance)}%`)}
       ${stat('Avg margin', margin(r.avgMargin), toneOf(r.avgMargin))}
-      ${byType}
-      ${stat('Avg chance', `${Math.round(100 * avgChance)}%`)}
-      ${stat(`Within ${CLOSE} pts`, r.close)}
       ${stat('Best leg', margin(best), toneOf(best))}
+      ${byType}
     </div>
     <div class="cmp st-card">
       <div class="st-head"><span>How close</span><small>Newest first</small></div>

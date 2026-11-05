@@ -23,12 +23,18 @@ test('only legs on finished games are graded', () => {
   assert.deepEqual(weekResults([slip], legs), [{ week: 8, total: 2, hits: 1, misses: 0, pending: 1, cashed: false, missedBy: [] }]);
 });
 
-test('standings rank by hits, then misses, then margin, with ties sharing a rank', () => {
-  const l = (memberId, grade, margin) => ({ memberId, grade, margin, week: 8, pick: leg() });
-  const rows = standings([l('a', 'hit', 2), l('b', 'hit', 9), l('c', 'miss', -1), l('d', 'hit', 9), l('a', 'miss', -4)]);
-  assert.deepEqual(rows.map((r) => [r.memberId, r.rank]), [['b', 1], ['d', 1], ['a', 3], ['c', 4]]);
+test('standings rank by beating the odds, with the margin breaking ties', () => {
+  const l = (memberId, grade, margin, fair) => ({ memberId, grade, margin, week: 8, pick: leg({ fair }) });
+  const rows = standings([
+    l('a', 'hit', 2, 0.7), l('a', 'hit', 3, 0.7), // 2 hits, 1.4 expected: +0.6
+    l('b', 'hit', 9, 0.4), // 1 hit, 0.4 expected: +0.6, bigger margin
+    l('c', 'miss', -1, 0.5), l('c', 'push', 0, 0.5), // 0 hits, 0.5 expected (the push doesn't count): −0.5
+    l('d', 'hit', 1, 0.2), l('d', 'miss', -3, 0.6), // 1 hit, 0.8 expected: +0.2
+  ]);
+  assert.deepEqual(rows.map((r) => [r.memberId, r.score, r.rank]), [['b', 0.6, 1], ['a', 0.6, 1], ['d', 0.2, 3], ['c', -0.5, 4]]);
+  assert.equal(rows[3].pushes, 1);
   assert.equal(rows[2].pct, 0.5);
-  assert.equal(rows[2].close, 1);
+  assert.equal(rows[2].close, 2);
 });
 
 test('highlights pick the biggest cover, closest calls, and longest shot', () => {
