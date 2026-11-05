@@ -1375,3 +1375,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .pl-score-badge b { font-size: 15px; font-weight: 850; margin-right: 2px; }
 .pl-score-badge.good { background: var(--accent-soft); color: var(--accent); }
 .pl-score-badge.bad { background: rgba(255, 107, 125, 0.13); color: var(--bad); }
+/* Hit rate in the pill, the odds' guess under it; the record beside the squares. */
+.pod-odds { margin-top: -3px; font-size: 10.5px; font-weight: 650; color: var(--faint); }
+.st-dots { align-items: center; }
+.st-dots em { margin-left: 5px; font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -71,26 +71,24 @@ export function renderStandingsPage() {
         <button class="pod ${medal}" data-action="player" data-id="${esc(r.memberId)}">
           <span class="pod-face">${avatar(member(r.memberId), medal === 'gold' ? 56 : 46)}${medal === 'gold' ? '<i class="pod-crown">👑</i>' : ''}</span>
           <b class="pod-name">${esc(member(r.memberId).name)}</b>
-          <span class="pod-score ${toneOf(r.score)}">${score(r.score)}</span>
+          <span class="pod-score ${toneOf(r.score)}">${pct(r)}</span>
+          <small class="pod-odds">odds ${Math.round(100 * r.avgChance)}%</small>
           <span class="pod-step"><i>${r.rank}</i><small>${record(r)}</small></span>
         </button>`).join('')}
     </div>` : '';
   return `${hero}${podium}
     <div class="cmp st-card">
-      <div class="st-head"><span>Beat the odds</span><small>Hits minus expected hits</small></div>
+      <div class="st-head"><span>Hit rate</span><small>vs. what the odds said</small></div>
       ${rows.map((r) => `
         <button class="st-row ${r.memberId === state.me ? 'me' : ''}" data-action="player" data-id="${esc(r.memberId)}">
           <span class="st-rank r${r.rank}">${r.rank}</span>
           ${avatar(member(r.memberId), 32)}
-          <span class="st-name"><b>${esc(member(r.memberId).name)}</b><span class="st-dots">${r.legs.map(dot).join('')}</span></span>
-          <span class="st-rec"><b class="st-score ${toneOf(r.score)}">${score(r.score)}</b><small>${record(r)} · ${Math.round(100 * r.avgChance)}% · ${margin(r.avgMargin)}</small></span>
+          <span class="st-name"><b>${esc(member(r.memberId).name)}</b><span class="st-dots">${r.legs.map(dot).join('')}<em>${record(r)}</em></span></span>
+          <span class="st-rec"><b class="st-score ${toneOf(r.score)}">${pct(r)}</b><small>odds ${Math.round(100 * r.avgChance)}%</small></span>
         </button>`).join('')}
-      <p class="st-key">Score: hits minus the hits your picks’ odds expected. Then record · average chance · average margin.</p>
+      <p class="st-key">Green beat the odds, red fell short. Ranked by hits above what the odds expected, so long shots count for more.</p>
     </div>`;
 }
-
-// "+2.2", "−3.5", "0.0": how far someone beat (or trailed) the odds.
-const score = (n) => (n > 0 ? `+${n.toFixed(1)}` : n < 0 ? `−${Math.abs(n).toFixed(1)}` : '0.0');
 
 // A week's legs as squares, in kickoff order: green hit, red miss, gray still to play.
 function weekBar(week) {
@@ -208,7 +206,7 @@ export function renderPlayerPage(id) {
       ${avatar(m, 64)}
       <h2>${esc(m.name)}</h2>
       <p>${r.rank === 1 ? '🏆 ' : ''}${ordinal(r.rank)} of ${rows.length}</p>
-      <span class="pl-score-badge ${toneOf(r.score)}"><b>${score(r.score)}</b> vs the odds</span>
+      <span class="pl-score-badge ${toneOf(r.score)}">Hit <b>${pct(r)}</b> · odds said ${Math.round(100 * r.avgChance)}%</span>
     </div>
     <div class="info-grid">
       ${stat('Record', record(r))}
