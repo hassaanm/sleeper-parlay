@@ -53,8 +53,8 @@ export function renderStandingsPage() {
         <button class="st-week ${resultOf(w).cls}" data-action="${w.hits + w.misses ? 'week-page' : 'week-go'}" data-id="${w.week}">
           <span class="st-week-num"><small>Week</small><b>${w.week}</b></span>
           <span class="st-week-mid">
-            <span class="st-week-tally">${w.hits || w.misses ? `<span class="t-hit">✓ ${w.hits}</span><span class="t-miss">✗ ${w.misses}</span>` : ''}${w.pending ? `<span class="muted">${w.pending} to play</span>` : ''}<small>${payout(slipOf(w.week)).toLocaleString()}× slip</small></span>
-            <span class="st-week-bar">${weekBar(w.week)}</span>
+            <span class="st-week-tally">${w.hits || w.misses ? `<span class="t-hit">✓ ${w.hits}</span><span class="t-miss">✗ ${w.misses}</span>` : ''}${w.pending ? `<span class="muted">${w.pending} to play</span>` : ''}</span>
+            <small>${w.total} legs · ${payout(slipOf(w.week)).toLocaleString()}× slip</small>
           </span>
           <span class="st-week-result ${resultOf(w).cls}">${resultOf(w).label}</span>
           <span class="st-go">${chevronSmall()}</span>
@@ -88,16 +88,6 @@ export function renderStandingsPage() {
         </button>`).join('')}
       <p class="st-key">Green beat the odds, red fell short. Ranked by hits above what the odds expected, so long shots count for more.</p>
     </div>`;
-}
-
-// A week's legs as squares, in kickoff order: green hit, red miss, gray still to play.
-function weekBar(week) {
-  const games = state.standings.boards.get(week) ?? new Map();
-  return Object.values(slipOf(week)?.picks ?? {}).sort((a, b) => a.start - b.start).map((pick) => {
-    const st = games.get(gameKey(...pick.matchup.split(' @ ')))?.status;
-    const grade = st?.state === 'post' ? gradePick(pick, st.awayScore, st.homeScore) : 'later';
-    return `<i class="${grade}"></i>`;
-  }).join('');
 }
 
 const slipOf = (week) => state.standings.slips.find((slip) => Number(slip.week) === week);

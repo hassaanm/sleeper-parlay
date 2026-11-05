@@ -1241,7 +1241,6 @@ h1, h2 { letter-spacing: -0.02em; }
 .st-tile > b.miss { color: var(--bad); }
 .st-tile-who { display: flex; align-items: center; gap: 6px; max-width: 100%; font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .st-tile-pick { font-size: 11.5px; color: var(--muted); }
-.st-week b { flex: none; width: 64px; font-size: 14px; font-weight: 750; }
 .st-week-tally { flex: 1; display: flex; gap: 10px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .st-week-tally .muted { font-weight: 600; }
 .st-week-result { font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -1271,9 +1270,6 @@ h1, h2 { letter-spacing: -0.02em; }
   font: inherit; font-size: 13px; font-weight: 750; cursor: pointer;
 }
 .st-tabs button.on { background: var(--raise); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
-.st-week-name { flex: none; width: 72px; display: grid; }
-.st-week-name small { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
-.st-week-name b { width: auto; }
 .st-tiles.first { margin-top: 4px; }
 .st-open { margin-top: 12px; }
 /* A week's standout legs as stickers: tilted, with a white die-cut edge and a drop
@@ -1356,16 +1352,11 @@ h1, h2 { letter-spacing: -0.02em; }
 .st-week { gap: 12px; padding: 11px 2px; }
 .st-week-num { flex: none; display: grid; justify-items: center; width: 42px; padding: 4px 0 5px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); }
 .st-week-num small { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
-.st-week-num b { font-size: 19px; font-weight: 850; line-height: 1.05; }
+.st-week-num b { width: auto; font-size: 19px; font-weight: 850; line-height: 1.05; }
 .st-week.cashed .st-week-num { background: var(--accent-soft); color: var(--accent); }
-.st-week-mid { flex: 1; min-width: 0; display: grid; gap: 6px; }
-.st-week-tally { align-items: baseline; gap: 8px; }
-.st-week-tally small { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--faint); }
-.st-week-bar { display: flex; gap: 3px; }
-.st-week-bar i { flex: 1; max-width: 22px; height: 6px; border-radius: 3px; background: var(--faint); opacity: 0.5; }
-.st-week-bar i.hit { background: var(--accent); opacity: 1; }
-.st-week-bar i.miss { background: var(--bad); opacity: 1; }
-.st-week-bar i.push { background: var(--muted); opacity: 1; }
+.st-week-mid { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.st-week-tally { align-items: baseline; gap: 10px; font-size: 15px; }
+.st-week-mid > small { font-size: 11px; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
 .st-week-result { flex: none; padding: 3px 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.06); font-size: 10px; }
 .st-week-result.cashed { background: var(--accent-soft); }
 .st-week-result.busted { background: rgba(255, 107, 125, 0.13); }
