@@ -34,7 +34,8 @@ export function legLockedReason(slip, userId, now = Date.now()) {
 // that has started or starts before the deadline. Conflicts with other members' legs
 // are checked separately (clashFor).
 export function pickBlockedReason(slip, userId, start, { admin = false, now = Date.now() } = {}) {
-  return (admin ? null : legLockedReason(slip, userId, now))
+  if (admin) return null; // the admin can fix any leg, even after its game kicks off
+  return legLockedReason(slip, userId, now)
     ?? (startsBeforeCutoff(slip, start) ? 'That game starts before picks lock.' : null)
     ?? (start <= now ? 'That game has started.' : null);
 }

@@ -32,7 +32,7 @@ test('the admin can change a locked leg, but not into a started game', () => {
   const s = slip({ settings: { locked: true }, picks: { me: pick({ start: now - 1 }) } });
   assert.match(pickBlockedReason(s, 'me', now + HOUR, { now }), /locked/);
   assert.equal(pickBlockedReason(s, 'me', now + HOUR, { admin: true, now }), null);
-  assert.match(pickBlockedReason(s, 'me', now - 1, { admin: true, now }), /has started/);
+  assert.equal(pickBlockedReason(s, 'me', now - 1, { admin: true, now }), null);
 });
 
 test('one moneyline-or-spread and one total per game', () => {

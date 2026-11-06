@@ -13,7 +13,7 @@ import { patch } from './dom.js';
 import { animateFaces, captureFaces } from './faces.js';
 import { closePicture, copyPicture, makeSlipPicture, sharePicture, showPicture } from './share.js';
 import { bindSlipPull, holdRender, initSheet, setSlipOpen, syncScrollLock, syncTearLine } from './sheet.js';
-import { DEMO, basePath, gameById, matchupGame, viewingPast, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
+import { DEMO, basePath, boardGame, boardOption, gameById, matchupGame, viewingPast, isTracking, legsWithLive, memberName, pickProblem, picks, rungIndex, safeGet, safeSet, scoreboardGames, state } from './state.js';
 import { STRIP_ITEM, cell, clockParts, clockTiles } from './views/board.js';
 import { renderApp } from './views/shell.js';
 import { fitNames } from './views/slip.js';
@@ -462,13 +462,13 @@ async function saveMyLeg(userId, pick, mutate) {
 }
 
 async function choose(key) {
-  const opt = state.options.get(key);
+  const opt = boardOption(key);
   // Who's picking is fixed at the tap, so a save that retries can't land on someone else.
   const { me, acting } = state;
   if (!opt || !me || state.pending) return;
   const previous = picks()[me];
   if (previous?.optKey === key) return;
-  const game = gameById(opt.gameId);
+  const game = boardGame(opt.gameId);
   if (!game) return;
   const problem = pickProblem(opt);
   if (problem) return toast(problem);
@@ -529,7 +529,7 @@ async function refreshLive() {
 // interrupted by a full re-render.
 function setRung(key, index) {
   const [gameId, type] = key.split(':');
-  const game = gameById(gameId);
+  const game = boardGame(gameId);
   if (!game) return;
   const [top, bottom] = ladderSides(game, type, index);
   if (state.rungs.get(key) === top.key) return;
@@ -547,7 +547,7 @@ function setRung(key, index) {
 function syncStrips() {
   for (const strip of $app.querySelectorAll('.strip')) {
     const [gameId, type] = strip.dataset.ladder.split(':');
-    const game = gameById(gameId);
+    const game = boardGame(gameId);
     if (!game) continue;
     const left = rungIndex(game, type) * STRIP_ITEM;
     if (Math.abs(strip.scrollLeft - left) >= STRIP_ITEM / 2) strip.scrollLeft = left;
@@ -564,7 +564,7 @@ $app.addEventListener(
     // syncStrips scrolling a strip to its line fires this too. Only a real swipe pins the
     // column to a line; otherwise it keeps following whoever picks this game.
     const [gameId, type] = key.split(':');
-    const game = gameById(gameId);
+    const game = boardGame(gameId);
     if (game && !state.rungs.has(key) && index === rungIndex(game, type)) return;
     setRung(key, index);
   },

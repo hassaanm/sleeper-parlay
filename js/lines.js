@@ -131,6 +131,40 @@ export function buildGames(lobby, details, window, now = Date.now()) {
   return games.sort((a, b) => a.start - b.start || a.matchup.localeCompare(b.matchup));
 }
 
+// A game that has kicked off, as a pickable card built from its lines (live, or at
+// kickoff once it's final), with the same option keys as the board's. Only the admin,
+// fixing someone's leg, sees these (state.js actingGame).
+export function gameFromLines(sb, lines, id) {
+  const game = { id, start: sb.start, away: sb.away, home: sb.home, matchup: `${sb.away} @ ${sb.home}`, locked: false, relatedIds: [] };
+  const opt = (key, type, label, price, other, extra) => ({
+    key, gameId: id, type, label, price, fair: other == null ? price / 100 : price / (price + other), available: true, ...extra,
+  });
+  const { ml = {}, mlIds = {} } = lines;
+  game.ml = ['away', 'home'].map((side) => {
+    const other = side === 'away' ? 'home' : 'away';
+    return ml[side] == null ? null
+      : opt(mlIds[side] ? `${mlIds[side]}:yes` : `${sb.key}-ml-${side}`, 'ml', `${game[side]} ML`, ml[side], ml[other], { team: game[side] });
+  });
+  const even = (rungs, price) => rungs.reduce((best, r, i) => (Math.abs(price(r) - 50) < Math.abs(price(rungs[best]) - 50) ? i : best), 0);
+  // A spread market names the favorite: YES is the favorite's side.
+  const spread = (lines.spreads ?? []).map((r) => {
+    const awayFav = r.awayLine < 0;
+    return {
+      away: opt(`${r.id}:${awayFav ? 'yes' : 'no'}`, 'spread', `${game.away} ${signed(r.awayLine)}`, r.away, r.home, { team: game.away, line: r.awayLine }),
+      home: opt(`${r.id}:${awayFav ? 'no' : 'yes'}`, 'spread', `${game.home} ${signed(-r.awayLine)}`, r.home, r.away, { team: game.home, line: -r.awayLine }),
+      homeLine: -r.awayLine,
+    };
+  }).sort((a, b) => b.homeLine - a.homeLine);
+  const total = (lines.totals ?? []).map((r) => ({
+    line: r.line,
+    over: opt(`${r.id}:yes`, 'total', `Over ${r.line}`, r.over, r.under, { line: r.line, side: 'over' }),
+    under: opt(`${r.id}:no`, 'total', `Under ${r.line}`, r.under, r.over, { line: r.line, side: 'under' }),
+  })).sort((a, b) => a.line - b.line);
+  game.spread = spread.length ? { rungs: spread, mainIndex: even(spread, (r) => r.away.price) } : null;
+  game.total = total.length ? { rungs: total, mainIndex: even(total, (r) => r.over.price) } : null;
+  return game;
+}
+
 export function indexOptions(games) {
   const index = new Map();
   const add = (o) => o && index.set(o.key, o);

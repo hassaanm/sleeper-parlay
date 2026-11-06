@@ -1,7 +1,7 @@
 // App state and everything derived from it: the route, the one mutable `state`
 // object, and read-only questions about it (who picked what, is it locked, how each
 // leg is doing). No DOM and no network here; the rules themselves are in rules.js.
-import { ladderKey } from './lines.js';
+import { gameFromLines, ladderKey } from './lines.js';
 import { clashFor, gameKey, gradePick, legLockedReason, pickBlockedReason, slipLocked, startsBeforeCutoff } from './rules.js';
 
 // Routes: "<base>/" is the landing page, "<base>/<leagueId>" is that league's slip.
@@ -102,6 +102,35 @@ export const gameById = (id) => state.games.find((g) => g.id === id);
 // A matchup page's game: a board game by id, or, once it kicks off and leaves the
 // board, the scoreboard's by "AWAY@HOME".
 export const matchupGame = (id) => gameById(id) ?? state.sports?.games.get(id);
+
+// While the admin picks for someone, games that have kicked off show as pickable cards
+// built from their lines, so a leg can still be fixed after kickoff (board.js). The card
+// keeps the board's game id (or the saved leg's), so the leg on it still shows as theirs.
+const actingCache = new Map();
+export function actingGame(sb) {
+  const lines = state.prices.get(sb.key);
+  if (!state.acting || !lines || sb.status?.state === 'pre') return null;
+  const matchup = `${sb.away} @ ${sb.home}`;
+  const id = state.games.find((g) => g.matchup === matchup)?.id
+    ?? Object.values(picks()).find((p) => p.matchup === matchup)?.gameId ?? sb.key;
+  const cached = actingCache.get(sb.key);
+  if (cached?.lines === lines && cached.game.id === id) return cached.game;
+  const game = gameFromLines(sb, lines, id);
+  actingCache.set(sb.key, { lines, game });
+  return game;
+}
+const actingGames = () => (state.acting ? [...(state.sports?.games.values() ?? [])].map(actingGame).filter(Boolean) : []);
+// The game a board card or strip belongs to: the admin's rebuilt card first.
+export const boardGame = (id) => actingGames().find((g) => g.id === id) ?? gameById(id);
+// A tapped cell's option, from the admin's rebuilt cards or the board's.
+export function boardOption(key) {
+  for (const g of actingGames()) {
+    const all = [...g.ml, ...(g.spread?.rungs ?? []).flatMap((r) => [r.away, r.home]), ...(g.total?.rungs ?? []).flatMap((r) => [r.over, r.under])];
+    const hit = all.find((o) => o?.key === key);
+    if (hit) return hit;
+  }
+  return state.options.get(key);
+}
 // Everyone's picks. A change to your own leg shows as soon as you tap (state.pending),
 // before its save comes back.
 export function picks() {
@@ -117,7 +146,7 @@ export function picks() {
 // Why the current member can't take `opt` right now, in words, or null if they can. The
 // board greys out a cell with a problem, and tapping it shows this (app.js choose).
 export function pickProblem(opt) {
-  const game = gameById(opt.gameId);
+  const game = boardGame(opt.gameId);
   if (!game) return 'That line is closed.';
   const clash = clashFor(state.slip, state.me, opt);
   if (clash) return `${memberName(clash.userId)} already has ${clash.pick.label}.`;

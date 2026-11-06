@@ -11,9 +11,10 @@ const EVENTS = 'https://api.sleeper.app/predictions/events';
 function linesFrom(events, game, price) {
   const of = (type) => events.find((e) => e.market_type === type)?.markets ?? [];
   const ml = {};
+  const mlIds = {}; // market ids, so a card rebuilt from these lines keys its picks the same way
   for (const m of of('moneyline')) {
-    if (m.subject_id === game.away) ml.away = price(m, 'yes');
-    if (m.subject_id === game.home) ml.home = price(m, 'yes');
+    if (m.subject_id === game.away) (ml.away = price(m, 'yes')), (mlIds.away = m.market_id);
+    if (m.subject_id === game.home) (ml.home = price(m, 'yes')), (mlIds.home = m.market_id);
   }
   // A spread market reads "PIT wins by over 3.5": YES is PIT −3.5, NO the other side.
   const spreads = of('spread')
@@ -27,7 +28,7 @@ function linesFrom(events, game, price) {
   const totals = of('total')
     .map((m) => ({ id: m.market_id, line: Number(m.line), over: price(m, 'yes'), under: price(m, 'no') }))
     .filter((r) => r.over != null && r.under != null);
-  return { ml, spreads, totals };
+  return { ml, mlIds, spreads, totals };
 }
 
 const quoted = (p) => (p > 0 && p < 100 ? p : null);

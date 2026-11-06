@@ -3,7 +3,7 @@
 import { matchupColors } from '../teams.js';
 import { awayWinPct, ladderKey, ladderSides } from '../lines.js';
 import { clashFor, gameKey } from '../rules.js';
-import { DEMO_MODES, LAST_WEEK, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
+import { DEMO_MODES, LAST_WEEK, actingGame, beforeCutoff, gameTakers, hasStarted, isLocked, memberById, pickProblem, picks, rungIndex, scoreboardGames, state } from '../state.js';
 import { LOCK_ICON, STICKER_SLAP_MS, avatar, chevronSmall, teamGo, dayFmt, dayTimeFmt, esc, fmtLine, fmtOdds, pretty, seeded, shortDayFmt, signSpan, teamLogo, timeFmt, tvBadges, weatherIcon } from '../ui.js';
 
 export const STRIP_ITEM = 36;
@@ -139,9 +139,11 @@ export function renderGames() {
   // Games still to come by day, then a band and the live games, then the final ones.
   const upcoming = state.games.filter((g) => !hasStarted(g));
   const band = (label, games, cls = '') => `<div class="band ${cls}" data-key="band-${label}"><span>${label}</span><small>${games.length} ${games.length === 1 ? 'game' : 'games'}</small></div>`;
+  // The admin, picking for someone, gets started games as pickable cards too.
+  const orPickable = (card) => (g) => { const game = actingGame(g); return game ? renderGame(game) : card(g); };
   return linesNote + byDay(upcoming, renderGame, '')
-    + (live.length ? band('LIVE', live, 'live') + byDay(live, liveCard, 'live-') : '')
-    + (final.length ? band('FINAL', final) + byDay(final, finalCard, 'final-') : '');
+    + (live.length ? band('LIVE', live, 'live') + byDay(live, orPickable(liveCard), 'live-') : '')
+    + (final.length ? band('FINAL', final) + byDay(final, orPickable(finalCard), 'final-') : '');
 }
 
 // Games grouped under their day's title. Upcoming days get ids for the day chips.
