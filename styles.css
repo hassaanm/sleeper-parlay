@@ -31,6 +31,9 @@
 * { scrollbar-width: none; }
 *::-webkit-scrollbar { display: none; }
 html, body { margin: 0; }
+/* No rubber-band past the ends: on iPhones a hard fling pulled the page (and the slip with it)
+   half a screen past the last game before it snapped back. */
+html { overscroll-behavior: none; }
 
 body {
   background: var(--bg);
@@ -474,7 +477,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .ts-bar:not(.solid) .ts-title { pointer-events: none; }
 .ts-title:has(.ts-side + .ts-side) { justify-content: space-between; }
 .round-spacer { width: 28px; flex: none; }
-.tsheet-body { height: 100%; overflow-y: auto; overscroll-behavior: contain; }
+.tsheet-body { height: 100%; overflow-y: auto; overscroll-behavior: none; }
 /* The page is solid, so the glow band behind it (.tsheet::before) shows only where you
    pull past the top. */
 .page { min-height: 100%; padding: 0 16px max(32px, env(safe-area-inset-bottom)); background: var(--bg-2); }
@@ -747,7 +750,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .parlay-card.ticket .parlay-foot { margin: 0; padding: 12px 16px 0; }
 /* A long slip on a short screen: the legs scroll, so the totals stay in view. */
 .parlay-card.ticket { display: flex; flex-direction: column; max-height: calc(100dvh - var(--topbar-h) - var(--subbar-h) - var(--acting-h, 0px) - 48px); }
-.parlay-card.ticket .sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.parlay-card.ticket .sheet-body { min-height: 0; overflow-y: auto; overscroll-behavior: none; }
 
 .legs { list-style: none; margin: 0; padding: 0; }
 .leg {
@@ -895,7 +898,7 @@ h1, h2 { letter-spacing: -0.02em; }
 .slip .sheet-body {
   /* Up and down only: iPhones let a scroll box pan sideways too unless it's clipped. */
   overflow-x: hidden; overflow-y: auto; touch-action: pan-y;
-  padding: 0; overscroll-behavior: contain; /* no top gap: a tinted first leg meets the dashed line */
+  padding: 0; overscroll-behavior: none; /* no top gap: a tinted first leg meets the dashed line */
   border-top: 1px dashed var(--line); transition: opacity 0.25s ease;
 }
 /* Leg highlights run edge to edge, but the tear-line notches always win: the legs
