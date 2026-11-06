@@ -1,7 +1,7 @@
 // Run with: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { americanOdds, buildGames, indexOptions, multiplierToAmerican, weekWindowAt } from '../js/lines.js';
+import { americanOdds, buildGames, indexOptions, midChance, multiplierToAmerican, weekWindowAt } from '../js/lines.js';
 
 const HOUR = 3_600_000;
 const WEEK = 7 * 24 * HOUR;
@@ -124,4 +124,12 @@ test('indexOptions finds every option by key', () => {
   assert.equal(index.get('s10.5:yes'), undefined); // closed market
   const fresh = details().set('g1', ev('g1', { markets: [mkt('ml-kc', 'KC', null, 60, 42)] }));
   assert.equal(indexOptions([oneGame(fresh)]).size, 1 + 3 * 2 + 3 * 2); // the missing DEN moneyline is skipped
+});
+
+test('midChance reads a live market even when one side has no sellers', () => {
+  const m = { yes_bid: 99, yes_ask: 100, no_bid: 0, no_ask: 1 };
+  assert.equal(midChance(m, 'yes'), 99); // a team far ahead: not "no price"
+  assert.equal(midChance(m, 'no'), 1);
+  assert.equal(midChance({ yes_bid: 48, yes_ask: 52 }, 'yes'), 50);
+  assert.equal(midChance({ yes_bid: 0, yes_ask: 100 }, 'yes'), null); // empty book
 });

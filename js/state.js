@@ -172,8 +172,7 @@ export function legsWithLive() {
         // While live: is it covering right now? After the final: hit, miss, or push.
         grade: started ? gradePick(pick, status.awayScore, status.homeScore) : null,
         // The market keeps trading during the game, so its price is a live chance.
-        livePrice: status?.state === 'in' && live?.available ? live.price : null,
-        liveFair: status?.state === 'in' && live?.available ? live.fair : null,
+        ...liveChance(pick.optKey, status?.state === 'in' ? live : null),
       };
     })
     // By kickoff, then by game (in board order), so legs on the same game sit together.
@@ -181,6 +180,18 @@ export function legsWithLive() {
       || TYPE_ORDER.indexOf(a.pick.type) - TYPE_ORDER.indexOf(b.pick.type));
 }
 const TYPE_ORDER = ['ml', 'spread', 'total'];
+
+// A live leg's chance right now: its market's bid/ask middle (lines.js midChance). The
+// market pauses or drops off the list now and then during a game, so the last chance
+// seen is kept until a new one comes in; otherwise the leg would flash back to its pick
+// price. `live` is null when the leg's game isn't underway.
+const lastChance = new Map(); // optKey -> cents
+function liveChance(optKey, live) {
+  if (live === null) return { livePrice: null, liveFair: null };
+  if (live?.chance != null) lastChance.set(optKey, live.chance);
+  const c = lastChance.get(optKey) ?? null;
+  return { livePrice: c, liveFair: c == null ? null : c / 100 };
+}
 
 const rungHas = (rung, key) => [rung.away, rung.home, rung.over, rung.under].some((o) => o?.key === key);
 

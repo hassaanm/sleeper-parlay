@@ -22,6 +22,16 @@ export function multiplierToAmerican(mult) {
 
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`);
 
+// The market's current chance for one side, in cents: the middle of its bid and ask.
+// Unlike the ask, it still has a number when nobody will sell (ask 100) or buy (bid 0),
+// as when a team is far ahead in a live game. Null for an empty book.
+export function midChance(market, side) {
+  const bid = Number(market[`${side}_bid`]) || 0;
+  const ask = Number(market[`${side}_ask`]);
+  if (!(ask > 0 && ask <= 100) || (bid <= 0 && ask >= 100)) return null;
+  return Math.min(99, Math.max(1, Math.round((bid + ask) / 2)));
+}
+
 function option(game, type, market, side, label, extra = {}) {
   const price = side === 'yes' ? market.yes_ask : market.no_ask;
   // No-vig probability: the two asks add up to a bit over 100, so normalize them. With
@@ -36,6 +46,7 @@ function option(game, type, market, side, label, extra = {}) {
     price,
     fair: book > 0 ? price / book : price / 100,
     available: market.status === 'active' && price > 0 && price < 100,
+    chance: market.status === 'active' ? midChance(market, side) : null,
     ...extra,
   };
 }
