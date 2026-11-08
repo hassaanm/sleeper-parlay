@@ -175,9 +175,8 @@ export function legsWithLive() {
         ...liveChance(pick.optKey, status?.state === 'in' ? live : null),
       };
     })
-    // Finished legs last, since they're settled; the rest by kickoff, so live legs lead.
-    // Then by game (in board order), so legs on the same game sit together.
-    .sort((a, b) => (a.status?.state === 'post') - (b.status?.state === 'post') || a.pick.start - b.pick.start || a.pick.matchup.localeCompare(b.pick.matchup)
+    // By kickoff, then by game (in board order), so legs on the same game sit together.
+    .sort((a, b) => a.pick.start - b.pick.start || a.pick.matchup.localeCompare(b.pick.matchup)
       || TYPE_ORDER.indexOf(a.pick.type) - TYPE_ORDER.indexOf(b.pick.type));
 }
 const TYPE_ORDER = ['ml', 'spread', 'total'];
