@@ -940,6 +940,13 @@ h1, h2 { letter-spacing: -0.02em; }
 .ll-side { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
 .ll-when, .ll-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: inherit; }
 .ll-side.right .ll-who { margin-left: auto; }
+/* A game still to come has no down to center, so the matchup and kickoff take the room
+   they need and the name gets the rest. Half the row cut "HOU v LAC · Sun 3:05 PM" short
+   in the share picture, which is a bit narrower than most phones. */
+.leg-line.later { display: flex; justify-content: space-between; gap: 8px; }
+.leg-line.later .ll-side:first-child { flex: none; }
+.leg-line.later .ll-dot { display: none; }
+.leg-line.later .ll-side.right { flex: 0 1 auto; min-width: 0; }
 /* A name too long for the room left beside the down shrinks (app.js fitNames). */
 .ll-who.tight { font-size: 10.5px; }
 .ll-dot { color: #b9c2dd; font-weight: 700; }

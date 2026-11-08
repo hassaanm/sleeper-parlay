@@ -159,7 +159,7 @@ function parlayLegs(forPicture = false, legs = legsWithLive()) {
           <span class="leg-logo">${logo}${avatar(l.member, 18, 'leg-face')}</span>
           <span class="leg-pick">${esc(pretty(l.pick.label))}</span>
           ${final ? `<span class="leg-odds">${mark}</span>` : `<span class="leg-odds ${live ? (now >= l.pick.price ? 'up' : 'down') : ''}">${signSpan(fmtOdds(now))}</span>`}
-          <div class="leg-line">
+          <div class="leg-line${live || final ? '' : ' later'}">
             <span class="ll-side"><span class="ll-when">${when}</span>${downL}</span>
             <span class="ll-dot">${hasDown ? '·' : final ? `<span class="ll-result ${l.grade}">${barLabel(l.pick, st, true)}</span>` : ''}</span>
             <span class="ll-side right">${downR}<small class="ll-who ${isMine ? 'me' : ''}">${esc(l.member.name)}</small></span>
