@@ -88,8 +88,9 @@ export const clockTiles = (ms) => clockParts(ms).map(([digits, label]) => `
 const dayId = (start) => `day-${new Date(start).toDateString().replaceAll(' ', '-')}`;
 
 export function renderSubbar() {
-  const upcoming = state.games.filter((g) => !hasStarted(g));
-  const days = [...new Map(upcoming.map((g) => [dayFmt.format(g.start), g.start])).values()];
+  // Days with a game on now or still to come, the same days the board lists above Final.
+  const ahead = [...scoreboardGames('in'), ...state.games.filter((g) => !hasStarted(g))].sort((a, b) => a.start - b.start);
+  const days = [...new Map(ahead.map((g) => [dayFmt.format(g.start), g.start])).values()];
   return `
   <nav class="subbar">
     <div class="day-chips">
@@ -136,13 +137,16 @@ export function renderGames() {
     : state.gamesError ? `<div class="card" data-key="lines-note"><p class="error">Couldn’t load lines: ${esc(state.gamesError)}</p><button class="btn" data-action="reload-lines">Retry</button></div>`
       : live.length + final.length ? '' : `<div class="card" data-key="lines-note"><p>No NFL games found for this week yet.</p></div>`;
 
-  // Games still to come by day, then a band and the live games, then the final ones.
+  // Live and upcoming games together by kickoff, so the games on now sit above the ones
+  // still to come (a live card stands out on its own). Then a band and the final ones,
+  // which matter least by then.
   const upcoming = state.games.filter((g) => !hasStarted(g));
   const band = (label, games, cls = '') => `<div class="band ${cls}" data-key="band-${label}"><span>${label}</span><small>${games.length} ${games.length === 1 ? 'game' : 'games'}</small></div>`;
   // The admin, picking for someone, gets started games as pickable cards too.
   const orPickable = (card) => (g) => { const game = actingGame(g); return game ? renderGame(game) : card(g); };
-  return linesNote + byDay(upcoming, renderGame, '')
-    + (live.length ? band('LIVE', live, 'live') + byDay(live, orPickable(liveCard), 'live-') : '')
+  const ahead = [...live.map((g) => ({ g, card: orPickable(liveCard) })), ...upcoming.map((g) => ({ g, card: renderGame }))]
+    .sort((a, b) => a.g.start - b.g.start);
+  return linesNote + byDay(ahead.map((x) => ({ start: x.g.start, html: () => x.card(x.g) })), (x) => x.html(), '')
     + (final.length ? band('FINAL', final) + byDay(final, orPickable(finalCard), 'final-') : '');
 }
 
